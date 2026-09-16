@@ -211,6 +211,9 @@ add_executable(
         z4c/z4c_amr.cpp
         z4c/cce/cce.cpp
         z4c/driftcontrol/driftcontrol.cpp
+
+        nbody/nbody.cpp
+        nbody/nbody_tasks.cpp
 )
 
 # custom problem generator to be included in compile
