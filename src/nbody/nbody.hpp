@@ -43,7 +43,7 @@ class NBody {
     int num_nbody; // number of discrete particles to trakc
     // principle data register for wider access 
     // shape (num_nbody, _var_per_body)
-    DvceArray2D<Real> nbody_data; 
+    DualArray2D<Real> nbody_data; 
 
     // container to hold names of TaskIDs
     NbodyTaskIDs id;
@@ -60,8 +60,8 @@ class NBody {
     int _var_per_body = 7; // (m,x,y,z,vx,vy,vz)
     // private registers for intermediate integrator states (rk4)
     // all private registers are len 7 * num_nbody (m,x,y,z,vx,vy,vz)
-    DvceArray1D<Real> _y_init, _y_sub, _y_ret; 
-    DvceArray1D<Real> _k_sub;
+    DualArray1D<Real> _y_init, _y_sub, _y_ret; 
+    DualArray1D<Real> _k_sub;
 };
 
 } // end namespace nbody

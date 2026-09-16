@@ -63,6 +63,10 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     // all other reads optional, add overwrite
   } // end n
 
+  // mark host view as modified and sync to device
+  nbody_data.template modify<HostMemSpace>();
+  nbody_data.tempalte sync<DevExeSpace>();
+
 } // end ctor
 
 NBody::~NBody() {

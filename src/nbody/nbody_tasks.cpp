@@ -32,7 +32,7 @@ namespace nbody {
 
 void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl) {
   
-    TaskID none(0);
+  TaskID none(0);
 
   id.integrate = tl["before_timeintegrator"]->AddTask(&NBody::Integrate, this, none);
 
