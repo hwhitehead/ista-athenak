@@ -19,6 +19,8 @@
 #include "driver/driver.hpp"
 #include "tasklist/task_list.hpp"
 
+#include "nbody/nbody.hpp"
+
 // Forward declarations
 class MeshBlock;
 class ADM;
@@ -80,7 +82,7 @@ class MeshBlockPack {
   particles::Particles *ppart=nullptr;
   gravity::Gravity *pgrav=nullptr;
 
-  nbody::NBody* pnbody = nullptr;
+  nbody::NBody *pnbody = nullptr;
 
   // units (needed to convert code units to cgs for, e.g., cooling or radiation)
   units::Units *punit=nullptr;

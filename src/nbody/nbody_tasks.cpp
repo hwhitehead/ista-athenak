@@ -59,7 +59,6 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 // propogate nbody forward in time
 TaskStatus NBody::Communicate(Driver *pdrive, int stage) {
 
-
   return TaskStatus::complete;
 
 }

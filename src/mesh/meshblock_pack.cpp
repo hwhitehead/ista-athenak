@@ -101,7 +101,7 @@ void MeshBlockPack::AddCoordinates(ParameterInput *pin) {
 }
 
 void MeshBlockPack::AddNBody(ParameterInput *pin) {
-  pnbody = new NBody(this, pin);
+  pnbody = new nbody::NBody(this, pin);
 }
 
 //----------------------------------------------------------------------------------------
