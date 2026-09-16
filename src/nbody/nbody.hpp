@@ -46,7 +46,7 @@ class NBody {
     DvceArray2D<Real> nbody_data; 
 
     // container to hold names of TaskIDs
-    HydroTaskIDs id;
+    NbodyTaskIDs id;
 
     // task functions
     TaskStatus Integrate(Driver *d, int stage);
