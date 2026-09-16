@@ -142,6 +142,11 @@ namespace {
 
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   
+
+  std::cout << "Hello world." << std::endl;
+  std::exit(EXIT_FAILURE);
+  return;
+
   // Binary parameters
   Real q_binary     = pin->GetOrAddReal("problem", "q_binary", 1.0);
   Real e_binary     = pin->GetOrAddReal("problem", "e_binary", 0.99);
