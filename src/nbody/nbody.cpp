@@ -65,4 +65,8 @@ NBody::Nbody(MeshBlockPack *ppack, ParameterInput *pin) :
 
 }
 
+NBody::~NBody() {
+    return;
 }
+
+} // end nbody namespace

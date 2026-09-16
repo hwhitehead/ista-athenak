@@ -33,6 +33,8 @@
 #include "meshblock_pack.hpp"
 #include "gravity/gravity.hpp"
 
+#include "nbody/nbody.hpp"
+
 //----------------------------------------------------------------------------------------
 // MeshBlockPack constructor:
 
