@@ -158,8 +158,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   //user_srcs_func    = &TDESourceTerm;
 
   // Define history output
-  user_hist         = true;
-  user_hist_func    = &NBodyHistory;
+  // user_hist         = true;
+  // user_hist_func    = &NBodyHistory;
 
   // Free the Kokkos::View accumulators before Kokkos::finalize() runs (they have
   // static storage duration, so they'd be destroyed after main() returns).
