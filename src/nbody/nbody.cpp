@@ -36,7 +36,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
-  _ver_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
+  _var_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
 
   // initialise array space on device
   if (num_nbody > 0) {
@@ -53,13 +53,13 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   for (int n = 0; n < num_nbody; n++) {
     std::string nbody_header = "nbody" + std::to_string(n);
     // mass, position and velocity data MUST be passed
-    nbody_data(n, 0) = GetReal(nbody_header, "m");
-    nbody_data(n, 1) = GetReal(nbody_header, "x");
-    nbody_data(n, 2) = GetReal(nbody_header, "y");
-    nbody_data(n, 3) = GetReal(nbody_header, "z");
-    nbody_data(n, 4) = GetReal(nbody_header, "vx");
-    nbody_data(n, 5) = GetReal(nbody_header, "vy");
-    nbody_data(n, 6) = GetReal(nbody_header, "vz");
+    nbody_data(n, 0) = pin->GetReal(nbody_header, "m");
+    nbody_data(n, 1) = pin->GetReal(nbody_header, "x");
+    nbody_data(n, 2) = pin->GetReal(nbody_header, "y");
+    nbody_data(n, 3) = pin->GetReal(nbody_header, "z");
+    nbody_data(n, 4) = pin->GetReal(nbody_header, "vx");
+    nbody_data(n, 5) = pin->GetReal(nbody_header, "vy");
+    nbody_data(n, 6) = pin->GetReal(nbody_header, "vz");
     // all other reads optional, add overwrite
   } // end n
 
