@@ -37,7 +37,7 @@ namespace nbody {
 class NBody {
   public:
     NBody(MeshBlockPack *ppack, ParameterInput *pin);
-    ~Nbody();
+    ~NBody();
     
     // data
     int num_nbody; // number of discrete particles to trakc
