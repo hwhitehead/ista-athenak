@@ -5,6 +5,9 @@ __pycache__
 # Temporary testing files
 tst/test_log.txt
 
+# venv files
+pysrc/athenak_venv
+
 # Athena output files
 *.tab
 *.vtk

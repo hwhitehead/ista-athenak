@@ -38,6 +38,8 @@ namespace particles {class Particles;}
 namespace units {class Units;}
 namespace gravity {class Gravity;}
 
+namespace nbody {class NBody;}
+
 //----------------------------------------------------------------------------------------
 //! \class MeshBlockPack
 //! \brief data/functions associated with a single block
@@ -78,6 +80,7 @@ class MeshBlockPack {
   particles::Particles *ppart=nullptr;
   gravity::Gravity *pgrav=nullptr;
 
+  nbody::NBody* pnbody = nullptr;
 
   // units (needed to convert code units to cgs for, e.g., cooling or radiation)
   units::Units *punit=nullptr;

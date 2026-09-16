@@ -56,6 +56,7 @@ MeshBlockPack::MeshBlockPack(Mesh *pm, int igids, int igide) :
 // MeshBlock destructor
 
 MeshBlockPack::~MeshBlockPack() {
+  if (pnbody != nullptr) {delete pnbody;}
   if (ppart  != nullptr) {delete ppart;}
   if (pnr    != nullptr) {delete pnr;}
   if (pdyngr != nullptr) {delete pdyngr;}
@@ -95,6 +96,10 @@ void MeshBlockPack::AddMeshBlocks(ParameterInput *pin) {
 
 void MeshBlockPack::AddCoordinates(ParameterInput *pin) {
   pcoord = new Coordinates(pin, this);
+}
+
+void MeshBlockPack::AddNBody(ParameterInput *pin) {
+  pnbody = new NBody(this, pin);
 }
 
 //----------------------------------------------------------------------------------------

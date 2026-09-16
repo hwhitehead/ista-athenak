@@ -19,9 +19,11 @@
 #include "hydro/hydro.hpp"
 #include "coordinates/cell_locations.hpp"
 
+#include "nbody/nbody.hpp"
+
 Real pi = 3.141592653589793;
 enum HistIndcies {M_BH = 0, X_BH = 1, Y_BH = 2, Z_BH = 3, VX_BH = 4, VY_BH = 5, VZ_BH = 6};
-void FlybyHistory(HistoryData *pdata, Mesh *pm);
+void NBodyHistory(HistoryData *pdata, Mesh *pm);
 
 // ============================ Kokkos functions ==============================
 // ============================================================================
@@ -143,12 +145,12 @@ namespace {
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // Binary parameters
-  Real q_binary     = pin->GetOrAddReal("problem", "q_binary", 1.0);
-  Real e_binary     = pin->GetOrAddReal("problem", "e_binary", 0.99);
+  // Real q_binary     = pin->GetOrAddReal("problem", "q_binary", 1.0);
+  // Real e_binary     = pin->GetOrAddReal("problem", "e_binary", 0.99);
 
-  // Create binary class
-  Flyby flyby     = Flyby(q_binary, e_binary);
-  h_flyby         = std::make_unique<Flyby>(flyby);
+  // // Create binary class
+  // Flyby flyby     = Flyby(q_binary, e_binary);
+  // h_flyby         = std::make_unique<Flyby>(flyby);
 
   // Define source terms
   //g_sources_enabled = true;
@@ -157,7 +159,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // Define history output
   user_hist         = true;
-  user_hist_func    = &FlybyHistory;
+  user_hist_func    = &NBodyHistory;
 
   // Free the Kokkos::View accumulators before Kokkos::finalize() runs (they have
   // static storage duration, so they'd be destroyed after main() returns).
@@ -225,35 +227,37 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 // ============================================================================
 
 
-void FlybyHistory(HistoryData *pdata, Mesh *pm) {
+void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   // stores bh data into hist 
   
-  // define storage labels
-  int nvar_per_bh = 4;
-  pdata->nhist = 2 * nvar_per_bh;
-  for (int s = 0; s < 2; ++s) {
-    int offset = s * nvar_per_bh;
-    pdata->label[0 + offset] = "m" + std::to_string(s);
-    pdata->label[1 + offset] = "x" + std::to_string(s);
-    pdata->label[2 + offset] = "y" + std::to_string(s);
-    pdata->label[3 + offset] = "z" + std::to_string(s);
-  }
-
-  // if data out of scope, set all to zero
-  if (h_flyby == nullptr) {
-    for (int n = 0; n < pdata->nhist; ++n) { pdata->hdata[n] = 0.0; }
+  // if nbody undefined, skip output
+  if (pm->pmb_pack->pnbody == nullptr) {
     return;
   }
 
-  // unpackage position data
-  const auto pos_data = h_flyby->BinaryPosition(pm->time);
+  // generate labels for nbody data
+  int num_nbody = pm->pmb_pack->pnbody->num_nbody;
+  int var_per_body = 7; // TODO: publicise register length
+  int hist_var_per_body = var_per_body; // TODO: allow difference, check 
+  pdata->nhist = hist_var_per_body * num_nbody; 
+  for (int n = 0; n < num_nbody; ++n) {
+    int hist_offset = n * hist_var_per_body;
+    pdata->label[0 + hist_offset] = "m" + std::to_string(n); // TODO: build space-space enumerate labels
+    pdata->label[1 + hist_offset] = "x" + std::to_string(n);
+    pdata->label[2 + hist_offset] = "y" + std::to_string(n);
+    pdata->label[3 + hist_offset] = "z" + std::to_string(n);
+    pdata->label[4 + hist_offset] = "vx" + std::to_string(n);
+    pdata->label[5 + hist_offset] = "vy" + std::to_string(n);
+    pdata->label[6 + hist_offset] = "vz" + std::to_string(n);
+  } // end body loop
 
-  // iterate over both minor and major bodies
-  for (int s = 0; s < 2; ++s) {
-    int offset = s * nvar_per_bh;
-    pdata->hdata[M_BH + offset] = h_flyby->m(s);
-    pdata->hdata[X_BH + offset] = pos_data[s][0];
-    pdata->hdata[Y_BH + offset] = pos_data[s][1];
-    pdata->hdata[Z_BH + offset] = pos_data[s][2];
-  }
+  // stash values
+  for (int n = 0; n < 2; ++n) {
+    int nbody_offset = n * var_per_body;
+    int hist_offset = n * hist_var_per_body;
+    for (int i = 0; i < num_nbody; i++) {
+      pdata->hdata[i + hist_offset] = pm->pmb_pack->pnbody->nbody_data(n, i);
+    } // end var loop
+  } // end body loop
+  return;
 }

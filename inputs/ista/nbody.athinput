@@ -1,0 +1,64 @@
+# AthenaK input file for 3d isothermal circumbinary disk
+
+<comment>
+problem   = cbdiso_3d
+
+<job>
+basename  = chkpt      # problem ID: basename of output filenames
+
+<mesh>
+nghost    = 2          # Number of ghost cells (must be even for SMR/AMR)
+nx1       = 64         # Number of zones in X1-direction (root level, dx=0.1)
+x1min     = -1.0       # minimum value of X1
+x1max     =  1.0       # maximum value of X1
+ix1_bc    = outflow    # inner-X1 boundary flag
+ox1_bc    = outflow    # outer-X1 boundary flag
+
+nx2       = 64        # Number of zones in X2-direction (root level, dx=0.1)
+x2min     = -1.0       # minimum value of X2
+x2max     =  1.0       # maximum value of X2
+ix2_bc    = outflow    # inner-X2 boundary flag
+ox2_bc    = outflow    # outer-X2 boundary flag
+
+nx3       = 1        # Number of zones in X3-direction (root level, dx=0.1)
+x3min     = -0.05       # minimum value of X3
+x3max     =  0.05       # maximum value of X3
+ix3_bc    = outflow    # inner-X3 boundary flag
+ox3_bc    = outflow    # outer-X3 boundary flag
+
+<meshblock>
+nx1       = 80          # Number of cells in each MeshBlock, X1-dir
+nx2       = 120         # Number of cells in each MeshBlock, X2-dir
+nx3       = 1          # Number of cells in each MeshBlock, X3-dir
+
+<time>
+evolution  = dynamic    # dynamic/kinematic/static
+integrator = rk2        # time integration algorithm
+cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim       = -1         # cycle limit
+tlim       = 50.0       # time limit
+ndiag      = 1          # cycles between diagostic output
+
+<hydro>
+eos         = ideal     # EOS type
+reconstruct = ppm4      # spatial reconstruction method
+rsolver     = hlle      # Riemann-solver to be used
+gamma       = 1.000001    # gamma = C_p/C_v
+
+<problem>
+
+<nbody>
+num_nbody = 1
+
+<nbody0>
+m = 1.0
+x = 1.0
+y = 2.0
+z = 3.0
+vx = -1.0
+vy = -2.0
+vz = -3.0
+
+<output1>
+file_type  = hst        # history data dump
+dt         = 0.01        # time increment between outputs
