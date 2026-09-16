@@ -67,12 +67,30 @@ TaskStatus NBody::Communicate(Driver *pdrive, int stage) {
 }
 
 void NBody::EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f) {
-    // evaluate forcing function f = ydot for nbody state y = (mi, xi, ...)
+  // evaluate forcing function f = ydot for nbody state y = (mi, xi, ...)
 
-    // for (int n = 0; n < num_nbody; n++) {
+//   for (int n = 0; n < num_nbody; n++) {
+//     const Real offset_n = n * _var_per_body;
+//     // mass data is not evolved using RK4, copy directly
+    
+//     // dot(x) = v
+//     f(offset_n + 0) = y(offset_n + 4);
+//     f(offset_n + 1) = y(offset_n + 5);
+//     f(offset_n + 2) = y(offset_n + 6);
+    
+//     // dot(v) = a
+//     // TODO: add accelerations by gas (gravity, accretion etc.)
+//     f(offset_n + 3) = 0.0;
+//     f(offset_n + 4) = 0.0;
+//     f(offset_n + 5) = 0.0;
+//     // add acceleraton by mutual nbody gravity
+//     for (int m = 0; m < num_nbody; m++) {
+//         if (m == n) continue; // no self-gravity
+//         const Real offset_m = m * _var_per_nbody;
 
-    // }
-
+//     }
+//   }
+  return;
 }
 
 } // end namespace nbody

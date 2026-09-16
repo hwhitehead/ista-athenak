@@ -48,7 +48,7 @@ gamma       = 1.000001    # gamma = C_p/C_v
 <problem>
 
 <nbody>
-num_nbody = 1
+num_nbody = 0
 
 <nbody0>
 m = 1.0
