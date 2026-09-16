@@ -30,7 +30,7 @@ class Driver;
 
 struct NbodyTaskIDs {
     TaskID integrate;
-}
+};
 
 namespace nbody {
 
@@ -63,4 +63,4 @@ class NBody {
 
 } // end namespace nbody
 
-#endif NBODY_NBODY_HPP_
+#endif // NBODY_NBODY_HPP_
