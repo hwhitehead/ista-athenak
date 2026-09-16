@@ -93,6 +93,7 @@ class MeshBlockPack {
   void AddPhysics(ParameterInput *pin);
   void AddMeshBlocks(ParameterInput *pin);
   void AddCoordinates(ParameterInput *pin);
+  void AddNBody(ParameterInput *pin);
   void RegisterParabolicProcess(parabolic::ParabolicProcessDescriptor process) {
     parabolic_processes.push_back(process);
   }
