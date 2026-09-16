@@ -66,4 +66,13 @@ TaskStatus NBody::Communicate(Driver *pdrive, int stage) {
 
 }
 
+void NBody::EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f) {
+    // evaluate forcing function f = ydot for nbody state y = (mi, xi, ...)
+
+    // for (int n = 0; n < num_nbody; n++) {
+
+    // }
+
+}
+
 } // end namespace nbody
