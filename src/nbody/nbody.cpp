@@ -63,10 +63,9 @@ NBody::Nbody(MeshBlockPack *ppack, ParameterInput *pin) :
     // all other reads optional, add overwrite
   } // end n
 
-}
+} // end ctor
 
 NBody::~NBody() {
-    return;
 }
 
 } // end nbody namespace

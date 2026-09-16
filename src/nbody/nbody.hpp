@@ -49,9 +49,10 @@ class NBody {
     NbodyTaskIDs id;
 
     // task functions
+    void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Communicate(Driver *d, int state);
-
+    
   private:
     Mesh* pmy_pack;
     int _var_per_body = 7; // (m,x,y,z,vx,vy,vz)
