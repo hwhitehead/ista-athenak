@@ -184,7 +184,7 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
 
 void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
-  // unpack mb_pack metadata
+  // unpack all data pre par_for
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
   int is = indcs.is, ie = indcs.ie;
@@ -198,12 +198,12 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto grav_const = _G;
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
-    KOKKOS_LAMBDA(const int m, const int n, const int k, const int j, const int i) 
+    KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
     {
       // identify cell position
-      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
       // compute body-cell seperation
       const Real dx = x - nbody_read.d_view(n, X_DATA);
@@ -213,21 +213,21 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       const Real dr = Kokkos::sqrt(dr_sqr);
 
       // compute Newtonian gravitational acceleration
-      const Real rho = prim(m, IDN, k, j, i);
+      const Real rho = prim(mb_id, IDN, k, j, i);
       const Real g_fac = grav_const * nbody_read.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_read.d_view(n, R_SOFT_DATA) * nbody_read.d_view(n, R_SOFT_DATA), -1.5);
       const Real dp_fac = g_fac * beta_dt * rho;
       const Real dpx = dp_fac * dx;
       const Real dpy = dp_fac * dy;
       const Real dpz = dp_fac * dz;
-      const Real dE = dp_fac * (dx * prim(m, IVX, k, j, i)
-                                + dy * prim(m, IVY, k, j, i)
-                                + dz * prim(m, IVZ, k, j, j));
+      const Real dE = dp_fac * (dx * prim(mb_id, IVX, k, j, i)
+                                + dy * prim(mb_id, IVY, k, j, i)
+                                + dz * prim(mb_id, IVZ, k, j, j));
 
       // apply updates to cell's conserved quantities
-      cons(m, IM1, k, j, i) += dpx;
-      cons(m, IM2, k, j, i) += dpy;
-      cons(m, IM3, k, j, i) += dpz;
-      cons(m, IEN, k, j, i) += dE;
+      cons(mb_id, IM1, k, j, i) += dpx;
+      cons(mb_id, IM2, k, j, i) += dpy;
+      cons(mb_id, IM3, k, j, i) += dpz;
+      cons(mb_id, IEN, k, j, i) += dE;
 
       // compute backreaction on body TEMP: set as zero
       Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;

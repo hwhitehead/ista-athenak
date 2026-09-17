@@ -59,7 +59,7 @@ z0 = 0.0
 vx0 = 0.0
 vy0 = 0.2
 vz0 = 0.0
-r_soft0 = 0.01
+r_soft0 = 0.1
 
 m1 = 0.25
 x1 = 0.8
@@ -68,7 +68,7 @@ z1 = 0.0
 vx1 = 0.0
 vy1 = -0.8
 vz1 = 0.0
-r_soft1 = 0.01
+r_soft1 = 0.1
 
 <output1>
 file_type  = hst        # history data dump
