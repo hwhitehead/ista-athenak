@@ -141,9 +141,9 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, MDOT_REG) = 0.0; 
 
     // dot(x) = v
-    f.h_view(n, XDOT_REG) = y.h_view(n, VX_DATA);
-    f.h_view(n, YDOT_REG) = y.h_view(n, VY_DATA);
-    f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_DATA);
+    f.h_view(n, XDOT_REG) = y.h_view(n, VX_REG);
+    f.h_view(n, YDOT_REG) = y.h_view(n, VY_REG);
+    f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_REG);
     
     // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
     f.h_view(n, VXDOT_REG) = 0.0;
@@ -154,13 +154,13 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
       if (m == n) continue; // no self-gravity
         
       // extract spatial seperation
-      const Real dx = y.h_view(n, X_DATA) - y.h_view(m, X_DATA);
-      const Real dy = y.h_view(n, Y_DATA) - y.h_view(m, Y_DATA);
-      const Real dz = y.h_view(n, Z_DATA) - y.h_view(m, Z_DATA);
+      const Real dx = y.h_view(n, X_REG) - y.h_view(m, X_REG);
+      const Real dy = y.h_view(n, Y_REG) - y.h_view(m, Y_REG);
+      const Real dz = y.h_view(n, Z_REG) - y.h_view(m, Z_REG);
     
       // compute acceleration
       const Real r_sqr = dx * dx + dy * dy + dz * dz;
-      const Real g_fac = _G * y.h_view(m, M_DATA) / (r_sqr * std::sqrt(r_sqr));
+      const Real g_fac = _G * y.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
       
       // decompose acceleration and update
       f.h_view(n, VXDOT_REG) -= g_fac * dx;
@@ -195,50 +195,47 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &cons = pmy_pack->phydro->u0;
 
 
-  par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
-    KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) 
+  par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
+    KOKKOS_LAMBDA(const int m, const int n, const int k, const int j, const int i) 
     {
-      for (int n = 0; n < num_nbody; n++) {
+      // identify cell position
+      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
+      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
 
-        // // identify cell position
-        // const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-        // const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-        // const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+      // compute body-cell seperation
+      const Real dx = x - nbody_data.d_view(n, X_DATA);
+      const Real dy = y - nbody_data.d_view(n, Y_DATA);
+      const Real dz = z - nbody_data.d_view(n, Z_DATA);
+      const Real dr_sqr = dx * dx + dy * dy + dz * dz;
+      const Real dr = Kokkos::sqrt(dr_sqr);
 
-        // // compute body-cell seperation
-        // const Real dx = x - nbody_data.d_view(n, X_DATA);
-        // const Real dy = y - nbody_data.d_view(n, Y_DATA);
-        // const Real dz = z - nbody_data.d_view(n, Z_DATA);
-        // const Real dr_sqr = dx * dx + dy * dy + dz * dz;
-        // const Real dr = Kokkos::sqrt(dr_sqr);
+      // compute Newtonian gravitational acceleration
+      const Real rho = prim(m, IDN, k, j, i);
+      const Real g_fac = _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_data.d_view(n, R_SOFT_DATA) * nbody_data.d_view(n, R_SOFT_DATA), -1.5);
+      const Real dp_fac = g_fac * beta_dt * rho;
+      const Real dpx = dp_fac * dx;
+      const Real dpy = dp_fac * dy;
+      const Real dpz = dp_fac * dz;
+      const Real dE = dp_fac * (dx * prim(m, IVX, k, j, i)
+                                + dy * prim(m, IVY, k, j, i)
+                                + dz * prim(m, IVZ, k, j, j));
 
-        // // compute Newtonian gravitational acceleration
-        // const Real rho = prim(m, IDN, k, j, i);
-        // const Real g_fac = _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_data.d_view(n, R_SOFT_DATA) * nbody_data.d_view(n, R_SOFT_DATA), -1.5);
-        // const Real dp_fac = g_fac * beta_dt * rho;
-        // const Real dpx = dp_fac * dx;
-        // const Real dpy = dp_fac * dy;
-        // const Real dpz = dp_fac * dz;
-        // const Real dE = dp_fac * (dx * prim(m, IVX, k, j, i)
-        //                           + dy * prim(m, IVY, k, j, i)
-        //                           + dz * prim(m, IVZ, k, j, j));
+      // apply updates to cell's conserved quantities
+      cons(m, IM1, k, j, i) += dpx;
+      cons(m, IM2, k, j, i) += dpy;
+      cons(m, IM3, k, j, i) += dpz;
+      cons(m, IEN, k, j, i) += dE;
 
-        // // apply updates to cell's conserved quantities
-        // cons(m, IM1, k, j, i) += dpx;
-        // cons(m, IM2, k, j, i) += dpy;
-        // cons(m, IM3, k, j, i) += dpz;
-        // cons(m, IEN, k, j, i) += dE;
+      // compute backreaction on body TEMP: set as zero
+      Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
 
-        // compute backreaction on body TEMP: set as zero
-        Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
-
-        // stash backreaction registers, with care for race conditions
-        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DM_BACK), dm_back);
-        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVX_BACK), dvx_back);
-        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVY_BACK), dvy_back);
-        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVZ_BACK), dvz_back);
-        // wait until NBody::Gather task to sync back to host
-      } // end n loop
+      // stash backreaction registers, with care for race conditions
+      Kokkos::atomic_add(&delta_nbody_data.d_view(n, DM_BACK), dm_back);
+      Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVX_BACK), dvx_back);
+      Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVY_BACK), dvy_back);
+      Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVZ_BACK), dvz_back);
+      // wait until NBody::Gather task to sync back to host
     }); // end par_for
 
   
