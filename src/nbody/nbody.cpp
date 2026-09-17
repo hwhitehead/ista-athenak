@@ -72,7 +72,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // set delta_nbody as zero for first timestep
   // TODO: add restart protection? maybe not needed
-  Kokkos::deep_copy(delta_nbody_data, 0.0);
+  // Kokkos::deep_copy(delta_nbody_data, 0.0);
 
   // mark host view as modified and sync to device
   nbody_data.template modify<HostMemSpace>();
@@ -130,6 +130,30 @@ void NBody::EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f) {
 }
 
 void NBody::NBodySrcTerms(const Real beta_dt) {
+
+  GravitySrcTerm(beta_dt);
+
+  return;
+}
+
+void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
+
+  // unpack mb_pack metadata
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  int is = indcs.is, ie = indcs.ie;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  auto &prim = pmy_pack->phydro->w0;
+  auto &cons = pmy_pack->phydro->u0;
+
+  par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
+    KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) 
+    {
+      // compute gravitational force on each body
+      for (int n = 0; n < num_nbody; n++) {
+        continue;
+      }
+    }); // end par_for
   return;
 }
 

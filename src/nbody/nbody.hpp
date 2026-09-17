@@ -62,6 +62,7 @@ class NBody {
     TaskStatus Scatter(Driver *d, int state);
     void EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
+    void NBodyGravitySrcTerm(const Real beta_dt);
 
   private:
     MeshBlockPack* pmy_pack;

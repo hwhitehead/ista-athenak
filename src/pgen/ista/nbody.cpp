@@ -261,7 +261,6 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
   // stash values
   for (int n = 0; n < 2; ++n) {
-    int nbody_offset = n * var_per_body;
     int hist_offset = n * hist_var_per_body;
     for (int i = 0; i < num_nbody; i++) {
       pdata->hdata[i + hist_offset] = pm->pmb_pack->pnbody->nbody_data.h_view(n, i);

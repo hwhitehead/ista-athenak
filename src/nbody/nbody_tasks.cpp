@@ -51,20 +51,20 @@ TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
-    // only perform integration on rank 0
-    if (global_variable::my_rank != 0) return TaskStatus::complete;
+    // // only perform integration on rank 0
+    // if (global_variable::my_rank != 0) return TaskStatus::complete;
 
-    // package data into compact form
-    for (int n = 0; n < num_nbody; n++) {
-        const Real offset_n = 7 * n;
-        for (int i = 0; i < 7; i++) {
-            y_init(offset_n + i) = nbody_data[n](i);
-        } // end i
-    } // end n
+    // // package data into compact form
+    // for (int n = 0; n < num_nbody; n++) {
+    //     const Real offset_n = 7 * n;
+    //     for (int i = 0; i < 7; i++) {
+    //         y_init(offset_n + i) = nbody_data[n](i);
+    //     } // end i
+    // } // end n
 
-    // compute k coefficients for RK4 substeps
-    const Real dt_over_6 = tstep / 6.0;
-    EvaluteF(y_init, k_sub);
+    // // compute k coefficients for RK4 substeps
+    // const Real dt_over_6 = tstep / 6.0;
+    // EvaluteF(y_init, k_sub);
 
     return TaskStatus::complete;
 }
