@@ -62,6 +62,8 @@ TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
+  return TaskStatus::complete;
+
   const Real dt = pmy_pack->pmesh->dt;
   const Real dt_over_6 = dt / 6.0;
 
@@ -127,8 +129,6 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
   return TaskStatus::complete;
 }
-
-
 
 // scatter nbody state from rank 0 to all ranks
 // OR evolve each nbody seperate and avoid scatter

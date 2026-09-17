@@ -107,7 +107,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   // generate labels for nbody data
   int num_nbody = pm->pmb_pack->pnbody->num_nbody;
   int var_per_body = pm->pmb_pack->pnbody->var_per_body;
-  int hist_var_per_body = var_per_body; // TODO: allow difference, add safety check 
+  int hist_var_per_body = NVAR_HIST;
   pdata->nhist = hist_var_per_body * num_nbody; 
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * hist_var_per_body;
