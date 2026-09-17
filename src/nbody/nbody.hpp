@@ -60,7 +60,7 @@ class NBody {
     TaskStatus Gather(Driver *d, int state);
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Scatter(Driver *d, int state);
-    void EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f);
+    void EvaluateF(DvceArray2D<Real> y, DvceArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
     void NBodyGravitySrcTerm(const Real beta_dt);
 
