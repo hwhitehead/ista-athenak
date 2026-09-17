@@ -51,6 +51,13 @@ TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
+  // for now, pseduo-integrate position in time (x = t)
+
+  const Real dt = pmy_pack->pmb->dt;
+  nbody_data.d_view(0, 1) += dt;
+  nbody_data.template modify<DevExeSpace>();
+  nbody_data.template sync<HostMemSpace>();
+
     // // only perform integration on rank 0
     // if (global_variable::my_rank != 0) return TaskStatus::complete;
 
