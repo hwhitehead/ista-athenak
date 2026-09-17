@@ -210,7 +210,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         const Real dy = y - nbody_data.d_view(n, Y_DATA);
         const Real dz = z - nbody_data.d_view(n, Z_DATA);
         const Real dr_sqr = dx * dx + dy * dy + dz * dz;
-        const Real dr = Kokkos:sqrt(dr_sqr);
+        const Real dr = Kokkos::sqrt(dr_sqr);
 
         // compute Newtonian gravitational acceleration
         const Real rho = prim(m, IDN, k, j, i);
