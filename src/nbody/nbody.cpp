@@ -21,6 +21,7 @@
 #include "shearing_box/orbital_advection.hpp"
 #include "bvals/bvals.hpp"
 #include "hydro/hydro.hpp"
+#include "coordinates/cell_locations.hpp"
 
 #include "nbody/nbody.hpp"
 
@@ -208,13 +209,13 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         const Real dx = x - nbody_data.d_view(n, X_DATA);
         const Real dy = y - nbody_data.d_view(n, Y_DATA);
         const Real dz = z - nbody_data.d_view(n, Z_DATA);
-        const Real r_sqr = dx * dx + dy * dy + dz * dz;
-        const Real r = Kokkos:sqrt(r_sqr);
+        const Real dr_sqr = dx * dx + dy * dy + dz * dz;
+        const Real dr = Kokkos:sqrt(dr_sqr);
 
         // compute Newtonian gravitational acceleration
         const Real rho = prim(m, IDN, k, j, i);
         const Real g_fac = _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_data.d_view(n, R_SOFT_DATA) * nbody_data.d_view(n, R_SOFT_DATA), -1.5);
-        const Real dp_fac = g_fac * dt * rho;
+        const Real dp_fac = g_fac * beta_dt * rho;
         const Real dpx = dp_fac * dx;
         const Real dpy = dp_fac * dy;
         const Real dpz = dp_fac * dz;
@@ -222,11 +223,11 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
                                   + dy * prim(m, IVY, k, j, i)
                                   + dz * prim(m, IVZ, k, j, j));
 
-        // apply updates to cell
-        u(m, IM1, k, j, i) += dpx;
-        u(m, IM2, k, j, i) += dpy;
-        u(m, IM3, k, j, i) += dpz;
-        u(m, IEN, k, j, i) += dE;
+        // apply updates to cell's conserved quantities
+        cons(m, IM1, k, j, i) += dpx;
+        cons(m, IM2, k, j, i) += dpy;
+        cons(m, IM3, k, j, i) += dpz;
+        cons(m, IEN, k, j, i) += dE;
 
         // compute backreaction on body TEMP: set as zero
         Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
@@ -236,7 +237,8 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVX_BACK), dvx_back);
         Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVY_BACK), dvy_back);
         Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVZ_BACK), dvz_back);
-      }
+        // wait until NBody::Gather task to sync back to host
+      } // end n loop
     }); // end par_for
 
   
