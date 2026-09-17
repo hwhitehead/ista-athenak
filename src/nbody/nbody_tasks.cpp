@@ -54,9 +54,9 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // for now, pseduo-integrate position in time (x = t)
 
   const Real dt = pmy_pack->pmesh->dt;
-  nbody_data.d_view(0, 1) += dt;
-  nbody_data.template modify<DevExeSpace>();
-  nbody_data.template sync<HostMemSpace>();
+  nbody_data.h_view(0, 1) += dt;
+  nbody_data.template modify<HostMemSpace>();
+  nbody_data.template sync<DevExeSpace>();
 
     // // only perform integration on rank 0
     // if (global_variable::my_rank != 0) return TaskStatus::complete;
