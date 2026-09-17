@@ -65,7 +65,7 @@ class NBody {
     TaskStatus NewTimeStep(Driver *pdrive, int stage);
 
     // methods
-    void CalcTimeStep();
+    Real CalcTimeStep();
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
     void NBodyGravitySrcTerm(const Real beta_dt);
