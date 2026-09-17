@@ -136,23 +136,6 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
   // y = (m, x, y, z, vx, vy, vz ....)
   // f = (0, vx, vy, vz, ax, ay, az ...)
 
-  std::cout << "starting eval F" << std::endl;
-  f.h_view(0, MDOT_REG) = 0.0;
-  std::cout << "read MDOT_REG..." << std::endl;
-  f.h_view(0, XDOT_REG) = 0.0;
-  std::cout << "read XDOT_REG..." << std::endl;
-  f.h_view(0, YDOT_REG) = 0.0;
-  std::cout << "read YDOT_REG..." << std::endl;
-  f.h_view(0, ZDOT_REG) = 0.0;
-  std::cout << "read ZDOT_REG..." << std::endl;
-  f.h_view(0, VXDOT_REG) = 0.0;
-  std::cout << "read VXDOT_REG..." << std::endl;
-  f.h_view(0, VYDOT_REG) = 0.0;
-  std::cout << "read VYDOT_REG..." << std::endl;
-  f.h_view(0, VZDOT_REG) = 0.0;
-  std::cout << "read VZDOT_REG..." << std::endl;
-  std::cout << "finished reading f buffer.";
-
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
     f.h_view(n, MDOT_REG) = 0.0; 
