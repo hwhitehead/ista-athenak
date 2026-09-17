@@ -29,16 +29,15 @@ namespace nbody {
 NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   nbody_data("nbody_data",1,1),
   delta_nbody_data("delta_nbody_data",1,1);
-  _y_init("y_init",1),
-  _y_sub("y_sub",1),
-  _y_ret("y_ret",1),
-  _k_sub("k_sub",1),
+  _y_init("y_init",1,1),
+  _y_sub("y_sub",1,1),
+  _y_ret("y_ret",1,1),
+  _k_sub("k_sub",1,1),
   pmy_pack(ppack) {
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
   _var_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
-
 
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
@@ -87,51 +86,52 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 NBody::~NBody() {
 }
 
-void NBody::EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f) {
+void NBody::EvaluateF(DvceArray2D<Real> y, DvceArray2D<Real> &f) {
   // evaluate forcing function f = ydot for nbody state
   // y = (m, x, y, z, vx, vy, vz ....)
   // f = (0, vx, vy, vz, ax, ay, az ...)
 
-  // for (int n = 0; n < num_nbody; n++) {
-  //   const Real offset_n = n * _var_per_body;
-  //   // mdot = 0 
-  //   f(offset_n + 0) = 0.0; 
+  for (int n = 0; n < num_nbody; n++) {
+    const Real offset_n = n * _var_per_body;
+    // mdot = 0 
+    f.h_view(offset_n + 0) = 0.0; 
 
-  //   // dot(x) = v
-  //   f(offset_n + 1) = y(offset_n + 4);
-  //   f(offset_n + 2) = y(offset_n + 5);
-  //   f(offset_n + 3) = y(offset_n + 6);
+    // dot(x) = v
+    f.h_view(offset_n + 1) = y.h_view(offset_n + 4);
+    f.h_view(offset_n + 2) = y.h_view(offset_n + 5);
+    f.h_view(offset_n + 3) = y.h_view(offset_n + 6);
     
-  //   // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
-  //   f(offset_n + 4) = 0.0;
-  //   f(offset_n + 5) = 0.0;
-  //   f(offset_n + 6) = 0.0;
-  //   // add acceleraton by mutual nbody gravity
-  //   for (int m = 0; m < num_nbody; m++) {
-  //     if (m == n) continue; // no self-gravity
-  //     const Real offset_m = m * _var_per_body;
+    // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
+    f.h_view(offset_n + 4) = 0.0;
+    f.h_view(offset_n + 5) = 0.0;
+    f.h_view(offset_n + 6) = 0.0;
+    // add acceleraton by mutual nbody gravity
+    for (int m = 0; m < num_nbody; m++) {
+      if (m == n) continue; // no self-gravity
+      const Real offset_m = m * _var_per_body;
         
-  //     // extract spatial seperation
-  //     const Real dx = y(offset_n + 1) - y(offset_m + 1);
-  //     const Real dy = y(offset_n + 2) - y(offset_m + 2);
-  //     const Real dz = y(offset_n + 3) - y(offset_m + 3);
+      // extract spatial seperation
+      const Real dx = y.h_view(offset_n + 1) - y.h_view(offset_m + 1);
+      const Real dy = y.h_view(offset_n + 2) - y.h_view(offset_m + 2);
+      const Real dz = y.h_view(offset_n + 3) - y.h_view(offset_m + 3);
     
-  //     // compute acceleration
-  //     const Real r_sqr = dx * dx + dy * dy + dz * dz;
-  //     const Real a_fac = _G * y(offset_m) / (r_sqr * sqrt(r_sqr));
+      // compute acceleration
+      const Real r_sqr = dx * dx + dy * dy + dz * dz;
+      const Real a_fac = _G * y(offset_m) / (r_sqr * sqrt(r_sqr));
       
-  //     // decompose acceleration and update
-  //     f(offset_n + 4) -= a_fac * dx;
-  //     f(offset_n + 5) -= a_fac * dy;
-  //     f(offset_n + 6) -= a_fac * dz;
-  //   } // end m loop
-  // } // end n loop
+      // decompose acceleration and update
+      f(offset_n + 4) -= a_fac * dx;
+      f(offset_n + 5) -= a_fac * dy;
+      f(offset_n + 6) -= a_fac * dz;
+    } // end m loop
+  } // end n loop
+
   return;
 }
 
 void NBody::NBodySrcTerms(const Real beta_dt) {
 
-  GravitySrcTerm(beta_dt);
+  NBodyGravitySrcTerm(beta_dt);
 
   return;
 }
@@ -143,6 +143,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   int is = indcs.is, ie = indcs.ie;
   int js = indcs.js, je = indcs.je;
   int ks = indcs.ks, ke = indcs.ke;
+  int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
@@ -150,9 +151,9 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) 
     {
       // compute gravitational force on each body
-      for (int n = 0; n < num_nbody; n++) {
-        continue;
-      }
+      // for (int n = 0; n < num_nbody; n++) {
+      //   continue;
+      // }
     }); // end par_for
   return;
 }

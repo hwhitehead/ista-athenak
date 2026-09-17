@@ -68,9 +68,8 @@ class NBody {
     MeshBlockPack* pmy_pack;
     int _var_per_body = 7; // (m,x,y,z,vx,vy,vz)
     // private registers for intermediate integrator states (rk4)
-    // all private registers are len 7 * num_nbody (m,x,y,z,vx,vy,vz)
-    DualArray1D<Real> _y_init, _y_sub, _y_ret; 
-    DualArray1D<Real> _k_sub;
+    DualArray2D<Real> _y_init, _y_sub, _y_ret; 
+    DualArray2D<Real> _k_sub;
     Real _G = 1.0; // gravitational constant
 };
 
