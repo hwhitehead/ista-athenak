@@ -99,8 +99,7 @@ Real NBody::CalcTimeStep() {
 
   for (int n = 0; n < num_nbody; n++) {
     // compute total accerelation due to hydro forces on BH n
-    // TEMP: set to zero
-    const Real a_hydro_sqr = 0.0;
+    const Real a_hydro_sqr = 0.0;  // TEMP: set to zero
     // test pairwise interactions
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-interaction
@@ -120,7 +119,7 @@ Real NBody::CalcTimeStep() {
       const Real hm4_hydro = a_hydro_sqr / dr_sqr;                        // gas acceleration time
       // combine timescales
       const Real hm4 = hm2_fb * hm2_fb + hm4_ff + hm4_hydro;
-      hm4_max = std::min(hm4_max, hm4);
+      hm4_max = std::max(hm4_max, hm4);
     }
   }
 
