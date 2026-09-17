@@ -58,7 +58,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
     std::string nbody_header = "nbody";
-    str::string str_n = std::to_string(n);
+    std::string str_n = std::to_string(n);
     // mass, position and velocity data MUST be passed
     nbody_data.h_view(n, M_DATA) = pin->GetReal(nbody_header, "m" + str_n);
     nbody_data.h_view(n, X_DATA) = pin->GetReal(nbody_header, "x" + str_n);
@@ -67,7 +67,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     nbody_data.h_view(n, VX_DATA) = pin->GetReal(nbody_header, "vx" + str_n);
     nbody_data.h_view(n, VY_DATA) = pin->GetReal(nbody_header, "vy" + str_n);
     nbody_data.h_view(n, VZ_DATA) = pin->GetReal(nbody_header, "vz" + str_n);
-    nbody_data.h_view(n, RSOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
+    nbody_data.h_view(n, R_SOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
     
     // all other reads optional, add overwrite
   } // end n
@@ -145,9 +145,9 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_DATA);
     
     // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
-    f.h_view(n, VXDOT_DATA) = 0.0;
-    f.h_view(n, VYDOT_DATA) = 0.0;
-    f.h_view(n, VZDOT_DATA) = 0.0;
+    f.h_view(n, VXDOT_REG) = 0.0;
+    f.h_view(n, VYDOT_REG) = 0.0;
+    f.h_view(n, VZDOT_REG) = 0.0;
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-gravity
@@ -162,9 +162,9 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
       const Real g_fac = _G * y.h_view(m, M_DATA) / (r_sqr * std::sqrt(r_sqr));
       
       // decompose acceleration and update
-      f.h_view(n, VXDOT_DATA) -= g_fac * dx;
-      f.h_view(n, VYDOT_DATA) -= g_fac * dy;
-      f.h_view(n, VZDOT_DATA) -= g_fac * dz;
+      f.h_view(n, VXDOT_REG) -= g_fac * dx;
+      f.h_view(n, VYDOT_REG) -= g_fac * dy;
+      f.h_view(n, VZDOT_REG) -= g_fac * dz;
     } // end m loop
   } // end n loop
 
@@ -185,6 +185,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
   // unpack mb_pack metadata
   auto &indcs = pmy_pack->pmesh->mb_indcs;
+  auto &size  = pmy_pack->pmb->mb_size;
   int is = indcs.is, ie = indcs.ie;
   int js = indcs.js, je = indcs.je;
   int ks = indcs.ks, ke = indcs.ke;
@@ -198,21 +199,43 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
     {
       for (int n = 0; n < num_nbody; n++) {
 
-        // TEMP: force gravity by cell-center
+        // identify cell position
+        const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
+        const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+        const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+
+        // compute body-cell seperation
+        const Real dx = x - nbody_data.d_view(n, X_DATA);
+        const Real dy = y - nbody_data.d_view(n, Y_DATA);
+        const Real dz = z - nbody_data.d_view(n, Z_DATA);
+        const Real r_sqr = dx * dx + dy * dy + dz * dz;
+        const Real r = Kokkos:sqrt(r_sqr);
+
+        // compute Newtonian gravitational acceleration
         const Real rho = prim(m, IDN, k, j, i);
-        const Real g_num = _G * beta_dt * rho * nbody_data.d_view(n, M_DATA);
-        const Rela g_denom = Kokkos::pow(dr_sqr + nbody_data.d_view(n, RSOFT_DATA))
+        const Real g_fac = _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_data.d_view(n, R_SOFT_DATA) * nbody_data.d_view(n, R_SOFT_DATA), -1.5);
+        const Real dp_fac = g_fac * dt * rho;
+        const Real dpx = dp_fac * dx;
+        const Real dpy = dp_fac * dy;
+        const Real dpz = dp_fac * dz;
+        const Real dE = dp_fac * (dx * prim(m, IVX, k, j, i)
+                                  + dy * prim(m, IVY, k, j, i)
+                                  + dz * prim(m, IVZ, k, j, j));
 
-        const Real back_fac = 
+        // apply updates to cell
+        u(m, IM1, k, j, i) += dpx;
+        u(m, IM2, k, j, i) += dpy;
+        u(m, IM3, k, j, i) += dpz;
+        u(m, IEN, k, j, i) += dE;
 
-        // TEMP: set backreaction as zero
+        // compute backreaction on body TEMP: set as zero
         Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
 
         // stash backreaction registers, with care for race conditions
-        Kokkos::atomic_add(&nbody_data.d_view(n, DM_BACK)) = dm_back;
-        Kokkos::atomic_add(&nbody_data.d_view(n, DVX_BACK)) = dvx_back;
-        Kokkos::atomic_add(&nbody_data.d_view(n, DVY_BACK)) = dvy_back;
-        Kokkos::atomic_add(&nbody_data.d_view(n, DVZ_BACK)) = dvz_back;
+        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DM_BACK), dm_back);
+        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVX_BACK), dvx_back);
+        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVY_BACK), dvy_back);
+        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVZ_BACK), dvz_back);
       }
     }); // end par_for
 
