@@ -200,34 +200,34 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
     {
       for (int n = 0; n < num_nbody; n++) {
 
-        // identify cell position
-        const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-        const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-        const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+        // // identify cell position
+        // const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
+        // const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+        // const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
 
-        // compute body-cell seperation
-        const Real dx = x - nbody_data.d_view(n, X_DATA);
-        const Real dy = y - nbody_data.d_view(n, Y_DATA);
-        const Real dz = z - nbody_data.d_view(n, Z_DATA);
-        const Real dr_sqr = dx * dx + dy * dy + dz * dz;
-        const Real dr = Kokkos::sqrt(dr_sqr);
+        // // compute body-cell seperation
+        // const Real dx = x - nbody_data.d_view(n, X_DATA);
+        // const Real dy = y - nbody_data.d_view(n, Y_DATA);
+        // const Real dz = z - nbody_data.d_view(n, Z_DATA);
+        // const Real dr_sqr = dx * dx + dy * dy + dz * dz;
+        // const Real dr = Kokkos::sqrt(dr_sqr);
 
-        // compute Newtonian gravitational acceleration
-        const Real rho = prim(m, IDN, k, j, i);
-        const Real g_fac = _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_data.d_view(n, R_SOFT_DATA) * nbody_data.d_view(n, R_SOFT_DATA), -1.5);
-        const Real dp_fac = g_fac * beta_dt * rho;
-        const Real dpx = dp_fac * dx;
-        const Real dpy = dp_fac * dy;
-        const Real dpz = dp_fac * dz;
-        const Real dE = dp_fac * (dx * prim(m, IVX, k, j, i)
-                                  + dy * prim(m, IVY, k, j, i)
-                                  + dz * prim(m, IVZ, k, j, j));
+        // // compute Newtonian gravitational acceleration
+        // const Real rho = prim(m, IDN, k, j, i);
+        // const Real g_fac = _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_data.d_view(n, R_SOFT_DATA) * nbody_data.d_view(n, R_SOFT_DATA), -1.5);
+        // const Real dp_fac = g_fac * beta_dt * rho;
+        // const Real dpx = dp_fac * dx;
+        // const Real dpy = dp_fac * dy;
+        // const Real dpz = dp_fac * dz;
+        // const Real dE = dp_fac * (dx * prim(m, IVX, k, j, i)
+        //                           + dy * prim(m, IVY, k, j, i)
+        //                           + dz * prim(m, IVZ, k, j, j));
 
-        // apply updates to cell's conserved quantities
-        cons(m, IM1, k, j, i) += dpx;
-        cons(m, IM2, k, j, i) += dpy;
-        cons(m, IM3, k, j, i) += dpz;
-        cons(m, IEN, k, j, i) += dE;
+        // // apply updates to cell's conserved quantities
+        // cons(m, IM1, k, j, i) += dpx;
+        // cons(m, IM2, k, j, i) += dpy;
+        // cons(m, IM3, k, j, i) += dpz;
+        // cons(m, IEN, k, j, i) += dE;
 
         // compute backreaction on body TEMP: set as zero
         Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
