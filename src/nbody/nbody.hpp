@@ -41,7 +41,7 @@ class NBody {
     
     int num_nbody; // number of discrete particles to track
     int var_per_body; // (m,3x,3vx,+extras)
-    float newdt;
+    float dtnew;
 
     // principle data register for wider access 
     // shape (num_nbody, var_per_body)

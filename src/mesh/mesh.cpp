@@ -615,7 +615,7 @@ void Mesh::NewTimeStep(const Real tlim) {
   }
   // NBody timestep
   if (pmb_pack->pnbody != nullptr) {
-    dt_cycle = std::min(dt_cylce, pmb_pack->pnbody->dtnew);
+    dt_cycle = std::min(dt_cycle, pmb_pack->pnbody->dtnew);
   }
   // MHD timestep
   if (pmb_pack->pmhd != nullptr) {
