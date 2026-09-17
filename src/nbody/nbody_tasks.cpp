@@ -69,6 +69,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // if (global_variable::my_rank != 0) return TaskStatus::complete;
 
   // package data into scratch registers
+  // i runs over m,3x,3vx...
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < _reg_per_body; i++) {
           _y_init.h_view(n, i) = nbody_data.h_view(n, i);

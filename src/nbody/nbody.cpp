@@ -104,14 +104,14 @@ Real NBody::CalcTimeStep() {
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-interaction
       // compute binary properties
-      const Real Gm_bin = _G * (nbody_data.h_view(n, 0) + nbody_data.h_view(n, 1));
-      const Real dx = nbody_data.h_view(n, 1) - nbody_data.h_view(m, 1);
-      const Real dy = nbody_data.h_view(n, 2) - nbody_data.h_view(m, 2);
-      const Real dz = nbody_data.h_view(n, 3) - nbody_data.h_view(m, 3);
+      const Real Gm_bin = _G * (nbody_data.h_view(n, M_DATA) + nbody_data.h_view(m, M_DATA));
+      const Real dx = nbody_data.h_view(n, X_DATA) - nbody_data.h_view(m, X_DATA);
+      const Real dy = nbody_data.h_view(n, Y_DATA) - nbody_data.h_view(m, Y_DATA);
+      const Real dz = nbody_data.h_view(n, Z_DATA) - nbody_data.h_view(m, Z_DATA);
       const Real dr_sqr = dx * dx + dy * dy + dz * dz;
-      const Real dvx = nbody_data.h_view(n, 4) - nbody_data.h_view(m, 4);
-      const Real dvy = nbody_data.h_view(n, 5) - nbody_data.h_view(m, 5);
-      const Real dvz = nbody_data.h_view(n, 6) - nbody_data.h_view(m, 6);
+      const Real dvx = nbody_data.h_view(n, VX_DATA) - nbody_data.h_view(m, VX_DATA);
+      const Real dvy = nbody_data.h_view(n, VY_DATA) - nbody_data.h_view(m, VY_DATA);
+      const Real dvz = nbody_data.h_view(n, VZ_DATA) - nbody_data.h_view(m, VZ_DATA);
       const Real dv_sqr = dvx * dvx + dvy * dvy + dvz * dvz;
       // compute timescales
       const Real hm2_fb = dv_sqr / dr_sqr;                              // flyby time
@@ -137,34 +137,34 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
-    f.h_view(n, 0) = 0.0; 
+    f.h_view(n, M_DATA) = 0.0; 
 
     // dot(x) = v
-    f.h_view(n, 1) = y.h_view(n, 4);
-    f.h_view(n, 2) = y.h_view(n, 5);
-    f.h_view(n, 3) = y.h_view(n, 6);
+    f.h_view(n, X_DATA) = y.h_view(n, VX_DATA);
+    f.h_view(n, Y_DATA) = y.h_view(n, VY_DATA);
+    f.h_view(n, Z_DATA) = y.h_view(n, VZ_DATA);
     
     // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
-    f.h_view(n, 4) = 0.0;
-    f.h_view(n, 5) = 0.0;
-    f.h_view(n, 6) = 0.0;
+    f.h_view(n, AX_DATA) = 0.0;
+    f.h_view(n, AY_DATA) = 0.0;
+    f.h_view(n, AZ_DATA) = 0.0;
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-gravity
         
       // extract spatial seperation
-      const Real dx = y.h_view(n, 1) - y.h_view(m, 1);
-      const Real dy = y.h_view(n, 2) - y.h_view(m, 2);
-      const Real dz = y.h_view(n, 3) - y.h_view(m, 3);
+      const Real dx = y.h_view(n, X_DATA) - y.h_view(m, X_DATA);
+      const Real dy = y.h_view(n, Y_DATA) - y.h_view(m, Y_DATA);
+      const Real dz = y.h_view(n, Z_DATA) - y.h_view(m, Z_DATA);
     
       // compute acceleration
       const Real r_sqr = dx * dx + dy * dy + dz * dz;
-      const Real a_fac = _G * y.h_view(m, 0) / (r_sqr * sqrt(r_sqr));
+      const Real a_fac = _G * y.h_view(m, M_DATA) / (r_sqr * sqrt(r_sqr));
       
       // decompose acceleration and update
-      f.h_view(n, 4) -= a_fac * dx;
-      f.h_view(n, 5) -= a_fac * dy;
-      f.h_view(n, 6) -= a_fac * dz;
+      f.h_view(n, VX_DATA) -= a_fac * dx;
+      f.h_view(n, VY_DATA) -= a_fac * dy;
+      f.h_view(n, VZ_DATA) -= a_fac * dz;
     } // end m loop
   } // end n loop
 

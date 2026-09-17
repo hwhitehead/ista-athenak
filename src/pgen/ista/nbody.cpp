@@ -21,127 +21,10 @@
 
 #include "nbody/nbody.hpp"
 
-Real pi = 3.141592653589793;
-enum HistIndcies {M_BH = 0, X_BH = 1, Y_BH = 2, Z_BH = 3, VX_BH = 4, VY_BH = 5, VZ_BH = 6};
+// TODO: package this as a standard output format
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 
-// ============================ Kokkos functions ==============================
-// ============================================================================
-
-KOKKOS_INLINE_FUNCTION
-Real WrapTime(Real t, Real period) {
-  return t - Kokkos::floor(t / period) * period;
-}
-
-KOKKOS_INLINE_FUNCTION
-Real kokkos_atan2(Real y, Real x) {
-#if defined(__CUDA_ARCH__)
-  return atan2f(y, x);  
-#else
-  return std::atan2(y, x);
-#endif
-}
-
-class Flyby {
-  public:
-    Flyby(Real q, Real e) {
-      _mass_ratio = q;
-      _eccentricity = e;
-
-      // statics, for unitless system
-      _semi_major_axis = 1.0;
-      _primary_M = 1.0;
-      _G_const = 1.0;
-
-      // numerical method settinsgs
-      _num_iter = 100;
-      _precision = 1e-10;
-
-      // static binary properties
-      _mean_motion = Kokkos::sqrt(_G_const * _primary_M * (1 + _mass_ratio) / (Kokkos::pow(_semi_major_axis, 3)));
-      _period = 2 * pi / _mean_motion;
-    }
-    
-    // public access to private variables
-    KOKKOS_INLINE_FUNCTION Real q() const { return _mass_ratio;}
-    KOKKOS_INLINE_FUNCTION Real m_bin() const { return _primary_M * (1.0 + _mass_ratio);}
-    KOKKOS_INLINE_FUNCTION Real m(int i) const {
-      if (i == 0) {
-        return _primary_M;
-      } else {
-        return _primary_M * _mass_ratio;
-      }
-    }
-
-    // public methods
-    KOKKOS_INLINE_FUNCTION
-    Kokkos::Array<Kokkos::Array<Real, 3>, 2> BinaryPosition(Real t) {
-
-      Real t_since_peri  = WrapTime(t, _period);
-      Real a             = _semi_major_axis;
-      Real e             = _eccentricity;
-      Real q             = _mass_ratio;
-      Real E             = solve_halleys(e, _mean_motion, t_since_peri);
-
-      Real x_fac = a * (Kokkos::cos(E) - e) / (1.0 + q);
-      Real y_fac = a * Kokkos::sqrt(1.0 - e * e) * Kokkos::sin(E) / (1.0 + q);
-      Kokkos::Array<Real, 3> PrimaryPos   = { q * x_fac,  q * y_fac, 0.0};
-      Kokkos::Array<Real, 3> SecondaryPos = {- x_fac, - y_fac, 0.0};
-      return {PrimaryPos, SecondaryPos};
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    Kokkos::Array<Real, 3> KeplerDerivatives(
-      Real E, 
-      Real e, 
-      Real n, 
-      Real t)
-    {
-      Real f = E - e * Kokkos::sin(E) - n * t;
-      Real df = 1 - e * Kokkos::cos(E);
-      Real ddf = e * Kokkos::sin(E);
-      return {f, df, ddf};
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    Real solve_halleys(Real e, Real n, Real t) {
-      
-      int iter = 0;
-      Real E = n * t;
-      Kokkos::Array<Real, 3> f_df_ddf = KeplerDerivatives(E, e, n, t);
-      
-      while (Kokkos::abs(f_df_ddf[0]) > _precision){
-          E -= f_df_ddf[0] * f_df_ddf[1] / (f_df_ddf[1] * f_df_ddf[1] - 0.5 * f_df_ddf[0] * f_df_ddf[2]);
-          f_df_ddf = KeplerDerivatives(E, e, n, t);
-          iter += 1;
-          if (iter > _num_iter){
-              return E;  
-          }
-        }
-      return E;
-    }
-
-  private:
-    // specified properties
-    Real _mass_ratio, _eccentricity;
-
-    // unitary properties
-    Real _semi_major_axis, _primary_M, _G_const;
-  
-    // numerical method properties
-    int _num_iter;
-    Real _precision;
-
-    // derived properties
-    Real _mean_motion, _period;
-};
-
-namespace {
-  std::unique_ptr<Flyby> h_flyby; // smart ptr to Flyby class on host
-}
-
-// TDE problem generator
-
+// nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // load nbody properties
@@ -152,23 +35,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     user_hist_func = &NBodyHistory; // TODO: embed into nbody class
   }
 
-  // Binary parameters
-  // Real q_binary     = pin->GetOrAddReal("problem", "q_binary", 1.0);
-  // Real e_binary     = pin->GetOrAddReal("problem", "e_binary", 0.99);
-
-  // // Create binary class
-  // Flyby flyby     = Flyby(q_binary, e_binary);
-  // h_flyby         = std::make_unique<Flyby>(flyby);
-
-  // Define source terms
-  //g_sources_enabled = true;
-  //user_srcs         = true;
-  //user_srcs_func    = &TDESourceTerm;
-
-  // Define history output
-  // user_hist         = true;
-  // user_hist_func    = &NBodyHistory;
-
+  // TODO: check this with david
   // Free the Kokkos::View accumulators before Kokkos::finalize() runs (they have
   // static storage duration, so they'd be destroyed after main() returns).
   // pgen_final_func   = &CircumbinaryFinalAnalysis;
@@ -234,14 +101,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 // ======================== User-Defined Source Terms =========================
 // ============================================================================
 
-
+// write NBody data to hst output TODO: internalise as standard output
 void NBodyHistory(HistoryData *pdata, Mesh *pm) {
-  // stores bh data into hist 
-  
-  // if nbody undefined, skip output
-  if (pm->pmb_pack->pnbody == nullptr) {
-    return;
-  }
 
   // generate labels for nbody data
   int num_nbody = pm->pmb_pack->pnbody->num_nbody;

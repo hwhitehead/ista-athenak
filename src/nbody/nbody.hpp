@@ -32,6 +32,15 @@ struct NbodyTaskIDs {
     TaskID gather, integrate, scatter, calc_dt;
 };
 
+enum NBodyDataIndices {M_DATA = 0, 
+                        X_DATA = 1, Y_DATA = 2, Z_DATA = 3,
+                        VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6,
+                        AX_DATA = 7, AY_DATA = 8, AZ_DATA = 9};
+
+enum NBodyHistIndices {M_HIST = 0, 
+                        X_HIST = 1, Y_HIST = 2, Z_HIST = 3,
+                        VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6};
+
 namespace nbody {
 
 class NBody {
