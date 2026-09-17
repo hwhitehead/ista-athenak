@@ -105,7 +105,7 @@ Real NBody::CalcTimeStep() {
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-interaction
       // compute binary properties
-      const Real Gm_bin = _G * (body_data.h_view(n, 0) + nbody_data.h_view(n, 1));
+      const Real Gm_bin = _G * (nbody_data.h_view(n, 0) + nbody_data.h_view(n, 1));
       const Real dx = nbody_data.h_view(n, 1) - nbody_data.h_view(m, 1);
       const Real dy = nbody_data.h_view(n, 2) - nbody_data.h_view(m, 2);
       const Real dz = nbody_data.h_view(n, 3) - nbody_data.h_view(m, 3);

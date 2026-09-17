@@ -45,7 +45,7 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
 TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   
   // symmetrise nbody timestep with previous value
-  const Real dt_current = CalcTimeStep()
+  const Real dt_current = CalcTimeStep();
   const Real dt_sqr = dt_current * dt_current;
   dt_new = dt_sqr / dt_old;
 
