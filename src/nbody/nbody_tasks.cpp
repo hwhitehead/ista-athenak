@@ -54,6 +54,9 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 // collect forcing by hydro on nbody state
 TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 
+  // post hydro integration, delta_nbody_data populated on each MeshBlockPack
+  // need to sum across all packs
+
   return TaskStatus::complete;
 
 }
