@@ -39,7 +39,7 @@ class NBody {
     NBody(MeshBlockPack *ppack, ParameterInput *pin);
     ~NBody();
     
-    // data
+    // variables
     int num_nbody; // number of discrete particles to trakc
     // principle data register for wider access 
     // shape (num_nbody, _var_per_body)
@@ -48,12 +48,15 @@ class NBody {
     // container to hold names of TaskIDs
     NbodyTaskIDs id;
 
+    // physics module booleans
+    bool src_gravity, src_accretion;
+
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Communicate(Driver *d, int state);
     void EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f);
-
+    void NBodySrcTerms(const Real beta_dt);
 
   private:
     MeshBlockPack* pmy_pack;
@@ -62,6 +65,7 @@ class NBody {
     // all private registers are len 7 * num_nbody (m,x,y,z,vx,vy,vz)
     DualArray1D<Real> _y_init, _y_sub, _y_ret; 
     DualArray1D<Real> _k_sub;
+    Real _G = 1.0; // gravitational constant
 };
 
 } // end namespace nbody

@@ -144,6 +144,14 @@ namespace {
 
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
+  // load nbody properties
+  int num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
+  bool hist_nbody = pin->GetOrAddBoolean("nbody", "hist_nbody", false);
+  if (hist_nbody) {
+    user_hist = true;
+    user_hist_func = &NBodyHistory; // TODO: embed into nbody class
+  }
+
   // Binary parameters
   // Real q_binary     = pin->GetOrAddReal("problem", "q_binary", 1.0);
   // Real e_binary     = pin->GetOrAddReal("problem", "e_binary", 0.99);
