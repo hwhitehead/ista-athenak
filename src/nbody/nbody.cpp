@@ -233,10 +233,10 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
 
         // stash backreaction registers, with care for race conditions
-        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DM_BACK), dm_back);
-        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVX_BACK), dvx_back);
-        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVY_BACK), dvy_back);
-        Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVZ_BACK), dvz_back);
+        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DM_BACK), dm_back);
+        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVX_BACK), dvx_back);
+        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVY_BACK), dvy_back);
+        // Kokkos::atomic_add(&delta_nbody_data.d_view(n, DVZ_BACK), dvz_back);
         // wait until NBody::Gather task to sync back to host
       } // end n loop
     }); // end par_for
