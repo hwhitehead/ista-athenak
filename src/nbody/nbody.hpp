@@ -35,7 +35,7 @@ struct NBodyTaskIDs {
 enum NBodyDataIndices {M_DATA = 0, 
                         X_DATA = 1, Y_DATA = 2, Z_DATA = 3,
                         VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6,
-                        AX_DATA = 7, AY_DATA = 8, AZ_DATA = 9
+                        AX_DATA = 7, AY_DATA = 8, AZ_DATA = 9,
                         R_SOFT_DATA = 10, 
                         NVAR_DATA = 11};
 
@@ -72,7 +72,7 @@ class NBody {
     DualArray2D<Real> delta_nbody_data;
 
     // container to hold names of TaskIDs
-    NbodyTaskIDs id;
+    NBodyTaskIDs id;
 
     // physics module booleans
     bool src_gravity, src_accretion;
