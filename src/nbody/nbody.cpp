@@ -38,6 +38,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
   _var_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
+  _reg_per_body = 7; // RK4 subregisters always len 7 (m, 3x, 3vx)
 
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
@@ -48,11 +49,10 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     // principle register for wider access
     Kokkos::realloc(nbody_data, num_nbody, _var_per_body);
     Kokkos::realloc(delta_nbody_data, num_nbody, _var_per_body);
-    int len_sub_register = 7 * num_nbody;
-    Kokkos::realloc(_y_init, len_sub_register);
-    Kokkos::realloc(_y_sub, len_sub_register);
-    Kokkos::realloc(_y_ret, len_sub_register);
-    Kokkos::realloc(_k_sub, len_sub_register);
+    Kokkos::realloc(_y_init, num_nbody, _reg_per_body);
+    Kokkos::realloc(_y_sub, num_nbody, _reg_per_body);
+    Kokkos::realloc(_y_ret, num_nbody, _reg_per_body);
+    Kokkos::realloc(_k_sub, num_nbody, _reg_per_body);
   }
   
   // load initial nbody state from user input

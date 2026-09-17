@@ -66,7 +66,8 @@ class NBody {
 
   private:
     MeshBlockPack* pmy_pack;
-    int _var_per_body = 7; // (m,x,y,z,vx,vy,vz)
+    int _var_per_body = 7; // (m,3x,3vx,+extras)
+    int _reg_per_body = 7; // (m,3x,3vx)
     // private registers for intermediate integrator states (rk4)
     DualArray2D<Real> _y_init, _y_sub, _y_ret; 
     DualArray2D<Real> _k_sub;
