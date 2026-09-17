@@ -151,7 +151,7 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
   std::cout << "read VYDOT_REG..." << std::endl;
   f.h_view(0, VZDOT_REG) = 0.0;
   std::cout << "read VZDOT_REG..." << std::endl;
-  std::cout << "finished reading f buffer."
+  std::cout << "finished reading f buffer.";
 
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
