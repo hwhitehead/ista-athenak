@@ -70,6 +70,11 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     // all other reads optional, add overwrite
   } // end n
 
+  // set timestep properties
+  eta_dt = pin->GetOrAddReal("nbody", "eta_dt", 0.01);
+  dt_old = CalcTimeStep();
+  dt_new = dt_old; 
+
   // set delta_nbody as zero for first timestep
   // TODO: add restart protection? maybe not needed
   // Kokkos::deep_copy(delta_nbody_data, 0.0);
@@ -85,6 +90,42 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
 // nbody destructor: delete/free memory from internal objects
 NBody::~NBody() {
+}
+
+// return max timestep for stable evolution from nbody state
+Real NBody::CalcTimeStep() {
+
+  Real hm4_max = std::numeric_limits<float>::min();
+
+  for (int n = 0; n < num_nbody; n++) {
+    // compute total accerelation due to hydro forces on BH n
+    // TEMP: set to zero
+    const Real a_hydro_sqr = 0.0;
+    // test pairwise interactions
+    for (int m = 0; m < num_nbody; m++) {
+      if (m == n) continue; // no self-interaction
+      // compute binary properties
+      const Real Gm_bin = _G * (body_data.h_view(n, 0) + nbody_data.h_view(n, 1));
+      const Real dx = nbody_data.h_view(n, 1) - nbody_data.h_view(m, 1);
+      const Real dy = nbody_data.h_view(n, 2) - nbody_data.h_view(m, 2);
+      const Real dz = nbody_data.h_view(n, 3) - nbody_data.h_view(m, 3);
+      const Real dr_sqr = dx * dx + dy * dy + dz * dz;
+      const Real dvx = nbody_data.h_view(n, 4) - nbody_data.h_view(m, 4);
+      const Real dvy = nbody_data.h_view(n, 5) - nbody_data.h_view(m, 5);
+      const Real dvz = nbody_data.h_view(n, 6) - nbody_data.h_view(m, 6);
+      const Real dv_sqr = dvx * dvx + dvy * dvy + dvz * dvz;
+      // compute timescales
+      const Real hm2_fb = dv_sqr / dr_sqr;                              // flyby time
+      const Real hm4_ff = Gm_bin * Gm_bin / (dr_sqr * dr_sqr * dr_sqr); // freefall time
+      const Real hm4_hydro = a_hydro_sqr / dr_sqr;                        // gas acceleration time
+      // combine timescales
+      const Real hm4 = hm2_fb * hm2_fb + hm4_ff + hm4_hydro;
+      hm4_max = std::min(hm4_max, hm4);
+    }
+  }
+
+  // return unscaled timestep TODO: check symmetrisation with last timestep
+  return std::pow(hm4_max, -0.25);
 }
 
 void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {

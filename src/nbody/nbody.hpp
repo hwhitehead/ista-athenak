@@ -41,7 +41,8 @@ class NBody {
     
     int num_nbody; // number of discrete particles to track
     int var_per_body; // (m,3x,3vx,+extras)
-    float dtnew;
+    Real dt_new, dt_old; // nbody timestep (before prefactor scaling)
+    Real eta_dt; // prefactor for timestep scaling
 
     // principle data register for wider access 
     // shape (num_nbody, var_per_body)
@@ -62,6 +63,9 @@ class NBody {
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Scatter(Driver *d, int state);
     TaskStatus NewTimeStep(Driver *pdrive, int stage);
+
+    // methods
+    void CalcTimeStep();
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
     void NBodyGravitySrcTerm(const Real beta_dt);

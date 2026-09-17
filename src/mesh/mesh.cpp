@@ -610,12 +610,12 @@ void Mesh::NewTimeStep(const Real tlim) {
     dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->phydro->dtnew) );
     // source terms timestep
     if (pmb_pack->phydro->psrc != nullptr) {
-      dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->phydro->psrc->dtnew) );
+      dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->phydro->psrc->dt_new) );
     }
   }
   // NBody timestep
   if (pmb_pack->pnbody != nullptr) {
-    dt_cycle = std::min(dt_cycle, pmb_pack->pnbody->dtnew);
+    dt_cycle = std::min(dt_cycle, pmb_pack->pnbody->eta_dt * pmb_pack->pnbody->dtnew);
   }
   // MHD timestep
   if (pmb_pack->pmhd != nullptr) {

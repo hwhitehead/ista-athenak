@@ -41,19 +41,19 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
 
   return;
 }
-
-// calculate max timestep for stable evolution from nbody state
+// taskstatus wrapper to CalcTimeStep
 TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   
-  // temp: fixed value
-  dtnew = 1.0;
+  // symmetrise nbody timestep with previous value
+  const Real dt_current = CalcTimeStep()
+  const Real dt_sqr = dt_current * dt_current;
+  dt_new = dt_sqr / dt_old;
 
   return TaskStatus::complete;
 }
 
 // collect forcing by hydro on nbody state
 TaskStatus NBody::Gather(Driver *pdrive, int stage) {
-
 
   return TaskStatus::complete;
 
