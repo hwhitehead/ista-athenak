@@ -57,8 +57,9 @@ class NBody {
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
+    TaskStatus Gather(Driver *d, int state);
     TaskStatus Integrate(Driver *d, int stage);
-    TaskStatus Communicate(Driver *d, int state);
+    TaskStatus Scatter(Driver *d, int state);
     void EvaluateF(DvceArray1D<Real> y, DvceArray1D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
 
