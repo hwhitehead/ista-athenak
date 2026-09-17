@@ -29,7 +29,7 @@ class ShearingBoxCC;
 class Driver;
 
 struct NbodyTaskIDs {
-    TaskID integrate;
+    TaskID gather, integrate, scatter, calc_dt;
 };
 
 namespace nbody {
@@ -39,10 +39,10 @@ class NBody {
     NBody(MeshBlockPack *ppack, ParameterInput *pin);
     ~NBody();
     
-    // // number of discrete particles to track
-    int num_nbody; 
-    int var_per_body = 7; // (m,3x,3vx,+extras)
-    
+    int num_nbody; // number of discrete particles to track
+    int var_per_body; // (m,3x,3vx,+extras)
+    float newdt;
+
     // principle data register for wider access 
     // shape (num_nbody, var_per_body)
     DualArray2D<Real> nbody_data; 
@@ -61,6 +61,7 @@ class NBody {
     TaskStatus Gather(Driver *d, int state);
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Scatter(Driver *d, int state);
+    TaskStatus NewTimeStep(Driver *pdrive, int stage);
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
     void NBodyGravitySrcTerm(const Real beta_dt);

@@ -34,15 +34,26 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   
   TaskID none(0);
 
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Gather, this, none);
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, none);
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, none);
-  
+  id.gather = tl["after_timeintegrator"]->AddTask(&NBody::Gather, this, none);
+  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.gather);
+  id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
+  id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.integrate);
+
   return;
+}
+
+// calculate max timestep for stable evolution from nbody state
+TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
+  
+  // temp: fixed value
+  dtnew = 1.0;
+
+  return TaskStatus::complete;
 }
 
 // collect forcing by hydro on nbody state
 TaskStatus NBody::Gather(Driver *pdrive, int stage) {
+
 
   return TaskStatus::complete;
 
@@ -71,7 +82,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < _reg_per_body; i++) {
           _y_sub.h_view(n, i) = _y_init.h_view(n, i) + 0.5 * dt * _k_sub.h_view(n, i);
-          _y_ret.h_view(n, i) = _y_init.h_view(n, i) + dt_over_6 * _k_sub.h_view(i);
+          _y_ret.h_view(n, i) = _y_init.h_view(n, i) + dt_over_6 * _k_sub.h_view(n, i);
       } // end i
   } // end n
   
@@ -80,7 +91,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < _reg_per_body; i++) {
           _y_sub.h_view(n, i) = _y_init.h_view(n, i) + 0.5 * dt * _k_sub.h_view(n, i);
-          _y_ret.h_view(n, i) += 2.0 * dt_over_6 * _k_sub.h_view(i);
+          _y_ret.h_view(n, i) += 2.0 * dt_over_6 * _k_sub.h_view(n, i);
       } // end i
   } // end n
 
@@ -89,7 +100,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < _reg_per_body; i++) {
           _y_sub.h_view(n, i) = _y_init.h_view(n, i) + dt * _k_sub.h_view(n, i);
-          _y_ret.h_view(n, i) += 2.0 * dt_over_6 * _k_sub.h_view(i);
+          _y_ret.h_view(n, i) += 2.0 * dt_over_6 * _k_sub.h_view(n, i);
       } // end i
   } // end n
 
@@ -97,7 +108,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   EvaluateF(_y_sub, _k_sub);
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < _reg_per_body; i++) {
-          _y_ret.h_view(n, i) += dt_over_6 * _k_sub.h_view(i);
+          _y_ret.h_view(n, i) += dt_over_6 * _k_sub.h_view(n, i);
       } // end i
   } // end n
 
