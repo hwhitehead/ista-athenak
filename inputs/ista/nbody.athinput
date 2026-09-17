@@ -73,3 +73,8 @@ r_soft1 = 0.1
 <output1>
 file_type  = hst        # history data dump
 dt         = 0.01       # time increment between outputs
+
+<output2>
+file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
+variable   = hydro_w    # variables to be output
+dt         = 0.1        # time increment between outputs
