@@ -44,12 +44,12 @@ enum NBodyHistIndices {M_HIST = 0,
                         VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6
                         NVAR_HIST = 7};
 
-enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2, DVZ_BACK = 3
+enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2, DVZ_BACK = 3,
                         NVAR_BACK = 4};
 
 enum NBodyRegisterIndices {MDOT_REG = 0, 
                             XDOT_REG = 1, YDOT_REG = 2, ZDOT_REG = 3,
-                            VXDOT_REG = 4, VYDOT_REG = 5, VZDOT_REG = 6
+                            VXDOT_REG = 4, VYDOT_REG = 5, VZDOT_REG = 6,
                             NVAR_REG = 7};
 
 namespace nbody {
