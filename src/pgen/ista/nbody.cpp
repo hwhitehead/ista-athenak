@@ -59,7 +59,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
 
     // (3) loop over cells
-    par_for("pgen_tde", 
+    par_for("pgen_nbody", 
             DevExeSpace(),               // CPU or GPU execution space
             0, (pmbp->nmb_thispack-1),   // Loop 1: m = mesh block index (0 to N-1)
             ks, ke,                      // Loop 2: k = z index

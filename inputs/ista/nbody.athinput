@@ -50,6 +50,7 @@ gamma       = 1.000001  # gamma = C_p/C_v
 <nbody>
 num_nbody = 2
 hist_nbody = 1
+src_gravity = 0
 
 m0 = 1.0
 x0 = 0.2

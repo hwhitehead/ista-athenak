@@ -45,16 +45,14 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
 
   // initialise array space on device
-  if (num_nbody > 0) {
-    // principle register for wider access
-    Kokkos::realloc(nbody_data, num_nbody, var_per_body);
-    Kokkos::realloc(delta_nbody_data, num_nbody, var_per_body);
-    // TODO: the following are ONLY accessed on the host, could change type
-    Kokkos::realloc(_y_init, num_nbody, _reg_per_body);
-    Kokkos::realloc(_y_sub, num_nbody, _reg_per_body);
-    Kokkos::realloc(_y_ret, num_nbody, _reg_per_body);
-    Kokkos::realloc(_k_sub, num_nbody, _reg_per_body);
-  }
+  // principle registers for wider access
+  Kokkos::realloc(nbody_data, num_nbody, var_per_body);
+  Kokkos::realloc(delta_nbody_data, num_nbody, var_per_body);
+  // TODO: the following are ONLY accessed on the host, could change type
+  Kokkos::realloc(_y_init, num_nbody, _reg_per_body);
+  Kokkos::realloc(_y_sub, num_nbody, _reg_per_body);
+  Kokkos::realloc(_y_ret, num_nbody, _reg_per_body);
+  Kokkos::realloc(_k_sub, num_nbody, _reg_per_body);
   
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
@@ -124,9 +122,7 @@ Real NBody::CalcTimeStep() {
   }
 
   // return unscaled timestep 
-  const Real h = std::pow(hm4_max, -0.25);
-  std::cout << "h = " << h << std::endl;
-  return h;
+  return std::pow(hm4_max, -0.25);
 }
 
 void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
@@ -159,12 +155,12 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     
       // compute acceleration
       const Real r_sqr = dx * dx + dy * dy + dz * dz;
-      const Real a_fac = _G * y.h_view(m, M_DATA) / (r_sqr * sqrt(r_sqr));
+      const Real g_fac = _G * y.h_view(m, M_DATA) / (r_sqr * std::sqrt(r_sqr));
       
       // decompose acceleration and update
-      f.h_view(n, VX_DATA) -= a_fac * dx;
-      f.h_view(n, VY_DATA) -= a_fac * dy;
-      f.h_view(n, VZ_DATA) -= a_fac * dz;
+      f.h_view(n, VX_DATA) -= g_fac * dx;
+      f.h_view(n, VY_DATA) -= g_fac * dy;
+      f.h_view(n, VZ_DATA) -= g_fac * dz;
     } // end m loop
   } // end n loop
 
@@ -173,7 +169,10 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 
 void NBody::NBodySrcTerms(const Real beta_dt) {
 
-  NBodyGravitySrcTerm(beta_dt);
+  // currently only gravity implemented
+  if (src_gravity) {
+    NBodyGravitySrcTerm(beta_dt);
+  }
 
   return;
 }
@@ -189,14 +188,29 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
+
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) 
     {
-      // compute gravitational force on each body
-      // for (int n = 0; n < num_nbody; n++) {
-      //   continue;
-      // }
+      for (int n = 0; n < num_nbody; n++) {
+
+        // TEMP: force gravity by cell-center
+        // const Real rho = prim(m, IDN, k, j, i);
+        // const Real g_fac = beta_dt * 
+
+        // TEMP: set backreaction as zero
+        Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
+
+        // stash backreaction registers, with care for race conditions
+        Kokkos::atomic_add(&nbody_data.d_view(n, DM_BACK)) = dm_back;
+        Kokkos::atomic_add(&nbody_data.d_view(n, DVX_BACK)) = dvx_back;
+        Kokkos::atomic_add(&nbody_data.d_view(n, DVY_BACK)) = dvy_back;
+        Kokkos::atomic_add(&nbody_data.d_view(n, DVZ_BACK)) = dvz_back;
+      }
     }); // end par_for
+
+  
+
   return;
 }
 

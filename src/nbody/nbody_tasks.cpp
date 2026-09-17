@@ -48,7 +48,7 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   const Real dt_current = CalcTimeStep();
   const Real dt_sqr = dt_current * dt_current;
   dt_new = dt_sqr / dt_old;
-
+  std::cout << "dt_new = " << dt_new << std::endl;
   return TaskStatus::complete;
 }
 
