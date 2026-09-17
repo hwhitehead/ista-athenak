@@ -62,8 +62,6 @@ TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
-  return TaskStatus::complete;
-
   const Real dt = pmy_pack->pmesh->dt;
   const Real dt_over_6 = dt / 6.0;
 
@@ -73,7 +71,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // package data into scratch registers
   // i runs over m,3x,3vx...
   for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < _reg_per_body; i++) {
+      for (int i = 0; i < NVAR_REG; i++) {
           _y_init.h_view(n, i) = nbody_data.h_view(n, i);
       } // end i
   } // end n
@@ -83,7 +81,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // step 1
   EvaluateF(_y_init, _k_sub);
   for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < _reg_per_body; i++) {
+      for (int i = 0; i < NVAR_REG; i++) {
           _y_sub.h_view(n, i) = _y_init.h_view(n, i) + 0.5 * dt * _k_sub.h_view(n, i);
           _y_ret.h_view(n, i) = _y_init.h_view(n, i) + dt_over_6 * _k_sub.h_view(n, i);
       } // end i
@@ -92,7 +90,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // step 2
   EvaluateF(_y_sub, _k_sub);
   for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < _reg_per_body; i++) {
+      for (int i = 0; i < NVAR_REG; i++) {
           _y_sub.h_view(n, i) = _y_init.h_view(n, i) + 0.5 * dt * _k_sub.h_view(n, i);
           _y_ret.h_view(n, i) += 2.0 * dt_over_6 * _k_sub.h_view(n, i);
       } // end i
@@ -101,7 +99,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // step 3
   EvaluateF(_y_sub, _k_sub);
   for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < _reg_per_body; i++) {
+      for (int i = 0; i < NVAR_REG; i++) {
           _y_sub.h_view(n, i) = _y_init.h_view(n, i) + dt * _k_sub.h_view(n, i);
           _y_ret.h_view(n, i) += 2.0 * dt_over_6 * _k_sub.h_view(n, i);
       } // end i
@@ -110,7 +108,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // step 4
   EvaluateF(_y_sub, _k_sub);
   for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < _reg_per_body; i++) {
+      for (int i = 0; i < NVAR_REG; i++) {
           _y_ret.h_view(n, i) += dt_over_6 * _k_sub.h_view(n, i);
       } // end i
   } // end n
@@ -118,7 +116,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   // update main register
   // no need to empty sub-step registers, all overwritten in next
   for (int n = 0; n < num_nbody; n++) {
-    for (int i = 0; i < _reg_per_body; i++) {
+    for (int i = 0; i < NVAR_REG; i++) {
         nbody_data.h_view(n, i) = _y_ret.h_view(n, i);
       } // end i
   }

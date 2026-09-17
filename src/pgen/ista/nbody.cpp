@@ -106,12 +106,10 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
   // generate labels for nbody data
   int num_nbody = pm->pmb_pack->pnbody->num_nbody;
-  int var_per_body = pm->pmb_pack->pnbody->var_per_body;
-  int hist_var_per_body = NVAR_HIST;
-  pdata->nhist = hist_var_per_body * num_nbody; 
+  pdata->nhist = num_nbody * NVAR_HIST; 
   for (int n = 0; n < num_nbody; ++n) {
-    int hist_offset = n * hist_var_per_body;
-    pdata->label[0 + hist_offset] = "m" + std::to_string(n); // TODO: build space-space enumerate labels
+    int hist_offset = n * NVAR_HIST;
+    pdata->label[0 + hist_offset] = "m" + std::to_string(n); 
     pdata->label[1 + hist_offset] = "x" + std::to_string(n);
     pdata->label[2 + hist_offset] = "y" + std::to_string(n);
     pdata->label[3 + hist_offset] = "z" + std::to_string(n);
@@ -122,8 +120,8 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
   // stash values
   for (int n = 0; n < num_nbody; ++n) {
-    int hist_offset = n * hist_var_per_body;
-    for (int i = 0; i < var_per_body; i++) {
+    int hist_offset = n * NVAR_HIST;
+    for (int i = 0; i < NVAR_HIST; i++) {
       pdata->hdata[i + hist_offset] = pm->pmb_pack->pnbody->nbody_data.h_view(n, i);
     } // end var loop
   } // end body loop

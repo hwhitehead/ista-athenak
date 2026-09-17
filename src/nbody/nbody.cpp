@@ -38,7 +38,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
-  // TODO: if happy with enum usage, deprecated these internal variables
+  // both counters below deprecated to enum counters
   var_per_body = NVAR_DATA; // set by NBodyDataIndices
   _reg_per_body = NVAR_REG; // set by NBodyRegisterIndices
 
@@ -48,13 +48,13 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // initialise array space on device
   // principle registers for wider access
-  Kokkos::realloc(nbody_data, num_nbody, var_per_body);
-  Kokkos::realloc(delta_nbody_data, num_nbody, var_per_body);
+  Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);
+  Kokkos::realloc(delta_nbody_data, num_nbody, NVAR_BACK);
   // TODO: the following are ONLY accessed on the host, could change type
-  Kokkos::realloc(_y_init, num_nbody, _reg_per_body);
-  Kokkos::realloc(_y_sub, num_nbody, _reg_per_body);
-  Kokkos::realloc(_y_ret, num_nbody, _reg_per_body);
-  Kokkos::realloc(_k_sub, num_nbody, _reg_per_body);
+  Kokkos::realloc(_y_init, num_nbody, NVAR_REG);
+  Kokkos::realloc(_y_sub, num_nbody, NVAR_REG);
+  Kokkos::realloc(_y_ret, num_nbody, NVAR_REG);
+  Kokkos::realloc(_k_sub, num_nbody, NVAR_REG);
   
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
@@ -135,6 +135,8 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
   // evaluate forcing function f = ydot for nbody state
   // y = (m, x, y, z, vx, vy, vz ....)
   // f = (0, vx, vy, vz, ax, ay, az ...)
+
+  return;
 
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
