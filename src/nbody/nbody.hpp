@@ -28,20 +28,29 @@ class OrbitalAdvectionCC;
 class ShearingBoxCC;
 class Driver;
 
-struct NbodyTaskIDs {
+struct NBodyTaskIDs {
     TaskID gather, integrate, scatter, calc_dt;
 };
 
 enum NBodyDataIndices {M_DATA = 0, 
                         X_DATA = 1, Y_DATA = 2, Z_DATA = 3,
                         VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6,
-                        AX_DATA = 7, AY_DATA = 8, AZ_DATA = 9};
+                        AX_DATA = 7, AY_DATA = 8, AZ_DATA = 9
+                        R_SOFT_DATA = 10, 
+                        NVAR_DATA = 11};
 
 enum NBodyHistIndices {M_HIST = 0, 
                         X_HIST = 1, Y_HIST = 2, Z_HIST = 3,
-                        VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6};
+                        VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6
+                        NVAR_HIST = 7};
 
-enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2, DVZ_BACK = 3};
+enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2, DVZ_BACK = 3
+                        NVAR_BACK = 4};
+
+enum NBodyRegisterIndices {MDOT_REG = 0, 
+                            XDOT_REG = 1, YDOT_REG = 2, ZDOT_REG = 3,
+                            VXDOT_REG = 4, VYDOT_REG = 5, VZDOT_REG = 6
+                            NVAR_REG = 7};
 
 namespace nbody {
 

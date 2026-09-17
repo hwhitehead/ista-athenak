@@ -37,8 +37,9 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
-  var_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
-  _reg_per_body = 7; // RK4 subregisters always len 7 (m, 3x, 3vx)
+  // TODO: if happy with enum usage, deprecated these internal variables
+  var_per_body = NVAR_DATA; // set by NBodyDataIndices
+  _reg_per_body = NVAR_REG; // set by NBodyRegisterIndices
 
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
@@ -57,14 +58,17 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
     std::string nbody_header = "nbody";
+    str::string str_n = std::to_string(n);
     // mass, position and velocity data MUST be passed
-    nbody_data.h_view(n, 0) = pin->GetReal(nbody_header, "m" + std::to_string(n));
-    nbody_data.h_view(n, 1) = pin->GetReal(nbody_header, "x" + std::to_string(n));
-    nbody_data.h_view(n, 2) = pin->GetReal(nbody_header, "y" + std::to_string(n));
-    nbody_data.h_view(n, 3) = pin->GetReal(nbody_header, "z" + std::to_string(n));
-    nbody_data.h_view(n, 4) = pin->GetReal(nbody_header, "vx" + std::to_string(n));
-    nbody_data.h_view(n, 5) = pin->GetReal(nbody_header, "vy" + std::to_string(n));
-    nbody_data.h_view(n, 6) = pin->GetReal(nbody_header, "vz" + std::to_string(n));
+    nbody_data.h_view(n, M_DATA) = pin->GetReal(nbody_header, "m" + str_n);
+    nbody_data.h_view(n, X_DATA) = pin->GetReal(nbody_header, "x" + str_n);
+    nbody_data.h_view(n, Y_DATA) = pin->GetReal(nbody_header, "y" + str_n);
+    nbody_data.h_view(n, Z_DATA) = pin->GetReal(nbody_header, "z" + str_n);
+    nbody_data.h_view(n, VX_DATA) = pin->GetReal(nbody_header, "vx" + str_n);
+    nbody_data.h_view(n, VY_DATA) = pin->GetReal(nbody_header, "vy" + str_n);
+    nbody_data.h_view(n, VZ_DATA) = pin->GetReal(nbody_header, "vz" + str_n);
+    nbody_data.h_view(n, RSOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
+    
     // all other reads optional, add overwrite
   } // end n
 
@@ -133,17 +137,17 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
-    f.h_view(n, M_DATA) = 0.0; 
+    f.h_view(n, MDOT_REG) = 0.0; 
 
     // dot(x) = v
-    f.h_view(n, X_DATA) = y.h_view(n, VX_DATA);
-    f.h_view(n, Y_DATA) = y.h_view(n, VY_DATA);
-    f.h_view(n, Z_DATA) = y.h_view(n, VZ_DATA);
+    f.h_view(n, XDOT_REG) = y.h_view(n, VX_DATA);
+    f.h_view(n, YDOT_REG) = y.h_view(n, VY_DATA);
+    f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_DATA);
     
     // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
-    f.h_view(n, AX_DATA) = 0.0;
-    f.h_view(n, AY_DATA) = 0.0;
-    f.h_view(n, AZ_DATA) = 0.0;
+    f.h_view(n, VXDOT_DATA) = 0.0;
+    f.h_view(n, VYDOT_DATA) = 0.0;
+    f.h_view(n, VZDOT_DATA) = 0.0;
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-gravity
@@ -158,9 +162,9 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
       const Real g_fac = _G * y.h_view(m, M_DATA) / (r_sqr * std::sqrt(r_sqr));
       
       // decompose acceleration and update
-      f.h_view(n, VX_DATA) -= g_fac * dx;
-      f.h_view(n, VY_DATA) -= g_fac * dy;
-      f.h_view(n, VZ_DATA) -= g_fac * dz;
+      f.h_view(n, VXDOT_DATA) -= g_fac * dx;
+      f.h_view(n, VYDOT_DATA) -= g_fac * dy;
+      f.h_view(n, VZDOT_DATA) -= g_fac * dz;
     } // end m loop
   } // end n loop
 
@@ -195,8 +199,11 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       for (int n = 0; n < num_nbody; n++) {
 
         // TEMP: force gravity by cell-center
-        // const Real rho = prim(m, IDN, k, j, i);
-        // const Real g_fac = beta_dt * 
+        const Real rho = prim(m, IDN, k, j, i);
+        const Real g_num = _G * beta_dt * rho * nbody_data.d_view(n, M_DATA);
+        const Rela g_denom = Kokkos::pow(dr_sqr + nbody_data.d_view(n, RSOFT_DATA))
+
+        const Real back_fac = 
 
         // TEMP: set backreaction as zero
         Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
