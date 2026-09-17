@@ -46,8 +46,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
 
-  // initialise array space on device
   // principle registers for wider access
+  // nbody_data and delta_nbody_data are dual on host/device
   Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);
   Kokkos::realloc(delta_nbody_data, num_nbody, NVAR_BACK);
   // TODO: the following are ONLY accessed on the host, could change type
@@ -136,7 +136,22 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
   // y = (m, x, y, z, vx, vy, vz ....)
   // f = (0, vx, vy, vz, ax, ay, az ...)
 
-  return;
+  std::cout << "starting eval F" << std::endl;
+  f.h_view(0, MDOT_REG) = 0.0;
+  std::cout << "read MDOT_REG..." << std::endl;
+  f.h_view(0, XDOT_REG) = 0.0;
+  std::cout << "read XDOT_REG..." << std::endl;
+  f.h_view(0, YDOT_REG) = 0.0;
+  std::cout << "read YDOT_REG..." << std::endl;
+  f.h_view(0, ZDOT_REG) = 0.0;
+  std::cout << "read ZDOT_REG..." << std::endl;
+  f.h_view(0, VXDOT_REG) = 0.0;
+  std::cout << "read VXDOT_REG..." << std::endl;
+  f.h_view(0, VYDOT_REG) = 0.0;
+  std::cout << "read VYDOT_REG..." << std::endl;
+  f.h_view(0, VZDOT_REG) = 0.0;
+  std::cout << "read VZDOT_REG..." << std::endl;
+  std::cout << "finished reading f buffer."
 
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
