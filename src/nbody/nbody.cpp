@@ -51,15 +51,15 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
-    std::string nbody_header = "nbody" + std::to_string(n);
+    std::string nbody_header = "nbody";
     // mass, position and velocity data MUST be passed
-    nbody_data.h_view(n, 0) = pin->GetReal(nbody_header, "m");
-    nbody_data.h_view(n, 1) = pin->GetReal(nbody_header, "x");
-    nbody_data.h_view(n, 2) = pin->GetReal(nbody_header, "y");
-    nbody_data.h_view(n, 3) = pin->GetReal(nbody_header, "z");
-    nbody_data.h_view(n, 4) = pin->GetReal(nbody_header, "vx");
-    nbody_data.h_view(n, 5) = pin->GetReal(nbody_header, "vy");
-    nbody_data.h_view(n, 6) = pin->GetReal(nbody_header, "vz");
+    nbody_data.h_view(n, 0) = pin->GetReal(nbody_header, "m" + std::to_string(n));
+    nbody_data.h_view(n, 1) = pin->GetReal(nbody_header, "x" + std::to_string(n));
+    nbody_data.h_view(n, 2) = pin->GetReal(nbody_header, "y" + std::to_string(n));
+    nbody_data.h_view(n, 3) = pin->GetReal(nbody_header, "z" + std::to_string(n));
+    nbody_data.h_view(n, 4) = pin->GetReal(nbody_header, "vx" + std::to_string(n));
+    nbody_data.h_view(n, 5) = pin->GetReal(nbody_header, "vy" + std::to_string(n));
+    nbody_data.h_view(n, 6) = pin->GetReal(nbody_header, "vz" + std::to_string(n));
     // all other reads optional, add overwrite
   } // end n
 

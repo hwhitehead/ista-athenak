@@ -50,14 +50,13 @@ gamma       = 1.000001    # gamma = C_p/C_v
 <nbody>
 num_nbody = 0
 
-<nbody0>
-m = 1.0
-x = 1.0
-y = 2.0
-z = 3.0
-vx = -1.0
-vy = -2.0
-vz = -3.0
+m0 = 1.0
+x0 = 1.0
+y0 = 2.0
+z0 = 3.0
+vx0 = -1.0
+vy0 = -2.0
+vz0 = -3.0
 
 <output1>
 file_type  = hst        # history data dump
