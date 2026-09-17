@@ -87,45 +87,43 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 NBody::~NBody() {
 }
 
-void NBody::EvaluateF(DvceArray2D<Real> y, DvceArray2D<Real> &f) {
+void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
   
   // evaluate forcing function f = ydot for nbody state
   // y = (m, x, y, z, vx, vy, vz ....)
   // f = (0, vx, vy, vz, ax, ay, az ...)
 
   for (int n = 0; n < num_nbody; n++) {
-    const Real offset_n = n * var_per_body;
     // mdot = 0 
-    f.h_view(offset_n + 0) = 0.0; 
+    f.h_view(n, 0) = 0.0; 
 
     // dot(x) = v
-    f.h_view(offset_n + 1) = y.h_view(offset_n + 4);
-    f.h_view(offset_n + 2) = y.h_view(offset_n + 5);
-    f.h_view(offset_n + 3) = y.h_view(offset_n + 6);
+    f.h_view(n, 1) = y.h_view(n, 4);
+    f.h_view(n, 2) = y.h_view(n, 5);
+    f.h_view(n, 3) = y.h_view(n, 6);
     
     // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
     // TEMP: ax = 1.0
-    f.h_view(offset_n + 4) = 1.0;
-    f.h_view(offset_n + 5) = 0.0;
-    f.h_view(offset_n + 6) = 0.0;
+    f.h_view(n, 4) = 1.0;
+    f.h_view(n, 5) = 0.0;
+    f.h_view(n, 6) = 0.0;
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-gravity
-      const Real offset_m = m * var_per_body;
         
       // extract spatial seperation
-      const Real dx = y.h_view(offset_n + 1) - y.h_view(offset_m + 1);
-      const Real dy = y.h_view(offset_n + 2) - y.h_view(offset_m + 2);
-      const Real dz = y.h_view(offset_n + 3) - y.h_view(offset_m + 3);
+      const Real dx = y.h_view(n, 1) - y.h_view(m, 1);
+      const Real dy = y.h_view(n, 2) - y.h_view(m, 2);
+      const Real dz = y.h_view(n, 3) - y.h_view(m, 3);
     
       // compute acceleration
       const Real r_sqr = dx * dx + dy * dy + dz * dz;
-      const Real a_fac = _G * y.h_view(offset_m) / (r_sqr * sqrt(r_sqr));
+      const Real a_fac = _G * y.h_view(m, 0) / (r_sqr * sqrt(r_sqr));
       
       // decompose acceleration and update
-      f(offset_n + 4) -= a_fac * dx;
-      f(offset_n + 5) -= a_fac * dy;
-      f(offset_n + 6) -= a_fac * dz;
+      f.h_view(n, 4) -= a_fac * dx;
+      f.h_view(n, 5) -= a_fac * dy;
+      f.h_view(n, 6) -= a_fac * dz;
     } // end m loop
   } // end n loop
 
