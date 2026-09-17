@@ -37,7 +37,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
-  _var_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
+  var_per_body = pin->GetOrAddInteger("nbody", "var_per_nbody", 7);
   _reg_per_body = 7; // RK4 subregisters always len 7 (m, 3x, 3vx)
 
   // set physics modules
@@ -47,8 +47,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // initialise array space on device
   if (num_nbody > 0) {
     // principle register for wider access
-    Kokkos::realloc(nbody_data, num_nbody, _var_per_body);
-    Kokkos::realloc(delta_nbody_data, num_nbody, _var_per_body);
+    Kokkos::realloc(nbody_data, num_nbody, var_per_body);
+    Kokkos::realloc(delta_nbody_data, num_nbody, var_per_body);
     Kokkos::realloc(_y_init, num_nbody, _reg_per_body);
     Kokkos::realloc(_y_sub, num_nbody, _reg_per_body);
     Kokkos::realloc(_y_ret, num_nbody, _reg_per_body);
@@ -92,7 +92,7 @@ void NBody::EvaluateF(DvceArray2D<Real> y, DvceArray2D<Real> &f) {
   // f = (0, vx, vy, vz, ax, ay, az ...)
 
   // for (int n = 0; n < num_nbody; n++) {
-  //   const Real offset_n = n * _var_per_body;
+  //   const Real offset_n = n * var_per_body;
   //   // mdot = 0 
   //   f.h_view(offset_n + 0) = 0.0; 
 
@@ -108,7 +108,7 @@ void NBody::EvaluateF(DvceArray2D<Real> y, DvceArray2D<Real> &f) {
   //   // add acceleraton by mutual nbody gravity
   //   for (int m = 0; m < num_nbody; m++) {
   //     if (m == n) continue; // no self-gravity
-  //     const Real offset_m = m * _var_per_body;
+  //     const Real offset_m = m * var_per_body;
         
   //     // extract spatial seperation
   //     const Real dx = y.h_view(offset_n + 1) - y.h_view(offset_m + 1);

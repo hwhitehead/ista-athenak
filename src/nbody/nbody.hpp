@@ -41,9 +41,10 @@ class NBody {
     
     // // number of discrete particles to track
     int num_nbody; 
+    int var_per_body = 7; // (m,3x,3vx,+extras)
     
     // principle data register for wider access 
-    // shape (num_nbody, _var_per_body)
+    // shape (num_nbody, var_per_body)
     DualArray2D<Real> nbody_data; 
 
     // summation space for mb_pack level updates
@@ -66,7 +67,6 @@ class NBody {
 
   private:
     MeshBlockPack* pmy_pack;
-    int _var_per_body = 7; // (m,3x,3vx,+extras)
     int _reg_per_body = 7; // (m,3x,3vx)
     // private registers for intermediate integrator states (rk4)
     DualArray2D<Real> _y_init, _y_sub, _y_ret; 

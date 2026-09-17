@@ -245,8 +245,8 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
   // generate labels for nbody data
   int num_nbody = pm->pmb_pack->pnbody->num_nbody;
-  int var_per_body = 7; // TODO: publicise register length
-  int hist_var_per_body = var_per_body; // TODO: allow difference, check 
+  int var_per_body = pm->pmb_pack->pnbody->var_per_body;
+  int hist_var_per_body = var_per_body; // TODO: allow difference, add safety check 
   pdata->nhist = hist_var_per_body * num_nbody; 
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * hist_var_per_body;
@@ -260,9 +260,9 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   } // end body loop
 
   // stash values
-  for (int n = 0; n < 2; ++n) {
+  for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * hist_var_per_body;
-    for (int i = 0; i < num_nbody; i++) {
+    for (int i = 0; i < var_per_body; i++) {
       pdata->hdata[i + hist_offset] = pm->pmb_pack->pnbody->nbody_data.h_view(n, i);
     } // end var loop
   } // end body loop
