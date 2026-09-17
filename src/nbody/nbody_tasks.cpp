@@ -51,29 +51,69 @@ TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
-  // for now, pseduo-integrate position in time (x = t)
-
   const Real dt = pmy_pack->pmesh->dt;
-  nbody_data.h_view(0, 1) += dt;
+  const Real dt_over_6 = dt / 6.0;
+  
+  // for now, run on all ranks independently 
+  // if (global_variable::my_rank != 0) return TaskStatus::complete;
+
+  // package data into scratch registers
+  for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < _reg_per_body; i++) {
+          y_init.h_view(n, i) = nbody_data.h_view(n, i);
+      } // end i
+  } // end n
+
+  // compute k coefficients for RK4 substeps
+  
+  // step 1
+  EvaluteF(y_init, k_sub);
+  for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < _reg_per_body; i++) {
+          y_sub.h_view(n, i) = y_init.h_view(n, i) + 0.5 * dt * k_sub.h_view(n, i);
+          y_ret.h_view(n, i) = y_init.h_view(n, i) + dt_over_6 * k_sub.h_view(i);
+      } // end i
+  } // end n
+  
+  // step 2
+  EvaluteF(y_sub, k_sub);
+  for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < _reg_per_body; i++) {
+          y_sub.h_view(n, i) = y_init.h_view(n, i) + 0.5 * dt * k_sub.h_view(n, i);
+          y_ret.h_view(n, i) += 2.0 * dt_over_6 * k_sub.h_view(i);
+      } // end i
+  } // end n
+
+  // step 3
+  EvaluteF(y_sub, k_sub);
+  for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < _reg_per_body; i++) {
+          y_sub.h_view(n, i) = y_init.h_view(n, i) + dt * k_sub.h_view(n, i);
+          y_ret.h_view(n, i) += 2.0 * dt_over_6 * k_sub.h_view(i);
+      } // end i
+  } // end n
+
+  // step 4
+  EvaluteF(y_sub, k_sub);
+  for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < _reg_per_body; i++) {
+          y_ret.h_view(n, i) += dt_over_6 * k_sub.h_view(i);
+      } // end i
+  } // end n
+
+  // update main register
+  // no need to empty sub-step registers, all overwritten in next
+  for (int n = 0; n < num_nbody; n++) {
+    for (int i = 0; i < _reg_per_body; i++) {
+        nbody_data.h_view(n, i) = y_ret.h_view(n, i);
+      } // end i
+  }
+
+  // force update of device state
   nbody_data.template modify<HostMemSpace>();
-  nbody_data.template sync<DevExeSpace>();
+  delta_nbody_data.template sync<DevExeSpace>();
 
-    // // only perform integration on rank 0
-    // if (global_variable::my_rank != 0) return TaskStatus::complete;
-
-    // // package data into compact form
-    // for (int n = 0; n < num_nbody; n++) {
-    //     const Real offset_n = 7 * n;
-    //     for (int i = 0; i < 7; i++) {
-    //         y_init(offset_n + i) = nbody_data[n](i);
-    //     } // end i
-    // } // end n
-
-    // // compute k coefficients for RK4 substeps
-    // const Real dt_over_6 = tstep / 6.0;
-    // EvaluteF(y_init, k_sub);
-
-    return TaskStatus::complete;
+  return TaskStatus::complete;
 }
 
 
