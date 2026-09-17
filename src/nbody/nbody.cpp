@@ -28,7 +28,7 @@ namespace nbody {
 
 NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   nbody_data("nbody_data",1,1),
-  delta_nbody_data("delta_nbody_data",1,1);
+  delta_nbody_data("delta_nbody_data",1,1),
   _y_init("y_init",1,1),
   _y_sub("y_sub",1,1),
   _y_ret("y_ret",1,1),
