@@ -34,15 +34,25 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   
   TaskID none(0);
 
-  id.integrate = tl["before_timeintegrator"]->AddTask(&NBody::Integrate, this, none);
-
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Communicate, this, none);
+  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Gather, this, none);
+  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, none);
+  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, none);
   
   return;
 }
 
-// propogate nbody forward in time
+// collect forcing by hydro on nbody state
+TaskStatus NBody::Gather(Driver *pdrive, int stage) {
+
+  return TaskStatus::complete;
+
+}
+
+// propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
+
+    // only perform integration on rank 0
+    if (global_variable::my_rank != 0) return TaskStatus::complete;
 
     // package data into compact form
     for (int n = 0; n < num_nbody; n++) {
@@ -59,11 +69,15 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
     return TaskStatus::complete;
 }
 
-// propogate nbody forward in time
-TaskStatus NBody::Communicate(Driver *pdrive, int stage) {
+
+
+// scatter nbody state from rank 0 to all ranks
+// OR evolve each nbody seperate and avoid scatter
+TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
   return TaskStatus::complete;
 
 }
+
 
 } // end namespace nbody

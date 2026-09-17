@@ -39,11 +39,15 @@ class NBody {
     NBody(MeshBlockPack *ppack, ParameterInput *pin);
     ~NBody();
     
-    // variables
-    int num_nbody; // number of discrete particles to trakc
+    // // number of discrete particles to track
+    int num_nbody; 
+    
     // principle data register for wider access 
     // shape (num_nbody, _var_per_body)
     DualArray2D<Real> nbody_data; 
+
+    // summation space for mb_pack level updates
+    DualArray2D<Real> delta_nbody_data;
 
     // container to hold names of TaskIDs
     NbodyTaskIDs id;
