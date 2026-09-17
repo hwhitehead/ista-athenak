@@ -145,8 +145,7 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, 3) = y.h_view(n, 6);
     
     // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
-    // TEMP: ax = 1.0
-    f.h_view(n, 4) = 1.0;
+    f.h_view(n, 4) = 0.0;
     f.h_view(n, 5) = 0.0;
     f.h_view(n, 6) = 0.0;
     // add acceleraton by mutual nbody gravity
