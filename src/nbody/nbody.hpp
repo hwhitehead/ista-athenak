@@ -41,7 +41,7 @@ enum NBodyHistIndices {M_HIST = 0,
                         X_HIST = 1, Y_HIST = 2, Z_HIST = 3,
                         VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6};
 
-enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2; DVZ_BACK = 3};
+enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2, DVZ_BACK = 3};
 
 namespace nbody {
 
