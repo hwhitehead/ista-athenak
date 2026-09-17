@@ -124,8 +124,10 @@ Real NBody::CalcTimeStep() {
     }
   }
 
-  // return unscaled timestep TODO: check symmetrisation with last timestep
-  return std::pow(hm4_max, -0.25);
+  // return unscaled timestep 
+  const Real h = std::pow(hm4_max, -0.25);
+  std::cout << "h = " << h << std::endl;
+  return h;
 }
 
 void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
