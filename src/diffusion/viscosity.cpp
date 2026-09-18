@@ -22,6 +22,7 @@
 #include "mesh/mesh.hpp"
 #include "eos/eos.hpp"
 #include "viscosity.hpp"
+#include "coordinates/cell_locations.hpp"
 
 namespace {
 
@@ -269,7 +270,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
   Real nu_iso_ = nu_iso;
-  const Real inv_gm1 = 1.0 / (eos->gamma - 1.0); 
+  const Real inv_gm1 = 1.0 / (eos.gamma - 1.0); 
   auto pnbody_data = pmy_pack->pnbody->nbody_data;
 
   // fluxes in x1-direction
@@ -317,7 +318,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody_data->CalcLocalOmegaSqr()
+      const Real omega_sqr = pnbody_data->CalcLocalOmegaSqr();
       nu_iso_ = alpha * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
@@ -370,7 +371,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody_data->CalcLocalOmegaSqr()
+      const Real omega_sqr = pnbody_data->CalcLocalOmegaSqr();
       nu_iso_ = alpha * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
@@ -417,7 +418,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody_data->CalcLocalOmegaSqr()
+      const Real omega_sqr = pnbody_data->CalcLocalOmegaSqr();
       nu_iso_ = alpha * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
