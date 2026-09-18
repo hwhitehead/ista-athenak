@@ -40,7 +40,7 @@ tlim       = 50.0       # time limit
 ndiag      = 1          # cycles between diagostic output
 
 <hydro>
-eos         = isothermal     # EOS type
+eos         = ideal     # EOS type
 reconstruct = ppm4      # spatial reconstruction method
 rsolver     = hlle      # Riemann-solver to be used
 gamma       = 1.4  # gamma = C_p/C_v
