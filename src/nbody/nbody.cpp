@@ -197,6 +197,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &delta_write = delta_nbody_data;
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
+  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
@@ -239,6 +240,18 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       Kokkos::atomic_add(&delta_write.d_view(n, DVY_BACK), dvy_back);
       Kokkos::atomic_add(&delta_write.d_view(n, DVZ_BACK), dvz_back);
       // wait until NBody::Gather task to sync back to host
+
+      // enforce local isothermal flow (TODO: add flag, embed in seperate loop)
+      if ((n == num_nbody - 1) && (is_ideal)) {
+        const Real Gmbin = 1.25; 
+        const Real Mach = 10.0;
+        const Real h_sqr = 1.0 / (Mach * Mach);
+        const Real r_cavity = 1.5;
+        const Real cs_sqr = h_sqr * Gmbin / (r + 1e-6);
+        const Real E_kin = 0.5 * rho * (SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVZ, k, j, i)));
+        const Real E_int = cs_sqr * rho / gm1;
+        cos(mb_id, IEN, k, j, i) = E_kin + E_int;
+      } // end isothermal reset
     }); // end par_for
 
   
