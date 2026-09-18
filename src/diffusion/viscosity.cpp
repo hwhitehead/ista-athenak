@@ -448,10 +448,12 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data 
 //! \fn void Viscosity::NewTimeStep()
 //! \brief Compute new time step for viscosity
 
+// TODO: decide how to handle this for inhomo visc
 void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
   // viscous timestep on MeshBlock(s) in this pack for constant isotropic viscosity
   dtnew = std::numeric_limits<float>::max();
   if (nu_iso <= 0.0) return;
+  if (alpha != 0.0) return;
   auto size = pmy_pack->pmb->mb_size;
   for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
     Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
