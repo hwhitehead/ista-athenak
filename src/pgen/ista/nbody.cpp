@@ -60,7 +60,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   }
   const Real Gmbin = mbin; // assume G = 1
   const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
-  const Real Mach = pin->GetOrAddReal("problem", "Mach", 1.0);
+  const Real Mach = pin->GetOrAddReal("problem", "Mach", 10.0);
   const Real h_sqr = 1.0 / (Mach * Mach);
   const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 2.0);
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");

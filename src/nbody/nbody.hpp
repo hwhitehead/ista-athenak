@@ -64,15 +64,15 @@ class NBody {
     ~NBody();
     
     int num_nbody; // number of discrete particles to track
-    int var_per_body; // (m,3x,3vx,+extras)
     Real dt_new, dt_old; // nbody timestep (before prefactor scaling)
     Real eta_dt; // prefactor for timestep scaling
 
     // principle data register for wider access 
-    // shape (num_nbody, var_per_body)
+    // shape (num_nbody, NVAR_DATA)
     DualArray2D<Real> nbody_data; 
 
-    // summation space for mb_pack level updates
+    // summation space for mb_pack level backreaction updates
+    // shape (num_nbody, NVAR_BACK)
     DualArray2D<Real> delta_nbody_data;
 
     // container to hold names of TaskIDs
@@ -96,7 +96,6 @@ class NBody {
 
   private:
     MeshBlockPack* pmy_pack;
-    int _reg_per_body = 7; // (m,3x,3vx)
     // private registers for intermediate integrator states (rk4)
     DualArray2D<Real> _y_init, _y_sub, _y_ret; 
     DualArray2D<Real> _k_sub;

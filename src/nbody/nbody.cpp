@@ -38,10 +38,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
-  // both counters below deprecated to enum counters
-  var_per_body = NVAR_DATA; // set by NBodyDataIndices
-  _reg_per_body = NVAR_REG; // set by NBodyRegisterIndices
-
+  
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);

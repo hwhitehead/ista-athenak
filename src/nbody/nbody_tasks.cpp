@@ -64,6 +64,7 @@ TaskStatus NBody::Gather(Driver *pdrive, int stage) {
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
+  // integrate on coarse timestep dt (NOT beta_dt)
   const Real dt = pmy_pack->pmesh->dt;
   const Real dt_over_6 = dt / 6.0;
 
