@@ -62,7 +62,7 @@ TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
     for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_BACK; i++) {  // TODO: is there a Kokkos func for this loop?
-        delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id]->pnbody->delta_this_pack.h_view(n, i);
+        delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.h_view(n, i);
       } // end NVAR_BACK loop
     } // end n loop
   } // end mb_pack loop
@@ -169,13 +169,13 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
   // Step 3: scatter nbody state from this mb_pack to all on rank
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id]->pnbody->nbody_data.view_host(), nbody_data.view_host());
+    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.view_host(), nbody_data.view_host());
   } // end mb_pack loop
 
   // Step 4: force update of device state on all mb_packs
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    pmy_pack->pmesh->pmb_pack[mbp_id]->pnbody->nbody_data.template modify<HostMemSpace>();
-    pmy_pack->pmesh->pmb_pack[mbp_id]->pnbody->nbody_data.template sync<DevExeSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template modify<HostMemSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template sync<DevExeSpace>();
   } // end mb_pack loop
   
   return TaskStatus::complete;
