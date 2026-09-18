@@ -41,7 +41,7 @@ x2min = -2.0
 x2max =  2.0
 x3min = -0.05
 x3max = 0.05
-level = 3
+level = 2
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -76,16 +76,16 @@ x0 = 0.2
 y0 = 0.0
 z0 = 0.0
 vx0 = 0.0
-vy0 = -0.2
+vy0 = 0.2
 vz0 = 0.0
 r_soft0 = 0.05
 
 m1 = 0.25
-x1 = 0.8
+x1 = -0.8
 y1 = 0.0
 z1 = 0.0
 vx1 = 0.0
-vy1 = 0.8
+vy1 = -0.8
 vz1 = 0.0
 r_soft1 = 0.05
 
