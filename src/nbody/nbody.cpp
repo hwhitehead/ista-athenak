@@ -256,7 +256,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 }
 
 // compute sum of squared orbital frequencies
-void NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
+Real NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
   Real sum_omega_sqr = 0.0;
 
   for (int n = 0; n < num_nbody; n++) {
@@ -264,7 +264,7 @@ void NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
     const Real dy = y - nbody_data.d_view(n, Y_DATA);
     const Real dz = z - nbody_data.d_view(n, Z_DATA);
     const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-    sum_omega_sqr += _G * nbody_data.d_view(n, M_DATA) * np.power(dr_sqr, -3.0);
+    sum_omega_sqr += _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -3.0);
   }
   return sum_omega_sqr;
 }

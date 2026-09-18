@@ -93,7 +93,7 @@ class NBody {
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
     void NBodyGravitySrcTerm(const Real beta_dt);
-    Real CalcLocalOmegaSqr();
+    Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z);
 
   private:
     MeshBlockPack* pmy_pack;
