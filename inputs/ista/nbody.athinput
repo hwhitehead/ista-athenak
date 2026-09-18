@@ -46,6 +46,8 @@ rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.000001      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
 nu_iso = 1e-3
+dfloor = 1e-6
+pfloor = 1e-8
 
 <problem>
 
