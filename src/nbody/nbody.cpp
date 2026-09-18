@@ -246,11 +246,11 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         const Real Gmbin = 1.25; 
         const Real Mach = 10.0;
         const Real h_sqr = 1.0 / (Mach * Mach);
-        const Real r_cavity = 1.5;
-        const Real cs_sqr = h_sqr * Gmbin / (r + 1e-6);
+        const Real r_sqr = SQR(x) + SQR(y) + SQR(z);
+        const Real cs_sqr = h_sqr * Gmbin / (Kokkos::sqrt(r_sqr) + 1e-6);
         const Real E_kin = 0.5 * rho * (SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVZ, k, j, i)));
         const Real E_int = cs_sqr * rho / gm1;
-        cos(mb_id, IEN, k, j, i) = E_kin + E_int;
+        cons(mb_id, IEN, k, j, i) = E_kin + E_int;
       } // end isothermal reset
     }); // end par_for
 
