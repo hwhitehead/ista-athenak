@@ -44,6 +44,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
+  inc_backreaction = pin->GetOrAddBoolen("nbody", "inc_backreaction", false);
 
   // principle registers for wider access
   // nbody_data and delta_nbody_data are dual on host/device

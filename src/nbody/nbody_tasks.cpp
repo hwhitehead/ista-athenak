@@ -55,10 +55,13 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 // collect forcing by hydro on nbody state on THIS rank
 TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
-  // Step 1: Init pack sum register as zero 
+  // Step 1: If running without backreaction, skip
+  if (!inc_backreaction) return TaskStatus::complete;
+
+  // Step 2: Init pack sum register as zero 
   Kokkos::deep_copy(delta_this_mesh.view_host(), 0.0);
 
-  // Step 2: Collect updates across mb_packs on this rank 
+  // Step 3: Collect updates across mb_packs on this rank 
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
     for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_BACK; i++) {  // TODO: is there a Kokkos func for this loop?
@@ -73,15 +76,18 @@ TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 // collect forcing by hydro on nbody state on ALL ranks
 TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 
-  // Step 1: only run commincation on ONE mb_pack per rank
+  // Step 1: If running without backreaction, skip
+  if (!inc_backreaction) return TaskStatus::complete;
+
+  // Step 2: only run commincation on ONE mb_pack per rank
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
-  // Step 2: sum delta_pack_sum across ranks
+  // Step 3: sum delta_pack_sum across ranks
 #if MPI_PARALLEL_ENABLED
   MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
-  // Step 3: copy sum across ranks to proper register
+  // Step 4: copy sum across ranks to proper register
   Kokkos::deep_copy(delta_all_meshes.view_host(), delta_this_mesh.view_host());
 
   return TaskStatus::complete;
@@ -179,7 +185,6 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
   } // end mb_pack loop
   
   return TaskStatus::complete;
-
 }
 
 

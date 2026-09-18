@@ -82,6 +82,7 @@ class NBody {
 
     // physics module booleans
     bool src_gravity, src_accretion;
+    bool inc_backreation;
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
