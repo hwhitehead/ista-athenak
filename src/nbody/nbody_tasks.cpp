@@ -92,7 +92,7 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
   // Step 1: only perform integration on ONE mb_pack on ONE rank
   if (global_variable::my_rank != 0) return TaskStatus::complete;
-  if (pmy_pack != pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   // Step 2: perform RK4 integration of nbody state
 
@@ -174,8 +174,8 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
   // Step 4: force update of device state on all mb_packs
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.template modify<HostMemSpace>();
-    pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.template sync<DevExeSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id]->pnbody->nbody_data.template modify<HostMemSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id]->pnbody->nbody_data.template sync<DevExeSpace>();
   } // end mb_pack loop
   
   return TaskStatus::complete;
