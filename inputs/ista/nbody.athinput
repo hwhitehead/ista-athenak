@@ -35,13 +35,13 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 refinement = static     # static mesh refinement (SMR)
 
 <refined_region1>
-x1min = -1.0            # level-1 region: dx=dy=dz=0.02
+x1min = -1.0            
 x1max =  1.0
 x2min = -2.0
 x2max =  2.0
 x3min = -0.05
 x3max = 0.05
-level = 1
+level = 3
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -75,7 +75,7 @@ z0 = 0.0
 vx0 = 0.0
 vy0 = -0.2
 vz0 = 0.0
-r_soft0 = 0.1
+r_soft0 = 0.05
 
 m1 = 0.25
 x1 = 0.8
@@ -84,7 +84,7 @@ z1 = 0.0
 vx1 = 0.0
 vy1 = 0.8
 vz1 = 0.0
-r_soft1 = 0.1
+r_soft1 = 0.05
 
 <output1>
 file_type  = hst        # history data dump
