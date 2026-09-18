@@ -199,12 +199,13 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
-  auto &nbody_read = nbody_data;
-  auto &delta_write = delta_this_pack;
+  auto &nbody_data_ = nbody_data;
+  auto &delta_this_pack_ = delta_this_pack;
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
   const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
   const Real last_body = num_nbody - 1;
+  bool inc_backreaction_ = inc_backreaction;
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
@@ -215,15 +216,15 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
       // compute body-cell seperation
-      const Real dx = x - nbody_read.d_view(n, X_DATA);
-      const Real dy = y - nbody_read.d_view(n, Y_DATA);
-      const Real dz = z - nbody_read.d_view(n, Z_DATA);
+      const Real dx = x - nbody_data_.d_view(n, X_DATA);
+      const Real dy = y - nbody_data_.d_view(n, Y_DATA);
+      const Real dz = z - nbody_data_.d_view(n, Z_DATA);
       const Real dr_sqr = dx * dx + dy * dy + dz * dz;
       const Real dr = Kokkos::sqrt(dr_sqr);
 
       // compute Newtonian gravitational acceleration
       const Real rho = prim(mb_id, IDN, k, j, i);
-      const Real g_fac = grav_const * nbody_read.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + SQR(nbody_read.d_view(n, R_SOFT_DATA)), -1.5);
+      const Real g_fac = grav_const * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA)), -1.5);
       const Real dp_fac = -g_fac * beta_dt * rho;
       const Real dpx = dp_fac * dx;
       const Real dpy = dp_fac * dy;
@@ -239,14 +240,15 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       if (is_ideal) cons(mb_id, IEN, k, j, i) += dE; // only update energy if ideal
 
       // compute backreaction on body TEMP: set as zero
-      Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
+      if (inc_backreaction_) {
+        Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
 
-      // stash backreaction registers, with care for race conditions
-      Kokkos::atomic_add(&delta_write.d_view(n, DM_BACK), dm_back);
-      Kokkos::atomic_add(&delta_write.d_view(n, DVX_BACK), dvx_back);
-      Kokkos::atomic_add(&delta_write.d_view(n, DVY_BACK), dvy_back);
-      Kokkos::atomic_add(&delta_write.d_view(n, DVZ_BACK), dvz_back);
-      // wait until NBody::Gather task to sync back to host
+        // stash backreaction registers, with care for race conditions
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_back);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVX_BACK), dvx_back);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVY_BACK), dvy_back);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVZ_BACK), dvz_back);
+      }
 
       // enforce local isothermal flow (TODO: add flag, embed in seperate loop)
       if ((n == last_body) && (is_ideal)) {

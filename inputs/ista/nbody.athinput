@@ -41,7 +41,7 @@ x2min = -2.0
 x2max =  2.0
 x3min = -0.05
 x3max = 0.05
-level = 3
+level = 2
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static

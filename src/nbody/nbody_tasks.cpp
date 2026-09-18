@@ -78,7 +78,7 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 
   // Step 2: sum delta_pack_sum across ranks
 #if MPI_PARALLEL_ENABLED
-  MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh.h_view(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
   // Step 3: copy sum across ranks to proper register
@@ -164,7 +164,7 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
   // Step 2: scatter nbody state from rank 0 to all
 #if MPI_PARALLEL_ENABLED
-  MPI_Scatter(nbody_data.h_view(), NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+  MPI_Bcast(nbody_data.view_host(), NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
 #endif
 
   // Step 3: scatter nbody state from this mb_pack to all on rank
