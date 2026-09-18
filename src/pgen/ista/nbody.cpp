@@ -54,8 +54,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // load disc properties TODO: commmunicate to forced isotherm, new class or stash in nbody
   Real mbin = 0.0; // sum over bodies
-  for (int n = 0; n < num_nbod; n++) {
-    const Real m_n = pin->GetOrAddReal("nbody", "m" + str::to_string(n), 0.0);
+  for (int n = 0; n < num_nbody; n++) {
+    const Real m_n = pin->GetOrAddReal("nbody", "m" + std::to_string(n), 0.0);
     mbin += m_n;
   }
   const Real Gmbin = mbin; // assume G = 1
