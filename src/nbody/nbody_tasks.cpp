@@ -124,8 +124,9 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   }
 
   // force update of device state
+  // TODO: if integrating rank locked, shift update to Scatter step
   nbody_data.template modify<HostMemSpace>();
-  delta_nbody_data.template sync<DevExeSpace>();
+  nbody_data.template sync<DevExeSpace>();
 
   return TaskStatus::complete;
 }
