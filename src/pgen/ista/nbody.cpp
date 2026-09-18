@@ -58,7 +58,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real Mach = 10.0;
   const Real h_sqr = 1.0 / (Mach * Mach);
   const Real r_cavity = 1.5;
-  bool is_ideal = (pin->GetOrAddBoolean("hydro", "eos", "ideal") == "ideal");
+  bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
 
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
@@ -116,7 +116,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       w0_(m, IVX, k, j, i) = vx;               // Velocity x-component
       w0_(m, IVY, k, j, i) = vy;               // Velocity y-component
       //w0_(m, IVZ, k, j, i) = vz;               // Velocity z-component TODO: add dimension check for z init
-      if (is_ideal) pin->w0_(m, IPR, k, j, i) = P;             // Pressure
+      if (is_ideal) w0_(m, IPR, k, j, i) = P;             // Pressure
     }); 
 
     // ===== Convert primitives to conserved variables =====
