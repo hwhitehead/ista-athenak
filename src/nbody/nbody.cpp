@@ -198,6 +198,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
   const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
+  const Real last_body = num_nbody - 1;
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
@@ -242,7 +243,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       // wait until NBody::Gather task to sync back to host
 
       // enforce local isothermal flow (TODO: add flag, embed in seperate loop)
-      if ((n == num_nbody - 1) && (is_ideal)) {
+      if ((n == last_body) && (is_ideal)) {
         const Real Gmbin = 1.25; 
         const Real Mach = 10.0;
         const Real h_sqr = 1.0 / (Mach * Mach);
@@ -253,9 +254,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         cons(mb_id, IEN, k, j, i) = E_kin + E_int;
       } // end isothermal reset
     }); // end par_for
-
-  
-
+    
   return;
 }
 
