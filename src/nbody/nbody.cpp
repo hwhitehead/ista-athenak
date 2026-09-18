@@ -46,8 +46,10 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // principle registers for wider access
   // nbody_data and delta_nbody_data are dual on host/device
   Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);
-  Kokkos::realloc(delta_nbody_data, num_nbody, NVAR_BACK);
+  Kokkos::realloc(delta_this_pack, num_nbody, NVAR_BACK);
   // TODO: the following are ONLY accessed on the host, could change type
+  Kokkos::realloc(delta_this_mesh, num_nbody, NVAR_BACK);
+  Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
   Kokkos::realloc(_y_init, num_nbody, NVAR_REG);
   Kokkos::realloc(_y_sub, num_nbody, NVAR_REG);
   Kokkos::realloc(_y_ret, num_nbody, NVAR_REG);
@@ -74,10 +76,6 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   eta_dt = pin->GetOrAddReal("nbody", "eta_dt", 0.01);
   dt_old = CalcTimeStep();
   dt_new = dt_old; 
-
-  // set delta_nbody as zero for first timestep
-  // TODO: add restart protection? maybe not needed
-  // Kokkos::deep_copy(delta_nbody_data, 0.0);
 
   // mark host view as modified and sync to device
   nbody_data.template modify<HostMemSpace>();
@@ -142,7 +140,7 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, YDOT_REG) = y.h_view(n, VY_REG);
     f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_REG);
     
-    // dot(v) = a TODO: add accelerations by gas (gravity, accretion etc.)
+    // dot(v) = a TODO: add back reaction from delta_all_meshes register
     f.h_view(n, VXDOT_REG) = 0.0;
     f.h_view(n, VYDOT_REG) = 0.0;
     f.h_view(n, VZDOT_REG) = 0.0;

@@ -29,7 +29,7 @@ class ShearingBoxCC;
 class Driver;
 
 struct NBodyTaskIDs {
-    TaskID gather, integrate, scatter, calc_dt;
+    TaskID reduce_mesh, reduce_meshes, integrate, scatter, calc_dt;
 };
 
 enum NBodyDataIndices {M_DATA = 0, 
@@ -73,7 +73,9 @@ class NBody {
 
     // summation space for mb_pack level backreaction updates
     // shape (num_nbody, NVAR_BACK)
-    DualArray2D<Real> delta_nbody_data;
+    DualArray2D<Real> delta_this_pack; // summation for all MeshBlocks in this MeshBlockPack
+    DualArray2D<Real> delta_this_mesh; // summation for all MeshBlockPacks in this Mesh (this rank)
+    DualArray2D<Real> delta_all_meshes; // summation for all Meshes (all ranks)
 
     // container to hold names of TaskIDs
     NBodyTaskIDs id;
@@ -83,7 +85,8 @@ class NBody {
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
-    TaskStatus Gather(Driver *d, int state);
+    TaskStatus ReduceParentMesh(Driver *d, int state);
+    TaskStatus ReduceAllMeshes(Driver *d, int state);
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Scatter(Driver *d, int state);
     TaskStatus NewTimeStep(Driver *pdrive, int stage);

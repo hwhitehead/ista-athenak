@@ -34,8 +34,9 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   
   TaskID none(0);
 
-  id.gather = tl["after_timeintegrator"]->AddTask(&NBody::Gather, this, none);
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.gather);
+  id.reduce_mesh = tl["after_timeintegrator"]->AddTask(&NBody::ReduceParentMesh, this, none);
+  id.reduce_meshes = tl["after_timeintegrator"]->AddTask(&NBody::ReduceAllMeshes, this, id.reduce_mesh);
+  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.reduce_meshes);
   id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
   id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.integrate);
 
@@ -51,25 +52,51 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   return TaskStatus::complete;
 }
 
-// collect forcing by hydro on nbody state
-TaskStatus NBody::Gather(Driver *pdrive, int stage) {
+// collect forcing by hydro on nbody state on THIS rank
+TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
-  // post hydro integration, delta_nbody_data populated on each MeshBlockPack
-  // need to sum across all packs
+  // Step 1: Init pack sum register as zero 
+  Kokkos::deep_copy(delta_this_mesh, 0.0);
+
+  // Step 2: Collect updates across mb_packs on this rank
+  for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    for (int i = 0; i < NVAR_BACK; i++) {
+      delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id]->delta_this_pack.h_view(n, i);
+    } // end NVAR_BACK loop
+  } // end mb_pack loop
 
   return TaskStatus::complete;
+}
 
+// collect forcing by hydro on nbody state on ALL ranks
+TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
+
+  // Step 1: only run commincation on ONE mb_pack per rank
+  if (pmy_pack != pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 2: sum delta_pack_sum across ranks
+#if MPI_PARALLEL_ENABLED
+  MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+#endif
+
+  // Step 3: copy sum across ranks to proper register
+  Kokkos::deep_copy(delta_all_meshes, delta_this_mesh);
+
+  return TaskStatus::complete;
 }
 
 // propogate nbody state forward in time using RK4
 TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
+  // Step 1: only perform integration on ONE mb_pack on ONE rank
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  if (pmy_pack != pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 2: perform RK4 integration of nbody state
+
   // integrate on coarse timestep dt (NOT beta_dt)
   const Real dt = pmy_pack->pmesh->dt;
   const Real dt_over_6 = dt / 6.0;
-
-  // for now, run on all ranks independently 
-  // if (global_variable::my_rank != 0) return TaskStatus::complete;
 
   // package data into scratch registers
   // i runs over m,3x,3vx...
@@ -124,18 +151,31 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
       } // end i
   }
 
-  // force update of device state
-  // TODO: if integrating rank locked, shift update to Scatter step
-  nbody_data.template modify<HostMemSpace>();
-  nbody_data.template sync<DevExeSpace>();
-
   return TaskStatus::complete;
 }
 
 // scatter nbody state from rank 0 to all ranks
-// OR evolve each nbody seperate and avoid scatter
 TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
+  // Step 1: scatter from and to ONE mb_pack per rank
+  if (pmy_pack != pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 2: scatter nbody state from rank 0 to all
+#if MPI_PARALLEL_ENABLED
+  MPI_Scatter(nbody_data, NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+#endif
+
+  // Step 3: scatter nbody state from this mb_pack to all on rank
+  for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.h_view(), nbody_data.h_view());
+  } // end mb_pack loop
+
+  // Step 4: force update of device state on all mb_packs
+  for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.template modify<HostMemSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.template sync<DevExeSpace>();
+  } // end mb_pack loop
+  
   return TaskStatus::complete;
 
 }
