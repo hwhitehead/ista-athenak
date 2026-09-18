@@ -92,7 +92,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
       // determine distance from barycenter
-      const Real r_sqr = x1v ** 2 + x2v ** 2 + x3v ** 2;
+      const Real r_sqr = x1v * x1v + x2v * x2v + x3v * x3v;
       const Real r = Kokkos::sqrt(r_sqr);
 
       // set density by cavity kernel
