@@ -56,7 +56,7 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
   // Step 1: Init pack sum register as zero 
-  Kokkos::deep_copy(delta_this_mesh.h_view(), 0.0);
+  Kokkos::deep_copy(delta_this_mesh.view_host(), 0.0);
 
   // Step 2: Collect updates across mb_packs on this rank 
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
@@ -82,7 +82,7 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 #endif
 
   // Step 3: copy sum across ranks to proper register
-  Kokkos::deep_copy(delta_all_meshes.h_view(), delta_this_mesh.h_view());
+  Kokkos::deep_copy(delta_all_meshes.view_host(), delta_this_mesh.view_host());
 
   return TaskStatus::complete;
 }
@@ -169,7 +169,7 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
   // Step 3: scatter nbody state from this mb_pack to all on rank
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.h_view(), nbody_data.h_view());
+    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id]->nbody_data.view_host(), nbody_data.view_host());
   } // end mb_pack loop
 
   // Step 4: force update of device state on all mb_packs
