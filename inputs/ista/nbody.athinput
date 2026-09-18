@@ -8,13 +8,13 @@ basename  = nbody       # problem ID: basename of output filenames
 
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
-nx1       = 512          # Number of zones in X1-direction (root level, dx=0.1)
+nx1       = 256          # Number of zones in X1-direction (root level, dx=0.1)
 x1min     = -10.0        # minimum value of X1
 x1max     =  10.0        # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
-nx2       = 512          # Number of zones in X2-direction (root level, dx=0.1)
+nx2       = 256          # Number of zones in X2-direction (root level, dx=0.1)
 x2min     = -10.0        # minimum value of X2
 x2max     =  10.0        # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
@@ -30,6 +30,18 @@ ox3_bc    = outflow     # outer-X3 boundary flag
 nx1       = 64          # Number of cells in each MeshBlock, X1-dir
 nx2       = 64          # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
+
+<mesh_refinement>
+refinement = static     # static mesh refinement (SMR)
+
+<refined_region1>
+x1min = -1.0            # level-1 region: dx=dy=dz=0.02
+x1max =  1.0
+x2min = -2.0
+x2max =  2.0
+x3min = -0.05
+x3max = 0.05
+level = 1
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -61,7 +73,7 @@ x0 = 0.2
 y0 = 0.0
 z0 = 0.0
 vx0 = 0.0
-vy0 = 0.2
+vy0 = -0.2
 vz0 = 0.0
 r_soft0 = 0.1
 
@@ -70,7 +82,7 @@ x1 = 0.8
 y1 = 0.0
 z1 = 0.0
 vx1 = 0.0
-vy1 = -0.8
+vy1 = 0.8
 vz1 = 0.0
 r_soft1 = 0.1
 
