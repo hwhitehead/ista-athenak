@@ -38,7 +38,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // determine array dimensions from user input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
-  
+
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
@@ -253,6 +253,20 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
     }); // end par_for
     
   return;
+}
+
+// compute sum of squared orbital frequencies
+void NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
+  Real sum_omega_sqr = 0.0;
+
+  for (int n = 0; n < num_nbody; n++) {
+    const Real dx = x - nbody_data.d_view(n, X_DATA);
+    const Real dy = y - nbody_data.d_view(n, Y_DATA);
+    const Real dz = z - nbody_data.d_view(n, Z_DATA);
+    const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+    sum_omega_sqr += _G * nbody_data.d_view(n, M_DATA) * np.power(dr_sqr, -3.0);
+  }
+  return sum_omega_sqr;
 }
 
 } // end nbody namespace

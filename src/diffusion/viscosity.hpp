@@ -41,6 +41,11 @@ class Viscosity {
                            DvceFaceFld5D<Real> &f);
   void NewTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
 
+  // custom functionality for inhomogeneous viscosity coefficients
+  Real alpha;
+  void AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_Data &eos,
+                                DvceFaceFld5D<Real> &flx)
+
  private:
   MeshBlockPack* pmy_pack;
 };

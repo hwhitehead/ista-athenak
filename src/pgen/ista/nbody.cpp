@@ -124,6 +124,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       if (is_ideal) w0_(m, IPR, k, j, i) = P;             // Pressure
     }); 
 
+    // TODO: check, this is likely not needed
     // ===== Convert primitives to conserved variables =====
     pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is, ie, js, je, ks, ke);
   }  
