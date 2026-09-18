@@ -52,6 +52,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
 
+  // TEMP disc static no pin
+  const Real Gmbin = 1.25; 
+  const Real rho0 = 1.0;
+  const Real Mach = 10.0;
+  const Real h_sqr = 1.0 / (Mach * Mach);
+  const Real r_cavity = 1.5;
+
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
   {
@@ -84,12 +91,31 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       int nx3     = indcs.nx3;                              // nz
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
+      // determine distance from barycenter
+      const Real r_sqr = x1v ** 2 + x2v ** 2 + x3v ** 2;
+      const Real r = Kokkos::sqrt(r_sqr);
+
+      // set density by cavity kernel
+      const Real cavity_fac = 0.0001 + 0.9999 * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
+      const Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
+
+      // set pressure
+      const Real cs_sqr = h_sqr * Gmbin / (r + 1e-6);
+      const Real P = cs_sqr * rho;
+
+      // set velocity
+      const Real v_phi = Mach * Kokkos::sqrt(cs_sqr);
+      const Real phi = Kokkos::atan2(x2v, x1v); // RH argument from +x axis
+      const Real vx = -v_phi * Kokkos::sin(phi);
+      const Real vy = v_phi * Kokkos::cos(phi);
+      const Real vz = 0.0;
+      
       // ===== Set primitive variables =====
-      w0_(m, IDN, k, j, i) = 1.0;              // Density
-      w0_(m, IVX, k, j, i) = 0.0;               // Velocity x-component
-      w0_(m, IVY, k, j, i) = 0.0;               // Velocity y-component
-      //w0_(m, IVZ, k, j, i) = 0.0;               // Velocity z-component
-      w0_(m, IPR, k, j, i) = 1.0;             // Pressure
+      w0_(m, IDN, k, j, i) = rho;              // Density
+      w0_(m, IVX, k, j, i) = vx;               // Velocity x-component
+      w0_(m, IVY, k, j, i) = vy;               // Velocity y-component
+      //w0_(m, IVZ, k, j, i) = vz;               // Velocity z-component TODO: add dimension check for z init
+      w0_(m, IPR, k, j, i) = P;             // Pressure
     }); 
 
     // ===== Convert primitives to conserved variables =====

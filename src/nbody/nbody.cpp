@@ -196,6 +196,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &nbody_read = nbody_data;
   auto &delta_write = delta_nbody_data;
   auto grav_const = _G;
+  bool is_ideal = pmy_pack->phydro->peos->is_ideal;
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
@@ -227,7 +228,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       cons(mb_id, IM1, k, j, i) += dpx;
       cons(mb_id, IM2, k, j, i) += dpy;
       cons(mb_id, IM3, k, j, i) += dpz;
-      cons(mb_id, IEN, k, j, i) += dE;
+      if (is_ideal) cons(mb_id, IEN, k, j, i) += dE; // only update energy if ideal
 
       // compute backreaction on body TEMP: set as zero
       Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
