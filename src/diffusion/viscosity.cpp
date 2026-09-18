@@ -269,7 +269,6 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
   auto size = pmy_pack->pmb->mb_size;
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
-  Real nu_iso_ = nu_iso;
   const Real inv_gm1 = 1.0 / (eos.gamma - 1.0); 
   auto pnbody = pmy_pack->pnbody;
   const Real alpha_ = alpha;
@@ -320,7 +319,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
       const Real omega_sqr = pnbody->CalcLocalOmegaSqr();
-      nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
+      const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
       flx1(m,IVX,k,j,i) -= nud*fvx(i);
@@ -373,7 +372,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
       const Real omega_sqr = pnbody->CalcLocalOmegaSqr();
-      nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
+      const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx2(m,IVX,k,j,i) -= nud*fvx(i);
@@ -420,7 +419,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
       const Real omega_sqr = pnbody->CalcLocalOmegaSqr();
-      nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
+      const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
       flx3(m,IVX,k,j,i) -= nud*fvx(i);
