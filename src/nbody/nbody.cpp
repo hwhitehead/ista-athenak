@@ -215,8 +215,8 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
       // compute Newtonian gravitational acceleration
       const Real rho = prim(mb_id, IDN, k, j, i);
-      const Real g_fac = grav_const * nbody_read.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + nbody_read.d_view(n, R_SOFT_DATA) * nbody_read.d_view(n, R_SOFT_DATA), -1.5);
-      const Real dp_fac = g_fac * beta_dt * rho;
+      const Real g_fac = grav_const * nbody_read.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + SQR(nbody_read.d_view(n, R_SOFT_DATA)), -1.5);
+      const Real dp_fac = -g_fac * beta_dt * rho;
       const Real dpx = dp_fac * dx;
       const Real dpy = dp_fac * dy;
       const Real dpz = dp_fac * dz;
