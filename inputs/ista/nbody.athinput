@@ -62,6 +62,9 @@ dfloor = 1e-6
 pfloor = 1e-8
 
 <problem>
+r_cavity = 2.0
+Mach = 10.0
+rho0 = 1.0
 
 <nbody>
 num_nbody = 2

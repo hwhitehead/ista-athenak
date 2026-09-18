@@ -52,12 +52,17 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
 
-  // TEMP disc static no pin
-  const Real Gmbin = 1.25; 
-  const Real rho0 = 1.0;
-  const Real Mach = 10.0;
+  // load disc properties TODO: commmunicate to forced isotherm, new class or stash in nbody
+  Real mbin = 0.0; // sum over bodies
+  for (int n = 0; n < num_nbody) {
+    const Real m_n = pin->GetOrAddReal("nbody", "m" + str::to_string(n), 0.0);
+    mbin += m_n;
+  }
+  const Real Gmbin = mbin; // assume G = 1
+  const Real rho0 = pin->GetOrAdddReal("problem", "rho0", 1.0);
+  const Real Mach = pin->GetOrAdddReal("problem", "Mach", 1.0);
   const Real h_sqr = 1.0 / (Mach * Mach);
-  const Real r_cavity = 1.5;
+  const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 2.0);
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
 
   // (2) access prims from mesh block pack
