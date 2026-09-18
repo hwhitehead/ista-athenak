@@ -38,7 +38,7 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   id.reduce_meshes = tl["after_timeintegrator"]->AddTask(&NBody::ReduceAllMeshes, this, id.reduce_mesh);
   id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.reduce_meshes);
   id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
-  id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.integrate);
+  id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
 
   return;
 }
@@ -56,11 +56,11 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
   // Step 1: Init pack sum register as zero 
-  Kokkos::deep_copy(delta_this_mesh, 0.0);
+  Kokkos::deep_copy(delta_this_mesh.h_view(), 0.0);
 
-  // Step 2: Collect updates across mb_packs on this rank
+  // Step 2: Collect updates across mb_packs on this rank 
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    for (int i = 0; i < NVAR_BACK; i++) {
+    for (int i = 0; i < NVAR_BACK; i++) {  // TODO: is there a Kokkos func for this loop?
       delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id]->delta_this_pack.h_view(n, i);
     } // end NVAR_BACK loop
   } // end mb_pack loop
@@ -76,11 +76,11 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 
   // Step 2: sum delta_pack_sum across ranks
 #if MPI_PARALLEL_ENABLED
-  MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh.h_view(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
   // Step 3: copy sum across ranks to proper register
-  Kokkos::deep_copy(delta_all_meshes, delta_this_mesh);
+  Kokkos::deep_copy(delta_all_meshes.h_view(), delta_this_mesh.h_view());
 
   return TaskStatus::complete;
 }
@@ -162,7 +162,7 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
 
   // Step 2: scatter nbody state from rank 0 to all
 #if MPI_PARALLEL_ENABLED
-  MPI_Scatter(nbody_data, NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+  MPI_Scatter(nbody_data.h_view(), NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
 #endif
 
   // Step 3: scatter nbody state from this mb_pack to all on rank

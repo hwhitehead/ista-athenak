@@ -29,7 +29,9 @@ namespace nbody {
 
 NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   nbody_data("nbody_data",1,1),
-  delta_nbody_data("delta_nbody_data",1,1),
+  delta_this_pack("delta_nbody_data",1,1),
+  delta_this_mesh("delta_this_mesh",1,1),
+  delta_all_meshes("delta_all_meshes",1,1),
   _y_init("y_init",1,1),
   _y_sub("y_sub",1,1),
   _y_ret("y_ret",1,1),
@@ -77,12 +79,21 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   dt_old = CalcTimeStep();
   dt_new = dt_old; 
 
+  // set all back reaction registers to zero
+  Kokkos::deep_copy(delta_this_pack.h_view(), 0.0);
+  Kokkos::deep_copy(delta_this_mesh.h_view(), 0.0);
+  Kokkos::deep_copy(delta_all_meshes.h_view(), 0.0);
+
   // mark host view as modified and sync to device
   nbody_data.template modify<HostMemSpace>();
-  delta_nbody_data.template modify<HostMemSpace>();
+  delta_this_pack.template modify<HostMemSpace>();
+  delta_this_mesh.template modify<HostMemSpace>();
+  delta_all_meshes.template modify<HostMemSpace>();
 
   nbody_data.template sync<DevExeSpace>();
-  delta_nbody_data.template sync<DevExeSpace>();
+  delta_this_pack.template sync<DevExeSpace>();
+  delta_this_mesh.template sync<DevExeSpace>();
+  delta_all_meshes.template sync<DevExeSpace>();
 
 } // end ctor
 
@@ -189,7 +200,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
   auto &nbody_read = nbody_data;
-  auto &delta_write = delta_nbody_data;
+  auto &delta_write = delta_this_pack;
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
   const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
