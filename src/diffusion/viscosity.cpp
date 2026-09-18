@@ -318,7 +318,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody->CalcLocalOmegaSqr();
+      const Real omega_sqr = pnbody->CalcLocalOmegaSqr(x, y, z);
       const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
@@ -371,7 +371,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody->CalcLocalOmegaSqr();
+      const Real omega_sqr = pnbody->CalcLocalOmegaSqr(x, y, z);
       const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
@@ -418,7 +418,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody->CalcLocalOmegaSqr();
+      const Real omega_sqr = pnbody->CalcLocalOmegaSqr(x, y, z);
       const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
