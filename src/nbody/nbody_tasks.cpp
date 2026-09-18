@@ -62,7 +62,7 @@ TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
     for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_BACK; i++) {  // TODO: is there a Kokkos func for this loop?
-        delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id]->delta_this_pack.h_view(n, i);
+        delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id].delta_this_pack.h_view(n, i);
       } // end NVAR_BACK loop
     } // end n loop
   } // end mb_pack loop
