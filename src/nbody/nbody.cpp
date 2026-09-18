@@ -80,9 +80,9 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   dt_new = dt_old; 
 
   // set all back reaction registers to zero
-  Kokkos::deep_copy(delta_this_pack.h_view(), 0.0);
-  Kokkos::deep_copy(delta_this_mesh.h_view(), 0.0);
-  Kokkos::deep_copy(delta_all_meshes.h_view(), 0.0);
+  Kokkos::deep_copy(&delta_this_pack.h_view(), 0.0);
+  Kokkos::deep_copy(&delta_this_mesh.h_view(), 0.0);
+  Kokkos::deep_copy(&delta_all_meshes.h_view(), 0.0);
 
   // mark host view as modified and sync to device
   nbody_data.template modify<HostMemSpace>();
