@@ -258,7 +258,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
       // enforce local isothermal flow (TODO: add flag, embed in seperate loop)
       if ((n == last_body) && (is_ideal)) {
-        const Real Gmbin = 1.25; 
+        const Real Gmbin = 2; 
         const Real Mach = 10.0;
         const Real h_sqr = 1.0 / (Mach * Mach);
         const Real r_sqr = SQR(x) + SQR(y) + SQR(z);
