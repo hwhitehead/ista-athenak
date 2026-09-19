@@ -90,7 +90,7 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
   // Step 4: convert delta sum into rate, and stash
   for (int n = 0; n < num_nbody; n++) {
     for (int i = 0; i < NVAR_REG; i++) {
-      delta_all_meshe.h_view(n, i) = delta_this_mesh.h_view(n, i) / pmy_pack->pmesh->dt;
+      delta_all_meshes.h_view(n, i) = delta_this_mesh.h_view(n, i) / pmy_pack->pmesh->dt;
     }
   }
   
