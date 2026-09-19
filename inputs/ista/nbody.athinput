@@ -32,7 +32,7 @@ nx2       = 64          # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
-refinement = adapative     # static mesh refinement (SMR)
+refinement = adaptive     # static mesh refinement (SMR)
 num_levels = 2
 refinement_interval = 3
 max_nmb_per_rank = 1024
