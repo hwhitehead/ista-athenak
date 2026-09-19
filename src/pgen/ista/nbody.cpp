@@ -51,7 +51,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
-  const bool is_3d = pmy_mesh->three_d;
+  const bool is_3d = pmy_mesh_->three_d;
 
   // load disc properties TODO: commmunicate to forced isotherm, new class or stash in nbody
   Real mbin = 0.0; // sum over bodies
