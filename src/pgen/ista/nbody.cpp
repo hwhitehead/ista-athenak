@@ -180,6 +180,11 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   // loop over MeshBlocks in this MeshBlockPack
   // MeshBlock count small, perfom on host
   for (int mb_id = 0; mb_id < nmb; mb_id++) {
+
+    // TEMP enforce AMR bump for all blocks
+    refine_flag.h_view(mb_id + mbs) = 1;
+    continue;
+
     // extract MeshBlock bounds
     Real &x1min = size.h_view(mb_id).x1min;
     Real &x1max = size.h_view(mb_id).x1max;
