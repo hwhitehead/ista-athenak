@@ -104,7 +104,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real r = Kokkos::sqrt(r_sqr);
 
       // set density by cavity kernel
-      const Real cavity_fac = 1e-5 + (1.0 - 1e-5) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
+      const Real cavity_fac = 1e-7 + (1.0 - 1e-7) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
       Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
