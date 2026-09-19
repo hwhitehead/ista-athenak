@@ -181,10 +181,6 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   // MeshBlock count small, perfom on host
   for (int mb_id = 0; mb_id < nmb; mb_id++) {
 
-    // TEMP enforce AMR bump for all blocks
-    refine_flag.h_view(mb_id + mbs) = 1;
-    continue;
-
     // extract MeshBlock bounds
     Real &x1min = size.h_view(mb_id).x1min;
     Real &x1max = size.h_view(mb_id).x1max;
@@ -223,7 +219,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
     } // end n loop
   } // end mb_id loop
 
-  // sync host and device
-  refine_flag.template modify<DevExeSpace>();
-  refine_flag.template sync<HostMemSpace>();
+  // sync host and device  DevExeSpace
+  refine_flag.template modify<HostMemSpace>();
+  refine_flag.template sync<DevExeSpace>();
 }
