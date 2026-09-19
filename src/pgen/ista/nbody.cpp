@@ -67,7 +67,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real Gm_sum = m_sum; // assume G = 1
   const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
   const Real Mach = pin->GetOrAddReal("problem", "Mach", 10.0);
-  const Real h_sqr = 1.0 / (Mach * Mach);
+  const Real h_sqr = 1.0 / SQR(Mach);
   const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 2.0);
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
   const Real alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
@@ -144,18 +144,22 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 // write NBody data to hst output TODO: internalise as standard output
 void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
+  // by default, HistoryOuptut reduces across hist_data all ranks
+  // if not rank 0, skip write
+  if (global_variable::my_rank != 0) return;
+
   // generate labels for nbody data
   int num_nbody = pm->pmb_pack->pnbody->num_nbody;
   pdata->nhist = num_nbody * NVAR_HIST; 
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * NVAR_HIST;
-    pdata->label[0 + hist_offset] = "m" + std::to_string(n); 
-    pdata->label[1 + hist_offset] = "x" + std::to_string(n);
-    pdata->label[2 + hist_offset] = "y" + std::to_string(n);
-    pdata->label[3 + hist_offset] = "z" + std::to_string(n);
-    pdata->label[4 + hist_offset] = "vx" + std::to_string(n);
-    pdata->label[5 + hist_offset] = "vy" + std::to_string(n);
-    pdata->label[6 + hist_offset] = "vz" + std::to_string(n);
+    pdata->label[M_HIST + hist_offset] = "m" + std::to_string(n); 
+    pdata->label[X_HIST + hist_offset] = "x" + std::to_string(n);
+    pdata->label[Y_HIST + hist_offset] = "y" + std::to_string(n);
+    pdata->label[Z_HIST + hist_offset] = "z" + std::to_string(n);
+    pdata->label[VX_HIST + hist_offset] = "vx" + std::to_string(n);
+    pdata->label[VY_HIST + hist_offset] = "vy" + std::to_string(n);
+    pdata->label[VZ_HIST + hist_offset] = "vz" + std::to_string(n);
   } // end body loop
 
   // stash values
