@@ -9,14 +9,14 @@ basename  = nbody       # problem ID: basename of output filenames
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
 nx1       = 512          # Number of zones in X1-direction (root level, dx=0.1)
-x1min     = -4.0        # minimum value of X1
-x1max     =  4.0        # maximum value of X1
+x1min     = -5.0        # minimum value of X1
+x1max     =  5.0        # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
 nx2       = 512          # Number of zones in X2-direction (root level, dx=0.1)
-x2min     = -4.0        # minimum value of X2
-x2max     =  4.0        # maximum value of X2
+x2min     = -5.0        # minimum value of X2
+x2max     =  5.0        # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
 ox2_bc    = outflow     # outer-X2 boundary flag
 
@@ -80,21 +80,21 @@ src_gravity = 1
 inc_backreaction = 0 # WIP, zero set in src
 
 m0 = 1.0
-x0 = 0.5
+x0 = 0.1
 y0 = 0.0
 z0 = 0.0
 vx0 = 0.0
-vy0 = 0.7071067811865476
+vy0 = 0.3872983346207417
 vz0 = 0.0
 r_soft0 = 0.05
 r_amr0 = 0.25
 
-m1 = 1.0
+m1 = 0.25
 x1 = -0.5
 y1 = 0.0
 z1 = 0.0
 vx1 = 0.0
-vy1 = -0.7071067811865476
+vy1 = -1.5491933384829668
 vz1 = 0.0
 r_soft1 = 0.05
 r_amr1 = 0.25
