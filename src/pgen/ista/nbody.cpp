@@ -64,6 +64,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real h_sqr = 1.0 / (Mach * Mach);
   const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 2.0);
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
+  const Real alpha = pin->GetOrAddReal("problem", "alpha", 0,0);
 
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
@@ -103,7 +104,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set density by cavity kernel
       const Real cavity_fac = 0.0001 + 0.9999 * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
-      const Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
+      Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
+      if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update plaw
 
       // set pressure
       const Real cs_sqr = h_sqr * Gmbin / (r + 1e-6);

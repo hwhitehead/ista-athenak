@@ -65,11 +65,13 @@ pfloor = 1e-8
 r_cavity = 2.0
 Mach = 10.0
 rho0 = 1.0
+alpha = 0.2
 
 <nbody>
 num_nbody = 2
 hist_nbody = 1
 src_gravity = 1
+inc_backreaction = 0 # WIP, zero set in src
 
 m0 = 1.0
 x0 = 0.2

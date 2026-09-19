@@ -55,7 +55,7 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 // collect forcing by hydro on nbody state on THIS rank
 TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
-  // Step 1: If running without backreaction, skip
+  // Step 1: If running without backreaction, skip summation
   if (!inc_backreaction) return TaskStatus::complete;
 
   // Step 2: Init pack sum register as zero 
@@ -87,9 +87,13 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
   MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
-  // Step 4: copy sum across ranks to proper register
-  Kokkos::deep_copy(delta_all_meshes.view_host(), delta_this_mesh.view_host());
-
+  // Step 4: convert delta sum into rate, and stash
+  for (int n = 0; n < num_nbody; n++) {
+    for (int i = 0; i < NVAR_REG; i++) {
+      delta_all_meshes(n, i) = delta_this_mesh(n, i) / pmy_pack->pmesh->dt;
+    }
+  }
+  
   return TaskStatus::complete;
 }
 
