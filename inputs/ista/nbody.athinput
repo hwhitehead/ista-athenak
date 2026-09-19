@@ -35,7 +35,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 refinement = adaptive     # static mesh refinement (SMR)
 num_levels = 2
 refinement_interval = 3
-max_nmb_per_rank = 1024
+max_nmb_per_rank = 4096
 
 <amr_criterion0>
 method = user
