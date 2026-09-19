@@ -145,7 +145,7 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 
   for (int n = 0; n < num_nbody; n++) {
     // mdot = 0 
-    f.h_view(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, MDOT_REG) : 0.0;
+    f.h_view(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, MDOT_REG) : 0.0;
 
     // dot(x) = v
     f.h_view(n, XDOT_REG) = y.h_view(n, VX_REG);
@@ -153,9 +153,9 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_REG);
     
     // dot(v) = a 
-    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, VXDOT_REG) : 0.0;
-    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, VYDOT_REG) : 0.0;
-    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, VZDOT_REG) : 0.0;
+    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VXDOT_REG) : 0.0;
+    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VYDOT_REG) : 0.0;
+    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VZDOT_REG) : 0.0;
 
     if (inc_backreaction) {
 

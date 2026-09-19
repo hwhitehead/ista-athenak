@@ -64,7 +64,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real h_sqr = 1.0 / (Mach * Mach);
   const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 2.0);
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
-  const Real alpha = pin->GetOrAddReal("problem", "alpha", 0,0);
+  const Real alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
 
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
