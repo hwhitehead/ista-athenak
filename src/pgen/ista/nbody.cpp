@@ -54,12 +54,12 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const bool is_3d = pmy_mesh_->three_d;
 
   // load disc properties TODO: commmunicate to forced isotherm, new class or stash in nbody
-  Real mbin = 0.0; // sum over bodies
+  Real m_sum = 0.0; // sum over bodies
   for (int n = 0; n < num_nbody; n++) {
     const Real m_n = pin->GetOrAddReal("nbody", "m" + std::to_string(n), 0.0);
-    mbin += m_n;
+    m_sum += m_n;
   }
-  const Real Gmbin = mbin; // assume G = 1
+  const Real Gm_sum = m_sum; // assume G = 1
   const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
   const Real Mach = pin->GetOrAddReal("problem", "Mach", 10.0);
   const Real h_sqr = 1.0 / (Mach * Mach);
@@ -109,11 +109,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
       // set pressure
-      const Real cs_sqr = h_sqr * Gmbin / (r + 1e-12);
+      const Real cs_sqr = h_sqr * Gm_sum / (r + 1e-12);
       const Real P = cs_sqr * rho;
 
       // set velocity
-      const Real v_phi = Mach * Kokkos::sqrt(cs_sqr);
+      const Real v_phi = Kokkos::sqrt(Gm_sum / (r + 1e-12));
       const Real phi = Kokkos::atan2(x2v, x1v); // RH argument from +x axis
       const Real vx = -v_phi * Kokkos::sin(phi);
       const Real vy = v_phi * Kokkos::cos(phi);
