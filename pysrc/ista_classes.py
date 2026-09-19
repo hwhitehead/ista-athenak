@@ -9,7 +9,7 @@ import athena_read
 
 # TODO: deprecated BlackHole usage from the HydroData class
 
-class HydroData:
+class HydroDataAthenaK:
     """
     this class loads single HDF5 snapshots into python memory retaining labels
     it also features regularisation routines to compile MeshBlocks into homogenous meshes
@@ -33,7 +33,7 @@ class HydroData:
             "mom1": "Mx",
             "mom2": "My",
             "mom3": "Mz",
-            "s0": "DC_J", 
+            "s0": "DC_J",
         }
         # accept user specified labels for user_out_var
         if user_vars is not None:
@@ -387,6 +387,7 @@ class HydroData:
             data.update({slice_var: np.zeros(shape=(num_in_slice, slice_size[0], slice_size[1]))})
 
         # extract in_slice data
+        levels = np.zeros_like(mb_ids)
         for i, n in enumerate(mb_ids):
             if axis == 0:
                 mb_slice = (n, np.s_[:], np.s_[:], min_pos[n])
@@ -399,79 +400,17 @@ class HydroData:
             data[coords_c[1]][i, :, :] = YY
             for slice_var in slice_vars:
                 data[slice_var][i, :, :] = getattr(self, slice_var)[mb_slice]
+            levels[i] = self.Levels[n]
 
-        return data
+        return data, levels
 
-    def homo_plot(self, save_str, npy_str=None, target=0, cvar="rho", axis=2, slice_pos=0, bounds_2d=None, level=None, vdata=None, verbose=False):
+class QuickPlot:
+    """"
+    This class is used to generate simple plots from data packaged in the HydroData class
+    """"
+    def __init__(self, h_str):
 
-        if axis == 0:
-            coords_c = ["y", "z", "x"]
-        elif axis == 1:
-            coords_c = ["x", "z", "y"]
-        else:
-            coords_c = ["x", "y", "z"]
-
-        if cvar == "flow":
-            slice_vars = ["v" + c for c in coords_c[:-1]]
-
-        # build plotting space
-        set_plot_defaults()
-        fig = plt.figure()
-        ax = fig.add_subplot()
-
-        dU = 0
-        dV = 0
-        if npy_str is not None:
-            bh = BlackHole(target, npy_str)
-            t_idx = np.where(bh.t >= HData.Time)[0][0]
-            shifts = [getattr(bh, coords_c[i])[t_idx] for i in range(2)]
-            bump_axes = [range(3)].pop(axis)
-            bounds_2d = bump_bounds(bounds_2d, shifts, axes=bump_axes)
-            slice_pos = getattr(bh, coords_c[2])[t_idx]
-            if cvar == "flow":
-                dU = getattr(bh, slice_vars[0])[t_idx]
-                dV = getattr(bh, slice_vars[1])[t_idx]
-
-        # handle dimensionality
-        is_2D = (self.RootGridSize[2] == 1)
-        if is_2D and slice_pos != 0:
-            raise Exception("off-centre slicing only supported for 3D simulations")
-
-        if cvar == "flow":
-            data = self.homo_slice(axis=axis, bounds_2d=bounds_2d, slice_pos=slice_pos, slice_vars=slice_vars, verbose=verbose, level=level)
-            X, Y = np.meshgrid(data[coords_c[0]][:-1], data[coords_c[1]][:-1])
-            U = data[slice_vars[0]][..., 0] - dU
-            V = data[slice_vars[1]][..., 0] - dV
-
-            ax.streamplot(X, Y, U, V, color='k', linewidth=1, arrowsize=0.5, density=5)
-        else:
-            if cvar == "Sigma":
-                data = self.homo_sigma(bounds_2d=bounds_2d, level=level, verbose=verbose)
-                xx, yy = np.meshgrid(data["x"], data["y"])
-                cdata = data["Sigma"]
-            elif cvar in ["rho", "vx", "vy", "vz"]:
-                data = self.homo_slice(axis=axis, bounds_2d=bounds_2d, slice_pos=slice_pos, slice_vars=cvar, verbose=verbose, level=level)
-                if axis == 0:
-                    xx, yy = np.meshgrid(data["y"], data["z"])
-                elif axis == 1:
-                    xx, yy = np.meshgrid(data["x"], data["z"])
-                else:
-                    xx, yy = np.meshgrid(data["x"], data["y"])
-                cdata = data[cvar]
-            else:
-                raise Exception("unable to pass cvar")
-
-            vmin, vmax, v0, cmap = pass_vdata(vdata, cdata)
-            cdata /= v0
-            if cvar in ["rho", "P", "T", "Sigma"]:
-                cdata = np.log10(cdata)
-            ax.pcolormesh(xx, yy, cdata, vmin=vmin, vmax=vmax, cmap=cmap, zorder=-100)
-
-        ax.set_xlim(bounds_2d[0, :])
-        ax.set_ylim(bounds_2d[1, :])
-        ax.set_aspect("equal")
-        fig.savefig(save_str, dpi=300, bbox_inches="tight")
-        plt.close("all")
+        self.Hydro = HydroData(h_str)
 
     def inhomo_plot(self, save_str, npy_str=None, target=None, cvar="rho", axis=2, slice_pos=0, bounds_2d=None, vdata=None):
 
@@ -487,13 +426,13 @@ class HydroData:
 
         if isinstance(bounds_2d, np.ndarray) & (np.shape(bounds_2d) == (2,2)): # accept array, potentially containing None
             for i, c in enumerate(coords_c[:-1]):
-                if bounds_2d[i, 0] is None: bounds_2d[i, 0] = np.min(getattr(self, c))
-                if bounds_2d[i, 1] is None: bounds_2d[i, 1] = np.max(getattr(self, c))
+                if bounds_2d[i, 0] is None: bounds_2d[i, 0] = np.min(getattr(self.Hydro, c))
+                if bounds_2d[i, 1] is None: bounds_2d[i, 1] = np.max(getattr(self.Hydro, c))
         elif bounds_2d is None:
             bounds_2d = np.zeros(shape=(2,2))
             for i, c in enumerate(coords_c[:-1]):
-                bounds_2d[i, 0] = np.min(getattr(self, c))
-                bounds_2d[i, 1] = np.max(getattr(self, c))
+                bounds_2d[i, 0] = np.min(getattr(self.Hydro, c))
+                bounds_2d[i, 1] = np.max(getattr(self.Hydro, c))
         else:
             raise Exception("Invalid pass to bounds_2d, require input shape (2,2) or None")
 
@@ -501,7 +440,7 @@ class HydroData:
         set_plot_defaults()
         fig = plt.figure()
         ax = fig.add_subplot()
-        data = self.inhomo_slice(axis=axis, slice_pos=slice_pos, slice_vars=cvar, bounds_2d=bounds_2d)
+        data = self.Hydro.inhomo_slice(axis=axis, slice_pos=slice_pos, slice_vars=cvar, bounds_2d=bounds_2d)
 
         if cvar not in data:
             raise Exception("could not find " + cvar + " in HData")
@@ -543,277 +482,3 @@ class HydroData:
         ax.set_aspect("equal")
         fig.savefig(save_str, dpi=300, bbox_inches="tight")
         plt.close("all")
-
-    def calc_hill_mass(self, npy_str, target=0, r_scale=1):
-
-        if np.size(target) == 2:
-            bh1 = BlackHole(0, npy_str)
-            bh2 = BlackHole(1, npy_str)
-            t_idx = np.where(bh1.t >= self.Time)[0][0]
-            p = calc_com(bh1, bh2, t_idx)
-            l = calc_rh(bh1, bh2) * r_scale
-        else:
-            bh = BlackHole(target, npy_str)
-            t_idx = np.where(bh.t >= self.Time)[0][0]
-            p = [bh.x[t_idx], bh.y[t_idx], bh.z[t_idx]]
-            l = calc_rh(bh) * r_scale
-
-        bounds = [[-l, l]]
-        m_h = 0
-        l_sqr = l * l
-        for n in range(0, self.NumMeshBlocks):
-            dx = self.x[n, :] - p[0]
-            dy = self.y[n, :] - p[1]
-            dz = self.z[n, :] - p[2]
-            if not in_bounds([dx, dy, dz], bounds): continue
-            dv = (dx[1] - dx[0]) * (dy[1] - dy[0]) * (dz[1] - dz[0]) # cell volume uniform across MeshBlock
-            xx, yy, zz = np.meshgrid(dx, dy, dz)
-            r_sqr = xx * xx + yy * yy + zz * zz
-            enc_mask = (r_sqr < l_sqr)
-            rho = self.rho[n, :, :, :]
-            m_h += np.sum(rho[enc_mask]) * dv
-
-        return m_h
-
-    def triple_plot(self, save_str, npy_str, cvar="rho", axis=0, bounds_2d=None, vdata=None, show_bh=True):
-
-        if axis == 0:
-            coords_c = ["y", "z", "x"]
-        elif axis == 1:
-            coords_c = ["x", "z", "y"]
-        else:
-            coords_c = ["x", "y", "z"]
-
-        if isinstance(bounds_2d, np.ndarray) & (np.shape(bounds_2d) == (2,2)): # accept array, potentially containing None
-            for i, c in enumerate(coords_c[:-1]):
-                if bounds_2d[i, 0] is None: bounds_2d[i, 0] = np.min(getattr(self, c))
-                if bounds_2d[i, 1] is None: bounds_2d[i, 1] = np.max(getattr(self, c))
-        elif bounds_2d is None:
-            bounds_2d = np.zeros(shape=(2,2))
-            for i, c in enumerate(coords_c[:-1]):
-                bounds_2d[i, 0] = np.min(getattr(self, c))
-                bounds_2d[i, 1] = np.max(getattr(self, c))
-        else:
-            raise Exception("Invalid pass to bounds_2d, require input shape (2,2) or None")
-
-        # build plotting space
-        set_plot_defaults()
-        h_over_w_minor = (bounds_2d[1, 1] - bounds_2d[1, 0]) / (bounds_2d[0, 1] - bounds_2d[0, 0])
-        width_ratios = np.array([1, 0.05])
-        height_ratios = np.array([h_over_w_minor] * 3)
-        h_over_w = np.sum(height_ratios) / np.sum(width_ratios)
-        L = 20.0 / 3
-        fig = plt.figure(figsize = (L, L * h_over_w))
-        gs = fig.add_gridspec(3, 2, height_ratios=height_ratios, width_ratios=width_ratios)
-        ax0 = fig.add_subplot(gs[0, 0])
-        ax1 = fig.add_subplot(gs[1, 0])
-        ax2 = fig.add_subplot(gs[2, 0])
-        cax = fig.add_subplot(gs[:, 1])
-
-        bh1 = BlackHole(0, npy_str)
-        bh2 = BlackHole(1, npy_str)
-        r_H = calc_rh(bh1, bh2)
-        r_Hs_1 = calc_rh(bh1)
-        r_Hs_2 = calc_rh(bh2)
-        t_idx = np.where(bh1.t >= self.Time)[0][0]
-        slice_pos_1 = getattr(bh1, coords_c[2])[t_idx]
-        slice_pos_2 = getattr(bh2, coords_c[2])[t_idx]
-        slice_pos_com = (bh1.m[t_idx] * slice_pos_1 + bh2.m[t_idx] * slice_pos_2) / (bh1.m[t_idx] + bh2.m[t_idx])
-
-        dX_1 = getattr(bh1, coords_c[0])[t_idx]
-        dY_1 = getattr(bh1, coords_c[1])[t_idx]
-        dX_2 = getattr(bh2, coords_c[0])[t_idx]
-        dY_2 = getattr(bh2, coords_c[1])[t_idx]
-        dX_com = (bh1.m[t_idx] * dX_1 + bh2.m[t_idx] * dX_2) / (bh1.m[t_idx] + bh2.m[t_idx])
-        dY_com = (bh1.m[t_idx] * dY_1 + bh2.m[t_idx] * dY_2) / (bh1.m[t_idx] + bh2.m[t_idx])
-        bounds_1 = bump_bounds(bounds_2d, [dX_1, dY_1], axes=[0, 1])
-        bounds_com = bump_bounds(bounds_2d, [dX_com, dY_com], axes=[0, 1])
-        bounds_2 = bump_bounds(bounds_2d, [dX_2, dY_2], axes=[0, 1])
-
-        data_1 = self.inhomo_slice(axis=axis, slice_pos=slice_pos_1, slice_vars=cvar, bounds_2d=None)
-        data_com = self.inhomo_slice(axis=axis, slice_pos=slice_pos_com, slice_vars=cvar, bounds_2d=None)
-        data_2 = self.inhomo_slice(axis=axis, slice_pos=slice_pos_2, slice_vars=cvar, bounds_2d=None)
-
-        if (cvar not in data_1) or (cvar not in data_com) or (cvar not in data_2):
-            raise Exception("could not find " + cvar + " in HData")
-
-        if "vmin" in vdata:
-            vmin = vdata["vmin"]
-        else:
-            vmin = np.min(np.array([np.min(data_1[cvar]), np.min(data_com[cvar]), np.min(data_2[cvar])]))
-
-        if "vmax" in vdata:
-            vmax = vdata["vmax"]
-        else:
-            vmax = np.max(np.array([np.max(data_1[cvar]), np.max(data_com[cvar]), np.max(data_2[cvar])]))
-
-        if "v0" in vdata:
-            v0 = vdata["v0"]
-        else:
-            v0 = 1
-
-        if "cmap" in vdata:
-            cmap = vdata["cmap"]
-        else:
-            cmap = "plasma"
-
-        is_log = False
-        axes = [ax0, ax1, ax2]
-        datas = [data_1, data_com, data_2]
-        slices = [slice_pos_1, slice_pos_com, slice_pos_2]
-        all_bounds = [bounds_1, bounds_com, bounds_2]
-        bh_labels = ["$\mathrm{BH1}$\n", "$\mathrm{COM}$\n", "$\mathrm{BH2}$\n"]
-        for i, (ax, data, spos, bounds, bh_label) in enumerate(zip(axes, datas, slices, all_bounds, bh_labels)):
-            CC = data[cvar] / v0
-            if cvar in ["rho", "P", "T"]:
-                CC = np.log10(CC)
-                is_log = True
-
-            XX = data[coords_c[0]]
-            YY = data[coords_c[1]]
-            num_in_slice = np.shape(CC)[0]
-
-            for n in range(0, num_in_slice):
-                ax.pcolormesh(XX[n, :, :], YY[n, :, :], CC[n, :, :], vmin=vmin, vmax=vmax, cmap=cmap)
-
-            ax.set_xlim(bounds[0, :])
-            ax.set_ylim(bounds[1, :])
-            ax.set_aspect("equal")
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
-
-            sb = AnchoredSizeBar(ax.transData, r_H, r"$r_\mathrm{H}$", "lower right", zorder=100, pad=0.5,
-                                  size_vertical=r_H/ 40, frameon=False, color='white', label_top=True)
-            ax.add_artist(sb)
-
-            pos_text = "$" + coords_c[2] + " = " + str(round(spos / r_H, 2)) + "r_\mathrm{H}$"
-            label = bh_label + pos_text
-            ax.text(0.025, 0.05, s=label, va="bottom", ha="left", transform=ax.transAxes, color='w')
-
-            if show_bh:
-                Hill_1 = plt.Circle((dX_1, dY_1), radius=r_Hs_1, fill=False, edgecolor="deepskyblue", lw=1.5, alpha=0.5)
-                Hill_2 = plt.Circle((dX_2, dY_2), radius=r_Hs_2, fill=False, edgecolor="greenyellow", lw=1.5, alpha=0.5)
-                ax.add_artist(Hill_1)
-                ax.add_artist(Hill_2)
-                if i == 1:
-                    c = "w" if cvar == "T" else "k"
-                    Hill_com = plt.Circle((dX_com, dY_com), radius=r_H, fill=False, edgecolor=c, lw=1.5, alpha=0.5)
-                    ax.add_artist(Hill_com)
-
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
-        fig.colorbar(sm, cax=cax, orientation="vertical")
-        if cvar == "rho":
-            cvar_tex = r"\rho"
-        else:
-            cvar_tex = cvar
-        c0_tex = cvar + r"_0"
-        if is_log:
-            clabel = r"$\mathrm{log}_{10}(" + cvar_tex + "/" + c0_tex + ")$"
-        else:
-            clabel = r"$" + cvar_tex + "/" + c0_tex + ")$"
-        cax.set_ylabel(clabel)
-
-        plt.subplots_adjust(hspace=0, wspace=0)
-        ax.set_aspect("equal")
-        fig.savefig(save_str, dpi=1000, bbox_inches="tight")
-        plt.close("all")
-
-    def show_mb(self, save_str, npy_str):
-
-        bh = BlackHole(0, npy_str)
-        n_max = np.max(self.Levels)
-        r_h = calc_rh(bh)
-        t_idx = np.where(bh.t >= self.Time)[0][0]
-
-        l = 1.5
-        bounds_z = np.zeros(shape=(2, 2))
-        bounds_z[0, 0] = bh.x[t_idx] - l * r_h
-        bounds_z[0, 1] = bh.x[t_idx] + l * r_h
-        bounds_z[1, 0] = bh.y[t_idx] - l * r_h
-        bounds_z[1, 1] = bh.y[t_idx] + l * r_h
-        z_data = self.inhomo_slice(axis=2, slice_pos=bh.z[t_idx], slice_vars=[], bounds_2d=bounds_z)
-
-        bounds_x = np.zeros(shape=(2, 2))
-        bounds_x[0, 0] = bh.y[t_idx] - l * r_h
-        bounds_x[0, 1] = bh.y[t_idx] + l * r_h
-        bounds_x[1, 0] = bh.z[t_idx] - l * r_h
-        bounds_x[1, 1] = bh.z[t_idx] + l * r_h
-        x_data = self.inhomo_slice(axis=0, slice_pos=bh.x[t_idx], slice_vars=[], bounds_2d=bounds_x)
-
-        set_plot_defaults()
-        L = 20.0 / 3
-        height_ratios = np.array([1])
-        width_ratios = np.array([1,1,0.05])
-        h_over_w = np.sum(height_ratios) / np.sum(width_ratios)
-        fig = plt.figure(figsize=(L, L * h_over_w))
-        gs = fig.add_gridspec(1, 3, width_ratios=width_ratios, height_ratios=height_ratios)
-        ax_z = fig.add_subplot(gs[0, 0])
-        ax_x = fig.add_subplot(gs[0, 1])
-        cax = fig.add_subplot(gs[0, 2])
-
-        ax_z.set_title(r"$x-y$ $\mathrm{plane}$")
-        xl = np.min(z_data["x"],axis=(1,2))
-        yl = np.min(z_data["y"],axis=(1,2))
-        xr = np.max(z_data["x"],axis=(1,2))
-        mb_l = xr - xl
-        min_mb_l = np.min(mb_l)
-        R = np.round(np.log2(mb_l / min_mb_l))
-        cmap = plt.get_cmap("viridis")
-        for x0, y0, s, r in zip(xl, yl, mb_l, R):
-            level = n_max - r
-            c = cmap(level / n_max)
-            mb = patches.Rectangle((x0, y0), s, s, edgecolor='k', fill=True, facecolor=c, lw=0.4)
-            ax_z.add_patch(mb)
-        inner = plt.Circle((bh.x[t_idx], bh.y[t_idx]), radius=0.2 * r_h, fill=False, edgecolor="k", lw=1.5, linestyle="solid")
-        outer = plt.Circle((bh.x[t_idx], bh.y[t_idx]), radius=0.5 * r_h, fill=False, edgecolor="k", lw=1.5, linestyle="dashed")
-        Hill = plt.Circle((bh.x[t_idx], bh.y[t_idx]), radius=r_h, fill=False, edgecolor="k", lw=1.5, linestyle="dotted")
-        ax_z.add_patch(inner)
-        ax_z.add_patch(outer)
-        ax_z.add_patch(Hill)
-
-        ax_x.set_title(r"$y-z$ $\mathrm{plane}$")
-        yl = np.min(x_data["y"], axis=(1, 2))
-        zl = np.min(x_data["z"], axis=(1, 2))
-        yr = np.max(x_data["y"], axis=(1, 2))
-        mb_l = yr - yl
-        R = np.round(np.log2(mb_l / min_mb_l))
-        for y0, z0, s, r in zip(yl, zl, mb_l, R):
-            level = n_max - r
-            c = cmap(level / n_max)
-            mb = patches.Rectangle((y0, z0), s, s, edgecolor='k', fill=True, facecolor=c, lw=0.4)
-            ax_x.add_patch(mb)
-        inner = patches.Ellipse((bh.y[t_idx], bh.z[t_idx]), width=0.4 * r_h, height=0.2 * r_h, fill=False, edgecolor="k", lw=1.5, linestyle="solid")
-        outer = patches.Ellipse((bh.y[t_idx], bh.z[t_idx]), width=r_h, height=0.5 * r_h, fill=False, edgecolor="k", lw=1.5, linestyle="dashed")
-        Hill = plt.Circle((bh.y[t_idx], bh.z[t_idx]), radius=r_h, fill=False, edgecolor="k", lw=1.5, linestyle="dotted")
-        ax_x.add_patch(inner)
-        ax_x.add_patch(outer)
-        ax_x.add_patch(Hill)
-
-        for ax, b in zip([ax_z, ax_x], [bounds_z, bounds_x]):
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
-            ax.set_xlim(b[0, :])
-            ax.set_ylim(b[1, :])
-            ax.set_aspect("equal")
-
-        sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=1))
-        fig.colorbar(sm, cax=cax, orientation="vertical")
-        cticks = np.linspace(0, 1, n_max + 1)
-        clabels = ["$n = " + str(n) + "$" for n in range(n_max + 1)]
-        cax.yaxis.set_ticks(cticks)
-        cax.yaxis.set_ticklabels(clabels)
-
-        plt.subplots_adjust(hspace=0, wspace=0)
-        fig.savefig(save_str, dpi=300, bbox_inches="tight")
-        plt.close("all")
-
-
-# TODO: migrate plotting tools from HydroData to QuickPlot
-
-class QuickPlot:
-    """"
-    This class is used to generate simple plots from data packaged in the HydroData class
-    """"
-    def __init__(self, h_str):
-
-        self.Hydro = HydroData(h_str)
