@@ -20,8 +20,9 @@
 #include "coordinates/cell_locations.hpp"
 
 #include "nbody/nbody.hpp"
+#include "globals.hpp"
 
-// TODO: package this as a standard output format
+// TODO: package these functions with NBody or existing classes
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 
@@ -188,15 +189,15 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
     Real &x3max = size.h_view(mb_id).x3max;
 
     // cycle over bodies
-    for (int n = 0; n < num_nbody; n++) {
+    for (int n = 0; n < pmbp->pnbody->num_nbody; n++) {
       // if refinement radius for body is zero, skip
-      const Real rad = nbody_data.h_view(n, R_AMR_DATA);
+      const Real rad = pmbp->pnbody->nbody_data.h_view(n, R_AMR_DATA);
       if (rad == 0.0) continue;
 
       // save position 
-      const Real x1 = nbody_data.h_view(n, X_DATA);
-      const Real x2 = nbody_data.h_view(n, Y_DATA);
-      const Real x3 = nbody_data.h_view(n, Z_DATA);
+      const Real x1 = pmbp->pnbody->nbody_data.h_view(n, X_DATA);
+      const Real x2 = pmbp->pnbody->nbody_data.h_view(n, Y_DATA);
+      const Real x3 = pmbp->pnbody->nbody_data.h_view(n, Z_DATA);
       
       // check overlap with AMR region and MeshBlock
       if (((x1min < (x1+rad)) && (x1min > (x1-rad))) ||
