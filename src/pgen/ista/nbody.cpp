@@ -103,12 +103,12 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real r = Kokkos::sqrt(r_sqr);
 
       // set density by cavity kernel
-      const Real cavity_fac = 0.0001 + 0.9999 * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
+      const Real cavity_fac = 1e-5 + (1.0 - 1e-5) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
       Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
-      if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update plaw
+      if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
       // set pressure
-      const Real cs_sqr = h_sqr * Gmbin / (r + 1e-6);
+      const Real cs_sqr = h_sqr * Gmbin / (r + 1e-12);
       const Real P = cs_sqr * rho;
 
       // set velocity
@@ -119,11 +119,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vz = 0.0;
       
       // ===== Set primitive variables =====
-      w0_(m, IDN, k, j, i) = rho;              // Density
-      w0_(m, IVX, k, j, i) = vx;               // Velocity x-component
-      w0_(m, IVY, k, j, i) = vy;               // Velocity y-component
-      //w0_(m, IVZ, k, j, i) = vz;               // Velocity z-component TODO: add dimension check for z init
-      if (is_ideal) w0_(m, IPR, k, j, i) = P;             // Pressure
+      w0_(m, IDN, k, j, i) = rho;              
+      w0_(m, IVX, k, j, i) = vx;               
+      w0_(m, IVY, k, j, i) = vy;               
+      if (pmy_part->pmy_pack->pmesh->three_d) w0_(m, IVZ, k, j, i) = vz;             
+      if (is_ideal) w0_(m, IPR, k, j, i) = P;   
     }); 
 
     // TODO: check, this is likely not needed
