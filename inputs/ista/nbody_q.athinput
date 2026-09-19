@@ -1,0 +1,109 @@
+# AthenaK input file for testing NBody functionality
+
+<comment>
+problem   = nbody
+
+<job>
+basename  = nbody       # problem ID: basename of output filenames
+
+<mesh>
+nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
+nx1       = 1024          # Number of zones in X1-direction (root level, dx=0.1)
+x1min     = -10.0        # minimum value of X1
+x1max     =  10.0        # maximum value of X1
+ix1_bc    = outflow     # inner-X1 boundary flag
+ox1_bc    = outflow     # outer-X1 boundary flag
+
+nx2       = 1024          # Number of zones in X2-direction (root level, dx=0.1)
+x2min     = -10.0        # minimum value of X2
+x2max     =  10.0        # maximum value of X2
+ix2_bc    = outflow     # inner-X2 boundary flag
+ox2_bc    = outflow     # outer-X2 boundary flag
+
+nx3       = 1           # Number of zones in X3-direction (root level, dx=0.1)
+x3min     = -0.05       # minimum value of X3
+x3max     =  0.05       # maximum value of X3
+ix3_bc    = outflow     # inner-X3 boundary flag
+ox3_bc    = outflow     # outer-X3 boundary flag
+
+<meshblock>
+nx1       = 64          # Number of cells in each MeshBlock, X1-dir
+nx2       = 64         # Number of cells in each MeshBlock, X2-dir
+nx3       = 1           # Number of cells in each MeshBlock, X3-dir
+
+<mesh_refinement>
+#refinement = adaptive     # static mesh refinement (SMR)
+num_levels = 1
+refinement_interval = 3
+max_nmb_per_rank = 4096
+
+<amr_criterion0>
+method = user
+
+#<refined_region1>
+#x1min = -1.0            
+#x1max =  1.0
+#x2min = -2.0
+#x2max =  2.0
+#x3min = -0.05
+#x3max = 0.05
+#level = 3
+
+<time>
+evolution  = dynamic    # dynamic/kinematic/static
+integrator = rk2        # time integration algorithm
+cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim       = -1         # cycle limit
+tlim       = 250.0       # time limit
+ndiag      = 1          # cycles between diagostic output
+
+<hydro>
+eos         = ideal         # EOS type
+reconstruct = ppm4          # spatial reconstruction method
+rsolver     = hlle          # Riemann-solver to be used
+gamma       = 1.000001      # gamma = C_p/C_v (ideal only)
+iso_sound_speed = 1.0       # isothermal only
+nu_iso = 1e-3
+dfloor = 1e-8
+pfloor = 1e-10
+
+<problem>
+r_cavity = 5.0
+Mach = 10.0
+rho0 = 1.0
+alpha = 0.0
+
+<nbody>
+num_nbody = 2
+hist_nbody = 1
+src_gravity = 1
+inc_backreaction = 0 # WIP, zero set in src
+
+m0 = 1.0
+x0 = 0.1
+y0 = 0.0
+z0 = 0.0
+vx0 = 0.0
+vy0 = 0.223606797749979
+vz0 = 0.0
+r_soft0 = 0.05
+r_amr0 = 0.25
+
+m1 = 0.25
+x1 = -0.5
+y1 = 0.0
+z1 = 0.0
+vx1 = 0.0
+vy1 = -0.894427190999916
+vz1 = 0.0
+r_soft1 = 0.05
+r_amr1 = 0.25
+
+<output1>
+file_type  = hst        # history data dump
+dt         = 1       # time increment between outputs
+
+<output2>
+file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
+variable   = hydro_w    # variables to be output
+dt         = 0.1        # time increment between outputs
