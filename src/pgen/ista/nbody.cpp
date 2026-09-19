@@ -23,6 +23,7 @@
 
 // TODO: package this as a standard output format
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
+void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 
 // nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
@@ -34,6 +35,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     user_hist = true;
     user_hist_func = &NBodyHistory; // TODO: embed into nbody class
   }
+
+  // enroll AMR if flagged
+  user_ref_func = NBodyTrackRefinementCondition;
 
   // TODO: check this with david
   // Free the Kokkos::View accumulators before Kokkos::finalize() runs (they have
@@ -161,4 +165,59 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
     } // end var loop
   } // end body loop
   return;
+}
+
+// apply AMR to region about each body with non-zero refinement radius
+void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
+  auto &refine_flag = pmbp->pmesh->pmr->refine_flag;
+  int mbs = pmbp->pmesh->gids_eachrank[global_variable::my_rank];
+  int nmb = pmbp->nmb_thispack;
+  auto &size = pmbp->pmb->mb_size;
+  auto &multi_d = pmbp->pmesh->multi_d;
+  auto &three_d = pmbp->pmesh->three_d;
+
+  // loop over MeshBlocks in this MeshBlockPack
+  // MeshBlock count small, perfom on host
+  for (int mb_id = 0; mb_id < nmb; mb_id++) {
+    // extract MeshBlock bounds
+    Real &x1min = size.h_view(mb_id).x1min;
+    Real &x1max = size.h_view(mb_id).x1max;
+    Real &x2min = size.h_view(mb_id).x2min;
+    Real &x2max = size.h_view(mb_id).x2max;
+    Real &x3min = size.h_view(mb_id).x3min;
+    Real &x3max = size.h_view(mb_id).x3max;
+
+    // cycle over bodies
+    for (int n = 0; n < num_nbody; n++) {
+      // if refinement radius for body is zero, skip
+      const Real rad = nbody_data.h_view(n, R_AMR_DATA);
+      if (rad == 0.0) continue;
+
+      // save position 
+      const Real x1 = nbody_data.h_view(n, X_DATA);
+      const Real x2 = nbody_data.h_view(n, Y_DATA);
+      const Real x3 = nbody_data.h_view(n, Z_DATA);
+      
+      // check overlap with AMR region and MeshBlock
+      if (((x1min < (x1+rad)) && (x1min > (x1-rad))) ||
+        ((x1max < (x1+rad)) && (x1max > (x1-rad))) ||
+        ((x1max > (x1+rad)) && (x1min < (x1-rad)))) {
+        if (!(multi_d) ||
+          (((x2min < (x2+rad)) && (x2min > (x2-rad))) ||
+          ((x2max < (x2+rad)) && (x2max > (x2-rad))) ||
+          ((x2max > (x2+rad)) && (x2min < (x2-rad)))) ) {
+          if (!(three_d) ||
+            (((x3min < (x3+rad)) && (x3min > (x3-rad))) ||
+            ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
+            ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
+            refine_flag.h_view(mb_id + mbs) = 1;
+          }
+        }
+      }
+    } // end n loop
+  } // end mb_id loop
+
+  // sync host and device
+  refine_flag.template modify<DevExeSpace>();
+  refine_flag.template sync<HostMemSpace>();
 }

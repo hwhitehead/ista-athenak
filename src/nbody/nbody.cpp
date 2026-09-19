@@ -71,7 +71,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     nbody_data.h_view(n, VY_DATA) = pin->GetReal(nbody_header, "vy" + str_n);
     nbody_data.h_view(n, VZ_DATA) = pin->GetReal(nbody_header, "vz" + str_n);
     nbody_data.h_view(n, R_SOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
-    
+    nbody_data.h_view(n, R_AMR_DATA) = pin->GetOrAddReal(nbody_header, "r_amr" + str_n, 0.0);
+    nbody_data.h_view(n, N_AMR_DATA) = pin->GetOrAddReal(nbody_header, "n_amr" + str_n, 0.0); // currently unusable
     // all other reads optional, add overwrite
   } // end n
 
