@@ -181,6 +181,9 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   // MeshBlock count small, perfom on host
   for (int mb_id = 0; mb_id < nmb; mb_id++) {
 
+    // by default, mark for derefine
+    bool refine = false;
+
     // extract MeshBlock bounds
     Real &x1min = size.h_view(mb_id).x1min;
     Real &x1max = size.h_view(mb_id).x1max;
@@ -212,11 +215,16 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
             (((x3min < (x3+rad)) && (x3min > (x3-rad))) ||
             ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
             ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
-            refine_flag.h_view(mb_id + mbs) = 1;
+            refine = true;
           }
         }
       }
     } // end n loop
+    if (refine) {
+      refine_flag.h_view(mb_id + mbs) = 1;
+    } else {
+      refine_flag.h_view(mb_id + mbs) = -1;
+    }
   } // end mb_id loop
 
   // sync host and device  DevExeSpace
