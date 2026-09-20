@@ -56,6 +56,8 @@ enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0,
                             VZ_REG = 6, VZDOT_REG = 6,
                             NVAR_REG = 7};
 
+Real CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z);
+
 namespace nbody {
 
 class NBody {
@@ -102,8 +104,6 @@ class NBody {
     void NBodyGravitySrcTerm(const Real beta_dt);
     void NBodyIsoSrcTerm(const Real beta_dt);
     Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z); // TODO: deprecated for new cs method (in diff.)
-    Real CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z);
-
 
   private:
     MeshBlockPack* pmy_pack;

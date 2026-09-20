@@ -25,6 +25,7 @@
 // TODO: package these functions with NBody or existing classes
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
+    Real CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z);
 
 // nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
@@ -77,6 +78,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   {
 
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
+    auto pnbody = pmbp->pnbody; 
 
     // (3) loop over cells
     par_for("pgen_nbody", 
@@ -114,9 +116,10 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
       // set pressure using nbody state
-      const Real cs_sqr = pmy_mesh->pmb_pack->pnbody->num_nbody;
-
-      const Real cs_sqr = h_sqr * Gm_sum / (r + 1e-12);
+      Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
+      if (pnbody != nullptr) {
+        cs_sqr = CalcLocalSoundSpeedSqr(pnbody->nbody_data, pnbody->num_nbody, x, y, z);
+      }
       const Real P = cs_sqr * rho;
 
       // set velocity
@@ -150,7 +153,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   if (global_variable::my_rank != 0) return;
 
   // TEMP: verbose print of mb_packs on this rank
-  std::cout << "There are " << pm->nmb_packs_this_rank << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
+  std::cout << "There are " << pm->nmb_packs_thisrank << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
 
   // generate labels for nbody data using first pack on this rank
   int num_nbody = pm->pmb_pack[0].pnbody->num_nbody;
