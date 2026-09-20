@@ -77,6 +77,7 @@ alpha = 0.0
 num_nbody = 2
 hist_nbody = 1
 src_gravity = 1
+src_local_iso = 1
 inc_backreaction = 0 # WIP, zero set in src
 
 m0 = 1.0
