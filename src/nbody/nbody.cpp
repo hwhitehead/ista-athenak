@@ -43,6 +43,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // set physics modules
   src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
+  src_local_iso = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
 
@@ -195,7 +196,7 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
   if (src_gravity) {
     NBodyGravitySrcTerm(beta_dt);
   }
-  if (src_isotherm && pmy_pack->phydro->peos->eos_data.is_ideal) {
+  if (src_local_iso && pmy_pack->phydro->peos->eos_data.is_ideal) {
     NBodyIsoSrcTerm(beta_dt);
   }
 
@@ -253,7 +254,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       cons(mb_id, IM2, k, j, i) += dpy;
       cons(mb_id, IM3, k, j, i) += dpz;
 
-      if (is_ideal && !src_isotherm) { // only compute energy change if ideal AND not forced iso
+      if (is_ideal && !src_local_iso) { // only compute energy change if ideal AND not forced iso
         const Real dE = dp_fac * (dx * prim(mb_id, IVX, k, j, i)
                                 + dy * prim(mb_id, IVY, k, j, i)
                                 + dz * prim(mb_id, IVZ, k, j, j));

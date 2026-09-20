@@ -81,7 +81,7 @@ class NBody {
     NBodyTaskIDs id;
 
     // physics module booleans
-    bool src_gravity, src_accretion;
+    bool src_gravity, src_local_iso, src_accretion;
     bool inc_backreaction;
 
     // disc state variables (for sound speed compute)
