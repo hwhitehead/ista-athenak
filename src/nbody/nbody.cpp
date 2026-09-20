@@ -313,7 +313,7 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
         const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-        const Real abs_phi_n = nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
+        const Real abs_phi_n = nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
         abs_phi_sum += abs_phi_n;
       }
       const Real cs_sqr_local = abs_phi_sum * inv_Mach_sqr_;
