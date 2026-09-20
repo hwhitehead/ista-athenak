@@ -121,18 +121,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set pressure using nbody state
       Real cs_sqr_ = cs_sqr;
-      if (pnbody != nullptr) {
-        Real abs_phi_sum = 0.0;
-        for (int n = 0; n < pnbody->num_nbody; n++) {
-          const Real dx = x1v - pnbody->nbody_data.d_view(n, X_DATA);
-          const Real dy = x2v - pnbody->nbody_data.d_view(n, Y_DATA);
-          const Real dz = x3v - pnbody->nbody_data.d_view(n, Z_DATA);
-          const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-          const Real abs_phi_n = pnbody->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
-          abs_phi_sum += abs_phi_n;
-        }
-        cs_sqr_ = abs_phi_sum * inv_Mach_sqr;
-      }
+      // if (pnbody != nullptr) {
+      //   Real abs_phi_sum = 0.0;
+      //   for (int n = 0; n < pnbody->num_nbody; n++) {
+      //     const Real dx = x1v - pnbody->nbody_data.d_view(n, X_DATA);
+      //     const Real dy = x2v - pnbody->nbody_data.d_view(n, Y_DATA);
+      //     const Real dz = x3v - pnbody->nbody_data.d_view(n, Z_DATA);
+      //     const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+      //     const Real abs_phi_n = pnbody->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
+      //     abs_phi_sum += abs_phi_n;
+      //   }
+      //   cs_sqr_ = abs_phi_sum * inv_Mach_sqr;
+      // }
       const Real P = cs_sqr_ * rho;
 
       // set velocity
