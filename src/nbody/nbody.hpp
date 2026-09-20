@@ -56,7 +56,7 @@ enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0,
                             VZ_REG = 6, VZDOT_REG = 6,
                             NVAR_REG = 7};
 
-Real CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z);
+Real CalcLocalSoundSpeedSqr(DualArray2D<Real> nbody_data, int num_nbody, const Real x, const Real y, const Real z);
 
 namespace nbody {
 
