@@ -79,6 +79,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
     auto pnbody = pmbp->pnbody; 
+    Real inv_Mach_sqr = 1.0 / SQR(Mach);
 
     // (3) loop over cells
     par_for("pgen_nbody", 
@@ -118,7 +119,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // set pressure using nbody state
       Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
       if (pnbody != nullptr) {
-        cs_sqr = CalcLocalSoundSpeedSqr(pnbody->nbody_data, pnbody->num_nbody, x1v, x2v, x3v);
+        cs_sqr = CalcLocalSoundSpeedSqr(pnbody->nbody_data, pnbody->num_nbody, inv_Mach_sqr, x1v, x2v, x3v);
       }
       const Real P = cs_sqr * rho;
 
