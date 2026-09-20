@@ -118,7 +118,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // set pressure using nbody state
       Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
       if (pnbody != nullptr) {
-        cs_sqr = CalcLocalSoundSpeedSqr(pnbody->nbody_data, pnbody->num_nbody, x, y, z);
+        cs_sqr = CalcLocalSoundSpeedSqr(pnbody->nbody_data, pnbody->num_nbody, x1v, x2v, x3v);
       }
       const Real P = cs_sqr * rho;
 

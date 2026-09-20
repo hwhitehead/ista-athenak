@@ -296,7 +296,6 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
   auto &nbody_data_ = nbody_data;
   int num_nbody_ = num_nbody;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
-  auto &delta_this_pack_ = delta_this_pack;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
 
   par_for("nbody_iso_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
