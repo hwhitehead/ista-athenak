@@ -295,6 +295,7 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
   // NBody properties
   auto &nbody_data_ = nbody_data;
   int num_nbody_ = num_nbody;
+  Real inv_Mach_sqr_ = inv_Mach_sqr;
   auto &delta_this_pack_ = delta_this_pack;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
 
@@ -307,7 +308,7 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
       // identify local sound speed
-      const Real cs_sqr_local = CalcLocalSoundSpeedSqr(nbody_data, num_nbody_, x, y, z);
+      const Real cs_sqr_local = CalcLocalSoundSpeedSqr(nbody_data_, num_nbody_, inv_Mach_sqr_, x, y, z);
 
       // compute local kinetic energy
       const Real rho = prim(mb_id, IDN, k, j, i);
@@ -338,7 +339,7 @@ Real NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
 }
 
 // compute local sound speed sqr using fixed Mach
-Real CalcLocalSoundSpeedSqr(DualArray2D<Real> nbody_data, int num_nbody, const Real x, const Real y, const Real z) {
+Real CalcLocalSoundSpeedSqr(DualArray2D<Real> nbody_data, int num_nbody, Real inv_Mach_sqr, const Real x, const Real y, const Real z) {
   Real abs_phi_sum = 0;
 
   for (int n = 0; n < num_nbody; n++) {
