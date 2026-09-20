@@ -128,7 +128,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
           const Real dy = x2v - pnbody->nbody_data.d_view(n, Y_DATA);
           const Real dz = x3v - pnbody->nbody_data.d_view(n, Z_DATA);
           const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-          const Real abs_phi_n = pnbody_data->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
+          const Real abs_phi_n = pnbody->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
           abs_phi_sum += abs_phi_n;
         }
         cs_sqr_ = abs_phi_sum * inv_Mach_sqr;
