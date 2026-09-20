@@ -332,6 +332,8 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
   return;
 }
 
+// TODO integrate or deprecated the two funcs below
+
 // compute sum of squared orbital frequencies
 Real NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
   Real sum_omega_sqr = 0.0;

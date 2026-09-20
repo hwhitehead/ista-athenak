@@ -73,6 +73,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
   const Real alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
 
+  // NBody properties
+  auto &nbody_data_ = nbody_data;
+  int num_nbody_ = num_nbody;
+
+
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
   {
@@ -80,6 +85,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
     auto pnbody = pmbp->pnbody; 
     Real inv_Mach_sqr = 1.0 / SQR(Mach);
+    const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+    Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
 
     // (3) loop over cells
     par_for("pgen_nbody", 
@@ -117,11 +124,20 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
       // set pressure using nbody state
-      Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
+      Real cs_sqr_ = cs_sqr;
       if (pnbody != nullptr) {
-        cs_sqr = CalcLocalSoundSpeedSqr(pnbody->nbody_data, pnbody->num_nbody, inv_Mach_sqr, x1v, x2v, x3v);
+        Real abs_phi_sum = 0.0;
+        for (int n = 0; n < pnbody->num_nbody; n++) {
+          const Real dx = x - pnbody->nbody_data.d_view(n, X_DATA);
+          const Real dy = y - pnbody->nbody_data.d_view(n, Y_DATA);
+          const Real dz = z - pnbody->nbody_data.d_view(n, Z_DATA);
+          const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+          const Real abs_phi_n = nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
+          abs_phi_sum += abs_phi_n;
+        }
+        cs_sqr_ = abs_phi_sum * inv_Mach_sqr_;
       }
-      const Real P = cs_sqr * rho;
+      const Real P = cs_sqr_ * rho;
 
       // set velocity
       const Real v_phi = Kokkos::sqrt(Gm_sum / (r + 1e-12));
