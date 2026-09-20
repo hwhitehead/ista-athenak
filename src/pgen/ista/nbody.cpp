@@ -113,7 +113,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
-      // set pressure
+      // set pressure using nbody state
+      const Real cs_sqr = pmy_mesh->pmb_pack->pnbody->num_nbody;
+
       const Real cs_sqr = h_sqr * Gm_sum / (r + 1e-12);
       const Real P = cs_sqr * rho;
 
@@ -145,11 +147,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
   // by default, HistoryOuptut reduces across hist_data all ranks
-  // if not rank 0, skip write
   if (global_variable::my_rank != 0) return;
 
-  // generate labels for nbody data
-  int num_nbody = pm->pmb_pack->pnbody->num_nbody;
+  // TEMP: verbose print of mb_packs on this rank
+  std::cout << "There are " << pm->nmb_packs_this_rank << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
+
+  // generate labels for nbody data using first pack on this rank
+  int num_nbody = pm->pmb_pack[0].pnbody->num_nbody;
   pdata->nhist = num_nbody * NVAR_HIST; 
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * NVAR_HIST;
@@ -166,7 +170,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * NVAR_HIST;
     for (int i = 0; i < NVAR_HIST; i++) {
-      pdata->hdata[i + hist_offset] = pm->pmb_pack->pnbody->nbody_data.h_view(n, i);
+      pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
     } // end var loop
   } // end body loop
   return;
