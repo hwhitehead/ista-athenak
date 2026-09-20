@@ -153,7 +153,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     // ===== Convert primitives to conserved variables =====
     pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is, ie, js, je, ks, ke);
   } // end hydro init 
-
+  std::cout << "Completed ProblemGenerator::UserProblem on rank " << global_variable::my_rank << std::endl;
 } 
 
 // ======================== User-Defined Source Terms =========================
