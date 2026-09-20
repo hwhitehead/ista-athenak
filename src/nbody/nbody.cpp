@@ -46,6 +46,10 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
 
+  // set disc state variables
+  Mach = pin->GetOrAddReal("problem","Mach", 1.0);
+  inv_Mach_sqr = 1.0 / SQR(Mach);
+
   // principle registers for wider access
   // nbody_data and delta_nbody_data are dual on host/device
   Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);
@@ -187,17 +191,23 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 
 void NBody::NBodySrcTerms(const Real beta_dt) {
 
-  // currently only gravity implemented
+  
   if (src_gravity) {
     NBodyGravitySrcTerm(beta_dt);
+  }
+  if (src_isotherm && pmy_pack->phydro->peos->eos_data.is_ideal) {
+    NBodyIsoSrcTerm(beta_dt);
   }
 
   return;
 }
 
+// apply BH gravity to all cells
 void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
   // unpack all data pre par_for
+
+  // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
   int is = indcs.is, ie = indcs.ie;
@@ -206,12 +216,12 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
+
+  // NBody properties
   auto &nbody_data_ = nbody_data;
   auto &delta_this_pack_ = delta_this_pack;
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
-  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
-  const Real last_body = num_nbody - 1;
   bool inc_backreaction_ = inc_backreaction;
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
@@ -237,19 +247,22 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       const Real dpx = dp_fac * dx;
       const Real dpy = dp_fac * dy;
       const Real dpz = dp_fac * dz;
-      const Real dE = dp_fac * (dx * prim(mb_id, IVX, k, j, i)
-                                + dy * prim(mb_id, IVY, k, j, i)
-                                + dz * prim(mb_id, IVZ, k, j, j));
 
       // apply updates to cell's conserved quantities
       cons(mb_id, IM1, k, j, i) += dpx;
       cons(mb_id, IM2, k, j, i) += dpy;
       cons(mb_id, IM3, k, j, i) += dpz;
-      if (is_ideal) cons(mb_id, IEN, k, j, i) += dE; // only update energy if ideal
 
-      // compute backreaction on body TEMP: set as zero
+      if (is_ideal && !src_isotherm) { // only compute energy change if ideal AND not forced iso
+        const Real dE = dp_fac * (dx * prim(mb_id, IVX, k, j, i)
+                                + dy * prim(mb_id, IVY, k, j, i)
+                                + dz * prim(mb_id, IVZ, k, j, j));
+        cons(mb_id, IEN, k, j, i) += dE; 
+      }
+
+      // compute backreaction on body 
       if (inc_backreaction_) {
-        Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0;
+        Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0; // TEMP: set all to zero
 
         // stash backreaction registers, with care for race conditions
         Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_back);
@@ -257,18 +270,52 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVY_BACK), dvy_back);
         Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVZ_BACK), dvz_back);
       }
+    }); // end par_for
+    
+  return;
+}
 
-      // enforce local isothermal flow (TODO: add flag, embed in seperate loop)
-      if ((n == last_body) && (is_ideal)) {
-        const Real Gmbin = 2; 
-        const Real Mach = 10.0;
-        const Real h_sqr = 1.0 / (Mach * Mach);
-        const Real r_sqr = SQR(x) + SQR(y) + SQR(z);
-        const Real cs_sqr = h_sqr * Gmbin / (Kokkos::sqrt(r_sqr) + 1e-6);
-        const Real E_kin = 0.5 * rho * (SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVZ, k, j, i)));
-        const Real E_int = cs_sqr * rho / gm1;
-        cons(mb_id, IEN, k, j, i) = E_kin + E_int;
-      } // end isothermal reset
+// update cell energy to match local isotherm
+void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
+
+  // unpack all data pre par_for
+
+  // MeshBlock properties
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  auto &size  = pmy_pack->pmb->mb_size;
+  int is = indcs.is, ie = indcs.ie;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto &prim = pmy_pack->phydro->w0;
+  auto &cons = pmy_pack->phydro->u0;
+
+  // NBody properties
+  auto &nbody_data_ = nbody_data;
+  auto &delta_this_pack_ = delta_this_pack;
+  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  auto &calc_local_cs_sqr_ = CalcLocalSoundSpeedSqr;
+
+  par_for("nbody_iso_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
+    KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
+    {
+      // identify cell position
+      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
+
+      // identify local sound speed
+      const Real cs_local = Kokkos::sqrt(calc_local_cs_sqr_(x, y, z));
+
+      // compute local kinetic energy
+      const Real rho = prim(mb_id, IDN, k, j, i);
+      const Real E_kin = 0.5 * rho * (SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVZ, k, j, i)));
+
+      // assert local internal energy
+      const Real E_int = cs_sqr * rho * inv_gm1;
+
+      // set local energy
+      cons(mb_id, IEN, k, j, i) = E_kin + E_int;
     }); // end par_for
     
   return;
@@ -286,6 +333,21 @@ Real NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
     sum_omega_sqr += _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -3.0);
   }
   return sum_omega_sqr;
+}
+
+// compute local sound speed sqr using fixed Mach
+Real NBody::CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z) {
+  Real abs_phi_sum = 0;
+
+  for (int n = 0; n < num_nbody; n++) {
+    const Real dx = x - nbody_data.d_view(n, X_DATA);
+    const Real dy = y - nbody_data.d_view(n, Y_DATA);
+    const Real dz = z - nbody_data.d_view(n, Z_DATA);
+    const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+    const Real abs_phi_n = G_ * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
+    abs_phi_sum += abs_phi_n;
+  }
+  return abs_phi_sum * inv_Mach_sqr;
 }
 
 } // end nbody namespace

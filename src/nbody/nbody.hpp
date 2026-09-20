@@ -84,6 +84,9 @@ class NBody {
     bool src_gravity, src_accretion;
     bool inc_backreaction;
 
+    // disc state variables (for sound speed compute)
+    Real Mach, inv_Mach_sqr;
+
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
     TaskStatus ReduceParentMesh(Driver *d, int state);
@@ -97,7 +100,10 @@ class NBody {
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
     void NBodyGravitySrcTerm(const Real beta_dt);
-    Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z);
+    void NBodyIsoSrcTerm(const Real beta_dt);
+    Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z); // TODO: deprecated for new cs method (in diff.)
+    Real CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z);
+
 
   private:
     MeshBlockPack* pmy_pack;
