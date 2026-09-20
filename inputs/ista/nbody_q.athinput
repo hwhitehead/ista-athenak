@@ -27,8 +27,8 @@ ix3_bc    = outflow     # inner-X3 boundary flag
 ox3_bc    = outflow     # outer-X3 boundary flag
 
 <meshblock>
-nx1       = 64          # Number of cells in each MeshBlock, X1-dir
-nx2       = 64         # Number of cells in each MeshBlock, X2-dir
+nx1       = 1024          # Number of cells in each MeshBlock, X1-dir
+nx2       = 1024         # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
