@@ -44,7 +44,7 @@ enum NBodyHistIndices {M_HIST = 0,
                         VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6,
                         NVAR_HIST = 7};
 
-enum NBodyBackIndices {DM_BACK = 0, DVX_BACK = 1, DVY_BACK = 2, DVZ_BACK = 3,
+enum NBodyBackIndices {DM_BACK = 0, DPX_BACK = 1, DPY_BACK = 2, DPZ_BACK = 3,
                         NVAR_BACK = 4};
 
 enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0, 

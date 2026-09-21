@@ -166,10 +166,10 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, YDOT_REG) = y.h_view(n, VY_REG);
     f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_REG);
     
-    // dot(v) = a 
-    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VXDOT_REG) : 0.0;
-    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VYDOT_REG) : 0.0;
-    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VZDOT_REG) : 0.0;
+    // dot(v) = dot(p) / m (use m from start of integration)
+    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_BACK) / nbody_data.h_view(n, M_DATA) : 0.0;
+    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_BACK) / nbody_data.h_view(n, M_DATA) : 0.0;
+    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_BACK) / nbody_data.h_view(n, M_DATA) : 0.0;
 
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
@@ -278,10 +278,12 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
     {
-      // identify cell position
+      // identify cell position and volume
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
+      const Real cell_volume = size.d_view(m).dx1 * size.d_view(m).dx2 * size.d_view(m).dx3;
+
 
       // compute body-cell seperation
       const Real dx = x - nbody_data_.d_view(n, X_DATA);
@@ -294,32 +296,41 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       const Real rho = prim(mb_id, IDN, k, j, i);
       // g_fac = Gm/r^3 where r is softened by r_soft 
       const Real g_fac = grav_const * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA)), -1.5);
-      const Real dp_fac = -g_fac * beta_dt * rho;
-      const Real dpx = dp_fac * dx;
-      const Real dpy = dp_fac * dy;
-      const Real dpz = dp_fac * dz;
+      const Real dp_grav_fac = -g_fac * beta_dt * rho;
+      const Real dpx_grav = dp_grav_fac * dx;
+      const Real dpy_grav = dp_grav_fac * dy;
+      const Real dpz_grav = dp_grav_fac * dz;
 
       // apply updates to cell's conserved quantities
-      cons(mb_id, IM1, k, j, i) += dpx;
-      cons(mb_id, IM2, k, j, i) += dpy;
-      cons(mb_id, IM3, k, j, i) += dpz;
+      cons(mb_id, IM1, k, j, i) += dpx_grav;
+      cons(mb_id, IM2, k, j, i) += dpy_grav;
+      cons(mb_id, IM3, k, j, i) += dpz_grav;
 
+      // TODO: this should be computed using acceleration and fluxes on cell FACES
       if (is_ideal && !src_local_iso_) { // only compute energy change if ideal AND not forced iso
-        const Real dE = dp_fac * (dx * prim(mb_id, IVX, k, j, i)
-                                + dy * prim(mb_id, IVY, k, j, i)
-                                + dz * prim(mb_id, IVZ, k, j, j));
+        const Real dE = dpx_grav * prim(mb_id, IVX, k, j, i)
+                      + dpy_grav * prim(mb_id, IVY, k, j, i)
+                      + dpz_grav * prim(mb_id, IVZ, k, j, j);
         cons(mb_id, IEN, k, j, i) += dE; 
       }
 
       // compute backreaction on body 
       if (inc_backreaction_) {
-        Real dm_back = 0, dvx_back = 0, dvy_back = 0, dvz_back = 0; // TEMP: set all to zero
+        const Real dm_tot = 0; // TODO non-zero for accretion
+        const Real dPx_grav = -dpx_grav * cell_volume;
+        const Real dPy_grav = -dpy_grav * cell_volume;
+        const Real dPz_grav = -dpz_grav * cell_volume;
+
+        const Real dPx_tot = dPx_grav + dPx_acc;
+        const Real dPy_tot = dPy_grav + dPy_acc;
+        const Real dPz_tot = dPz_grav + dPz_acc;
+
 
         // stash backreaction registers, with care for race conditions
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_back);
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVX_BACK), dvx_back);
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVY_BACK), dvy_back);
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DVZ_BACK), dvz_back);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_BACK), dPx_tot);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_BACK), dPy_tot);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_BACK), dPz_tot);
       }
     }); // end par_for
     
