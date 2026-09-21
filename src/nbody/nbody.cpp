@@ -307,7 +307,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
       // apply accretion, if in sink radius and flagged
       Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
-      if (src_accretion) {
+      if (src_accretion_) {
         const Real r_ratio = dr_true / nbody_data_.d_view(n, R_SOFT_DATA);
         if (r_ratio < 2) { 
           // compute mass loss rate
