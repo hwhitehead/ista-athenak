@@ -131,9 +131,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // identify local sound speed
       Real abs_phi_sum = 0.0;
       for (int n = 0; n < pnbody->num_nbody; n++) {
-        const Real dx = x - pnbody->nbody_data.d_view(n, X_DATA);
-        const Real dy = y - pnbody->nbody_data.d_view(n, Y_DATA);
-        const Real dz = z - pnbody->nbody_data.d_view(n, Z_DATA);
+        const Real dx = x1v - pnbody->nbody_data.d_view(n, X_DATA);
+        const Real dy = x2v - pnbody->nbody_data.d_view(n, Y_DATA);
+        const Real dz = x3v - pnbody->nbody_data.d_view(n, Z_DATA);
         const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz) + SQR(pnbody->nbody_data.d_view(n, R_SOFT_DATA));
         const Real abs_phi_n = pnbody->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
         abs_phi_sum += abs_phi_n;
