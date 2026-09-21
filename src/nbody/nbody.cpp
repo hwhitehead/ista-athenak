@@ -268,6 +268,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
   // TEMP report nmb_thispack
   std::cout << "There are " << pmy_pack->nmb_thispack << " meshblocks in this pack" << std::endl;
+  std::cout << "There are " << num_nbody << " bodies in this pack" << std::endl;
 
   // NBody properties
   auto &nbody_data_ = nbody_data;
