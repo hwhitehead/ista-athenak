@@ -115,12 +115,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real r = Kokkos::sqrt(r_sqr);
 
       // set density by cavity kernel
-      const Real cavity_fac = 1e-7 + (1.0 - 1e-7) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
-      Real rho = rho0; // * cavity_fac; // flat nu -> flat rho outside cavity
+      const Real cavity_floor = 1e-4;
+      const Real cavity_fac = cavity_floor + (1.0 - cavity_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
+      Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
       // set velocity
-      const Real v_phi = Kokkos::sqrt(Gm_sum / (r + 1e-12));
+      const Real v_phi = Kokkos::sqrt(Gm_sum / (r + 1e-6));
       const Real phi = Kokkos::atan2(x2v, x1v); // RH argument from +x axis
       const Real vx = -v_phi * Kokkos::sin(phi);
       const Real vy = v_phi * Kokkos::cos(phi);
