@@ -277,6 +277,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
   bool inc_backreaction_ = inc_backreaction;
   bool src_local_iso_ = src_local_iso;
+  bool src_accretion_ = src_accretion;
 
   par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody - 1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
@@ -307,7 +308,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       // apply accretion, if in sink radius and flagged
       Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
       if (src_accretion) {
-        const Real r_ratio = dr / nbody_data_.d_view(n, R_SOFT_DATA);
+        const Real r_ratio = dr_true / nbody_data_.d_view(n, R_SOFT_DATA);
         if (r_ratio < 2) { 
           // compute mass loss rate
           Real sink_rate = Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
@@ -327,7 +328,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
           const Real vxstar    = dvdotrhat * rhatx + vx_n;
           const Real vystar    = dvdotrhat * rhaty + vy_n;
           const Real vzstar    = dvdotrhat * rhatz + vz_n;
-          drho_acc = rhodot * dt;
+          drho_acc = rhodot * beta_dt;
           dpx_acc = drho_acc * vxstar;
           dpy_acc = drho_acc * vystar;
           dpz_acc = drho_acc * vzstar;
