@@ -42,6 +42,7 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
 
   return;
 }
+
 // taskstatus wrapper to CalcTimeStep
 TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   

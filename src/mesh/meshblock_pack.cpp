@@ -100,13 +100,6 @@ void MeshBlockPack::AddCoordinates(ParameterInput *pin) {
   pcoord = new Coordinates(pin, this);
 }
 
-void MeshBlockPack::AddNBody(ParameterInput *pin) {
-  if (pin->GetOrAddReal("nbody","num_nbody",0) > 0){
-    pnbody = new nbody::NBody(this, pin);
-    pnbody->AssembleNBodyTasks(tl_map);
-  }
-}
-
 //----------------------------------------------------------------------------------------
 // \fn MeshBlockPack::AddPhysics()
 // \brief construct physics modules and tasks lists in this MeshBlockPack, based on which
@@ -263,6 +256,16 @@ void MeshBlockPack::AddPhysics(ParameterInput *pin) {
   } else {
     pgrav = nullptr;
   }
+
+  // (10) NBODY TODO: deprecate func def for old nbody init
+  if (pin->DoesBlockExist("nbody")) {
+    pnbody = new nbody::NBody(this, pin);
+    pnbody->AssembleNBodyTasks(tl_map);
+    npysics++;
+  } else {
+    pnbody = nullptr;
+  }
+
   // Check that at least ONE is requested and initialized.
   // Error if there are no physics blocks in the input file.
   if (nphysics == 0) {
