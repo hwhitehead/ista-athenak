@@ -32,22 +32,22 @@ nx2       = 128         # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
-#refinement = adaptive     # static mesh refinement (SMR)
-num_levels = 1
-refinement_interval = 3
-max_nmb_per_rank = 4096
+refinement = static     # static mesh refinement (SMR)
+#num_levels = 1
+#refinement_interval = 3
+#max_nmb_per_rank = 4096
 
 <amr_criterion0>
 method = user
 
-#<refined_region1>
-#x1min = -1.0            
-#x1max =  1.0
-#x2min = -2.0
-#x2max =  2.0
-#x3min = -0.05
-#x3max = 0.05
-#level = 3
+<refined_region1>
+x1min = -2.0            
+x1max =  2.0
+x2min = -2.0
+x2max =  2.0
+x3min = -0.05
+x3max = 0.05
+level = 2
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
