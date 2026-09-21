@@ -705,7 +705,6 @@ void Mesh::AddCoordinatesAndPhysics(ParameterInput *pinput) {
   for (int n=0; n<nmb_packs_thisrank; ++n) {
     pmb_pack->AddCoordinates(pinput);
     pmb_pack->AddPhysics(pinput);
-    pmb_pack->AddNBody(pinput); // construct nbody on pack
   }
 
   // Determine total number of particles across all ranks
