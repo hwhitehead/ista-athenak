@@ -46,10 +46,18 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_local_iso = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
+  inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
 
   // set disc state variables
   Mach = pin->GetOrAddReal("problem","Mach", 1.0);
   inv_Mach_sqr = 1.0 / SQR(Mach);
+
+  // import unit conversions (else all unity)
+  unit_L = pin->GetOrAddReal("nbody", "unit_L", 1.0);
+  unit_M = pin->GetOrAddReal("nbody", "unit_M", 1.0);
+  unit_T = pin->GetOrAddReal("nbody", "unit_T", 1.0);
+  unit_V = unit_L / unit_T;
+  unit_A = unit_A / unit_T;
 
   // principle registers for wider access
   // nbody_data and delta_nbody_data are dual on host/device
@@ -163,10 +171,6 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VYDOT_REG) : 0.0;
     f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, VZDOT_REG) : 0.0;
 
-    if (inc_backreaction) {
-
-    }
-
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-gravity
@@ -175,15 +179,60 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
       const Real dx = y.h_view(n, X_REG) - y.h_view(m, X_REG);
       const Real dy = y.h_view(n, Y_REG) - y.h_view(m, Y_REG);
       const Real dz = y.h_view(n, Z_REG) - y.h_view(m, Z_REG);
-    
-      // compute acceleration
-      const Real r_sqr = dx * dx + dy * dy + dz * dz;
-      const Real g_fac = _G * y.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
-      
-      // decompose acceleration and update
-      f.h_view(n, VXDOT_REG) -= g_fac * dx;
-      f.h_view(n, VYDOT_REG) -= g_fac * dy;
-      f.h_view(n, VZDOT_REG) -= g_fac * dz;
+      Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+
+      // branch if PostNewtonian forcing to be included
+      if (!inc_pn) {
+        // compute Newtnonina pairwise acceleration
+        const Real g_fac = _G * y.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
+        
+        // decompose acceleration and update
+        f.h_view(n, VXDOT_REG) -= g_fac * dx;
+        f.h_view(n, VYDOT_REG) -= g_fac * dy;
+        f.h_view(n, VZDOT_REG) -= g_fac * dz; 
+      } else {
+        // include additional expansion terms up to 2.5PN (WIP)
+        // formulaism from Eq 203 of "Gravitational Radiation from Post-Newtonian Sources 
+        // and Inspiralling Compact Binaries" Blanchet 2014
+        // notation switch from (1,2)->(n,m)
+
+
+        // label masses
+        Real m1 = y.h_view(n, M_REG);
+        Real m2 = y.h_view(m, M_REG);
+
+        // extract velocity terms
+        const Real dvx = y.h_view(n, VX_REG) - y.h_view(m, VX_REG);
+        const Real dvy = y.h_view(n, VY_REG) - y.h_view(m, VY_REG);
+        const Real dvz = y.h_view(n, VZ_REG) - y.h_view(m, VZ_REG);
+        Real v_sqr = SQR(dvx) + SQR(dvy) + SQR(dvz);
+        Real v_dot = y.h_view(n, VX_REG) * y.h_view(m, VX_REG) + 
+                      y.h_view(n, VY_REG) * y.h_view(m, VY_REG) +
+                      y.h_view(n, VZ_REG) * y.h_view(m, VZ_REG);
+
+        // compute unit directions
+        Real r = Kokkos::sqrt(r_sqr);
+        Real inv_r = 1.0 / r;
+        Real inv_r_sqr = SQR(inv_r);
+        Real n_x = dx * inv_r;
+        Real n_y = dy * inv_r;
+        Real n_z = dz * inv_r;
+
+        // TODO: add unit conversions here, including for _G
+
+        // 0th order (Newtonian)
+        const Real newtonian_fac = -_G * m2 * inv_r_sqr;
+        Real a_x = newtonian_fac * n_x;
+        Real a_y = newtonian_fac * n_y;
+        Real a_z = newtonian_fac * n_z;
+
+        // TODO: add higher order terms here
+
+        // convert back to code units and 
+        f.h_view(n, VXDOT_REG) += a_x / unit_A;
+        f.h_view(n, VYDOT_REG) += a_y / unit_A;
+        f.h_view(n, VZDOT_REG) += a_z / unit_A;
+      } // end pn branch
     } // end m loop
   } // end n loop
 

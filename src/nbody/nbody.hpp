@@ -83,11 +83,15 @@ class NBody {
     NBodyTaskIDs id;
 
     // physics module booleans
-    bool src_gravity, src_local_iso, src_accretion;
-    bool inc_backreaction;
+    bool src_gravity, src_local_iso, src_accretion; // hydro toggles
+    bool inc_backreaction, inc_pn;                  // nbody toggles
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr;
+
+    // physical units (for PN terms)
+    Real unit_L, unit_M, unit_T; // set in pin
+    Real unit_V, unit_A;// derived units
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
