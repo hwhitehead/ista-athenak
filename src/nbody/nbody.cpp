@@ -278,7 +278,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   bool inc_backreaction_ = inc_backreaction;
   bool src_local_iso_ = src_local_iso;
 
-  par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody, ks, ke, js, je, is, ie,
+  par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody - 1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
     {
       // identify cell position and volume
