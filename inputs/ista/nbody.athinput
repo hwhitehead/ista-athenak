@@ -64,11 +64,11 @@ rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.000001      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
 nu_iso = 1e-3
-dfloor = 1e-8
-pfloor = 1e-10
+dfloor = 1e-10
+pfloor = 1e-12
 
 <problem>
-r_cavity = 1.0
+r_cavity = 1.5
 Mach = 10.0
 rho0 = 1.0
 alpha = 0.0
