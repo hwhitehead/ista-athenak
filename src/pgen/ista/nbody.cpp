@@ -128,7 +128,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vz = 0.0;
 
       // set pressure
-      const Real P = SQR(v_phi / Mach) * rho;
+      // identify local sound speed
+      Real abs_phi_sum = 0.0;
+      for (int n = 0; n < pnbody->num_nbody; n++) {
+        const Real dx = x - pnbody->nbody_data.d_view(n, X_DATA);
+        const Real dy = y - pnbody->nbody_data.d_view(n, Y_DATA);
+        const Real dz = z - pnbody->nbody_data.d_view(n, Z_DATA);
+        const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz) + SQR(pnbody->nbody_data.d_view(n, R_SOFT_DATA));
+        const Real abs_phi_n = pnbody->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
+        abs_phi_sum += abs_phi_n;
+      }
+      const Real cs_sqr_local = abs_phi_sum * inv_Mach_sqr;
+      const Real P = cs_sqr_local * rho;
       
       // ===== Set primitive variables =====
       w0_(m, IDN, k, j, i) = rho;              
