@@ -68,7 +68,7 @@ dfloor = 1e-8
 pfloor = 1e-10
 
 <problem>
-r_cavity = 3.0
+r_cavity = 1.0
 Mach = 10.0
 rho0 = 1.0
 alpha = 0.0
