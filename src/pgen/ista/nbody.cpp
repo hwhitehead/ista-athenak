@@ -119,28 +119,15 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
-      // set pressure using nbody state
-      Real cs_sqr_ = cs_sqr;
-      // if (pnbody != nullptr) {
-      //   Real abs_phi_sum = 0.0;
-      //   for (int n = 0; n < pnbody->num_nbody; n++) {
-      //     const Real dx = x1v - pnbody->nbody_data.d_view(n, X_DATA);
-      //     const Real dy = x2v - pnbody->nbody_data.d_view(n, Y_DATA);
-      //     const Real dz = x3v - pnbody->nbody_data.d_view(n, Z_DATA);
-      //     const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-      //     const Real abs_phi_n = pnbody->nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -0.5);
-      //     abs_phi_sum += abs_phi_n;
-      //   }
-      //   cs_sqr_ = abs_phi_sum * inv_Mach_sqr;
-      // }
-      const Real P = cs_sqr_ * rho;
-
       // set velocity
       const Real v_phi = Kokkos::sqrt(Gm_sum / (r + 1e-12));
       const Real phi = Kokkos::atan2(x2v, x1v); // RH argument from +x axis
       const Real vx = -v_phi * Kokkos::sin(phi);
       const Real vy = v_phi * Kokkos::cos(phi);
       const Real vz = 0.0;
+
+      // set pressure
+      const Real P = SQR(Mach * v_phi) * rho;
       
       // ===== Set primitive variables =====
       w0_(m, IDN, k, j, i) = rho;              
