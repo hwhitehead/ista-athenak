@@ -34,11 +34,12 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   
   TaskID none(0);
 
-  id.reduce_mesh = tl["after_timeintegrator"]->AddTask(&NBody::ReduceParentMesh, this, none);
-  id.reduce_meshes = tl["after_timeintegrator"]->AddTask(&NBody::ReduceAllMeshes, this, id.reduce_mesh);
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.reduce_meshes);
-  id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
-  id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
+  // id.reduce_mesh = tl["after_timeintegrator"]->AddTask(&NBody::ReduceParentMesh, this, none);
+  // id.reduce_meshes = tl["after_timeintegrator"]->AddTask(&NBody::ReduceAllMeshes, this, id.reduce_mesh);
+  // id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.reduce_meshes);
+  // id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
+  // id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
+  id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, none);
 
   return;
 }
