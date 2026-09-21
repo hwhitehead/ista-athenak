@@ -261,7 +261,7 @@ void MeshBlockPack::AddPhysics(ParameterInput *pin) {
   if (pin->DoesBlockExist("nbody")) {
     pnbody = new nbody::NBody(this, pin);
     pnbody->AssembleNBodyTasks(tl_map);
-    npysics++;
+    nphysics++;
   } else {
     pnbody = nullptr;
   }
