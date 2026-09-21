@@ -29,14 +29,6 @@ namespace hydro {
 
 TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {
   
-  // TEMP report existence of nbody class
-  auto pnbody = pmy_pack->pnbody;
-  if (pnbody == nullptr) {
-    std::cout << "Unable to locate NBody" << std::endl;
-  } else {
-    std::cout << "Located NBody" << std::endl;
-  }
-
   if (stage != (pdrive->nexp_stages)) {
     return TaskStatus::complete; // only execute last stage
   }
