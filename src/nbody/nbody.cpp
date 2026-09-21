@@ -240,7 +240,6 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 }
 
 void NBody::NBodySrcTerms(const Real beta_dt) {
-
   
   if (src_gravity) {
     NBodyGravitySrcTerm(beta_dt);
