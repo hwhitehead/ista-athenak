@@ -270,7 +270,11 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
   const Real inv_gm1 = 1.0 / (eos.gamma - 1.0); 
+  
+  // stash nbody properties
   auto pnbody = pmy_pack->pnbody;
+  const Real inv_Mach_sqr_ = pmy_pack->pnbody->inv_Mach_sqr;
+  const Real G_ = 1.0; // TODO: publicise in NBody
   const Real alpha_ = alpha;
 
   // fluxes in x1-direction
@@ -313,13 +317,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie+1, [&](const int i) {
-      // compute local nu_iso
-      const Real cs_sqr = w0(m,IPR,k,j,i) * inv_gm1;
-      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody->CalcLocalOmegaSqr(x, y, z);
-      const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
+      const Real nu_iso_ = 1e-3; // TEMP: build local nu calculator func
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
       flx1(m,IVX,k,j,i) -= nud*fvx(i);
@@ -366,13 +364,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      // compute local nu_iso
-      const Real cs_sqr = w0(m,IPR,k,j,i) * inv_gm1;
-      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody->CalcLocalOmegaSqr(x, y, z);
-      const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
+      const Real nu_iso_ = 1e-3; // TEMP: build local nu calculator func
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx2(m,IVX,k,j,i) -= nud*fvx(i);
@@ -413,13 +405,7 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      // compute local nu_iso
-      const Real cs_sqr = w0(m,IPR,k,j,i) * inv_gm1;
-      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
-      const Real omega_sqr = pnbody->CalcLocalOmegaSqr(x, y, z);
-      const Real nu_iso_ = alpha_ * cs_sqr * Kokkos::pow(omega_sqr, -0.5);
+      const Real nu_iso_ = 1e-3; // TEMP: build local nu calculator func
       // compute and sum flux
       Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
       flx3(m,IVX,k,j,i) -= nud*fvx(i);
