@@ -66,6 +66,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     m_sum += m_n;
   }
   const Real Gm_sum = m_sum; // assume G = 1
+  const Real Omega_bin = std::sqrt(m_sum); // assumes a = 1
+  const Real inv_Omega_bin_quad = std::pow(Omega_bin, -4.0);
   const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
   const Real Mach = pin->GetOrAddReal("problem", "Mach", 10.0);
   const Real h_sqr = 1.0 / SQR(Mach);
@@ -114,13 +116,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real r = Kokkos::sqrt(r_sqr);
 
       // set density by cavity kernel
-      const Real cavity_floor = 1e-6;
-      const Real cavity_fac = cavity_floor + (1.0 - cavity_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0)); 
+      const Real delta_floor = 1e-6;
+      const Real cavity_func = delta_floor + (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
       Real rho = rho0 * cavity_fac; // flat nu -> flat rho outside cavity
       if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
 
       // set velocity
-      const Real v_phi = Kokkos::sqrt(Gm_sum / (r + 1e-6));
+      const Real Omega0_sqr = Gm_sum * Kokkos::pow(r, -3.0) * (1 - inv_Mach_sqr);
+      const Real inv_Omega0_quad = Kokkos::pow(Omega0_sqr, -2.0);
+      const Real Omega = Kokkos::pow(inv_Omega0_quad + inv_Omega_bin_quad, -0.25);
+      const Real v_phi = r * Omega;
       const Real phi = Kokkos::atan2(x2v, x1v); // RH argument from +x axis
       const Real vx = -v_phi * Kokkos::sin(phi);
       const Real vy = v_phi * Kokkos::cos(phi);

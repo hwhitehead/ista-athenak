@@ -395,7 +395,7 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
 
   // NBody properties
   auto &nbody_data_ = nbody_data;
-  //auto &general_data_ = general_data;
+  //auto &general_data_ = general_data; // TODO track energy lost by cooling
   int num_nbody_ = num_nbody;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
