@@ -19,149 +19,26 @@
 #include "hydro/hydro.hpp"
 #include "coordinates/cell_locations.hpp"
 
-Real pi = 3.141592653589793;
-enum HistIndcies {M_BH = 0, X_BH = 1, Y_BH = 2, Z_BH = 3, VX_BH = 4, VY_BH = 5, VZ_BH = 6};
-void FlybyHistory(HistoryData *pdata, Mesh *pm);
+#include "nbody/nbody.hpp"
+#include "globals.hpp"
 
-// ============================ Kokkos functions ==============================
-// ============================================================================
+// TODO: package these functions with NBody or existing classes
+void NBodyHistory(HistoryData *pdata, Mesh *pm);
+void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 
-KOKKOS_INLINE_FUNCTION
-Real WrapTime(Real t, Real period) {
-  return t - Kokkos::floor(t / period) * period;
-}
-
-KOKKOS_INLINE_FUNCTION
-Real kokkos_atan2(Real y, Real x) {
-#if defined(__CUDA_ARCH__)
-  return atan2f(y, x);  
-#else
-  return std::atan2(y, x);
-#endif
-}
-
-class Flyby {
-  public:
-    Flyby(Real q, Real e) {
-      _mass_ratio = q;
-      _eccentricity = e;
-
-      // statics, for unitless system
-      _semi_major_axis = 1.0;
-      _primary_M = 1.0;
-      _G_const = 1.0;
-
-      // numerical method settinsgs
-      _num_iter = 100;
-      _precision = 1e-10;
-
-      // static binary properties
-      _mean_motion = Kokkos::sqrt(_G_const * _primary_M * (1 + _mass_ratio) / (Kokkos::pow(_semi_major_axis, 3)));
-      _period = 2 * pi / _mean_motion;
-    }
-    
-    // public access to private variables
-    KOKKOS_INLINE_FUNCTION Real q() const { return _mass_ratio;}
-    KOKKOS_INLINE_FUNCTION Real m_bin() const { return _primary_M * (1.0 + _mass_ratio);}
-    KOKKOS_INLINE_FUNCTION Real m(int i) const {
-      if (i == 0) {
-        return _primary_M;
-      } else {
-        return _primary_M * _mass_ratio;
-      }
-    }
-
-    // public methods
-    KOKKOS_INLINE_FUNCTION
-    Kokkos::Array<Kokkos::Array<Real, 3>, 2> BinaryPosition(Real t) {
-
-      Real t_since_peri  = WrapTime(t, _period);
-      Real a             = _semi_major_axis;
-      Real e             = _eccentricity;
-      Real q             = _mass_ratio;
-      Real E             = solve_halleys(e, _mean_motion, t_since_peri);
-
-      Real x_fac = a * (Kokkos::cos(E) - e) / (1.0 + q);
-      Real y_fac = a * Kokkos::sqrt(1.0 - e * e) * Kokkos::sin(E) / (1.0 + q);
-      Kokkos::Array<Real, 3> PrimaryPos   = { q * x_fac,  q * y_fac, 0.0};
-      Kokkos::Array<Real, 3> SecondaryPos = {- x_fac, - y_fac, 0.0};
-      return {PrimaryPos, SecondaryPos};
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    Kokkos::Array<Real, 3> KeplerDerivatives(
-      Real E, 
-      Real e, 
-      Real n, 
-      Real t)
-    {
-      Real f = E - e * Kokkos::sin(E) - n * t;
-      Real df = 1 - e * Kokkos::cos(E);
-      Real ddf = e * Kokkos::sin(E);
-      return {f, df, ddf};
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    Real solve_halleys(Real e, Real n, Real t) {
-      
-      int iter = 0;
-      Real E = n * t;
-      Kokkos::Array<Real, 3> f_df_ddf = KeplerDerivatives(E, e, n, t);
-      
-      while (Kokkos::abs(f_df_ddf[0]) > _precision){
-          E -= f_df_ddf[0] * f_df_ddf[1] / (f_df_ddf[1] * f_df_ddf[1] - 0.5 * f_df_ddf[0] * f_df_ddf[2]);
-          f_df_ddf = KeplerDerivatives(E, e, n, t);
-          iter += 1;
-          if (iter > _num_iter){
-              return E;  
-          }
-        }
-      return E;
-    }
-
-  private:
-    // specified properties
-    Real _mass_ratio, _eccentricity;
-
-    // unitary properties
-    Real _semi_major_axis, _primary_M, _G_const;
-  
-    // numerical method properties
-    int _num_iter;
-    Real _precision;
-
-    // derived properties
-    Real _mean_motion, _period;
-};
-
-namespace {
-  std::unique_ptr<Flyby> h_flyby; // smart ptr to Flyby class on host
-}
-
-// TDE problem generator
-
+// nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
-  // Binary parameters
-  Real q_binary     = pin->GetOrAddReal("problem", "q_binary", 1.0);
-  Real e_binary     = pin->GetOrAddReal("problem", "e_binary", 0.99);
+  // load nbody properties
+  int num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
+  bool hist_nbody = pin->GetOrAddBoolean("nbody", "hist_nbody", false);
+  if (hist_nbody) {
+    user_hist = true;
+    user_hist_func = &NBodyHistory; // TODO: embed into nbody class
+  }
 
-  // Create binary class
-  Flyby flyby     = Flyby(q_binary, e_binary);
-  h_flyby         = std::make_unique<Flyby>(flyby);
-
-  // Define source terms
-  //g_sources_enabled = true;
-  //user_srcs         = true;
-  //user_srcs_func    = &TDESourceTerm;
-
-  // Define history output
-  user_hist         = true;
-  user_hist_func    = &FlybyHistory;
-
-  // Free the Kokkos::View accumulators before Kokkos::finalize() runs (they have
-  // static storage duration, so they'd be destroyed after main() returns).
-  // pgen_final_func   = &CircumbinaryFinalAnalysis;
+  // enroll AMR if flagged
+  user_ref_func = NBodyTrackRefinementCondition;
 
   // Skip initialization if this is a restart
   if (restart) return;
@@ -174,12 +51,33 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
+  const bool is_3d = pmy_mesh_->three_d;
+
+  // load minidisc properties
+  const Real r_minidisc = pin->GetOrAddReal("problem", "r_minidisc", 0.05);
+  const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
+  const Real Mach = pin->GetOrAddReal("problem", "Mach", 10.0);
+  bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
+  const Real alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
+
+  // isolate initial secondary state (NBody not assured init during pgen)
+  const Real m_sec = pin->GetReal("nbody", "m1");
+  const Real x_sec = pin->GetReal("nbody", "x1");
+  const Real y_sec = pin->GetReal("nbody", "y1");
+  const Real z_sec = pin->GetReal("nbody", "z1");
+  const Real vx_sec = pin->GetReal("nbody", "vx1");
+  const Real vy_sec = pin->GetReal("nbody", "vy1");
+  const Real vz_sec = pin->GetReal("nbody", "vz1");
 
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
   {
 
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
+    const Real inv_Mach = 1.0 / Mach;
+    const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
+    const Real cs_sqr_floor = 1e-8;
+    Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
 
     // (3) loop over cells
     par_for("pgen_tde", 
@@ -207,53 +105,149 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       int nx3     = indcs.nx3;                              // nz
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
+      // determine distance from secondary
+      const Real r_sqr = SQR(x1v - x_sec) + SQR(x2v - y_sec) + SQR(x3v - z_sec);
+      const Real r = Kokkos::sqrt(r_sqr);
+
+      // set density using inverse cavity kernel
+      const Real delta_floor = 1e-6;
+      const Real cavity_func = delta_floor + (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_fac - 1), 12.0)); 
+      Real rho = rho0 * cavity_func; // flat nu -> flat rho outside cavity
+      if (alpha != 0.0) rho *= Kokkos::pow(r, -1.5); // inhomo nu, update powerlaw
+
+      // set velocity in disc (everything Keplerian about secondary, including cavity)
+      const Real v_phi = Kokkos::sqrt(m_sec / r);
+      const Real phi = Kokkos::atan2(x2v - y_sec, x1v - x_sec); // RH argument from +x axis
+      const Real vx = -v_phi * Kokkos::sin(phi);
+      const Real vy = v_phi * Kokkos::cos(phi);
+      const Real vz = 0.0;
+      // ^ todo: generalise this to 3D
+
+      // set pressure
+      const Real cs_sqr_local = SQR(v_phi / Mach) + cs_sqr_floor;
+      const Real P = cs_sqr_local * rho;
+      
       // ===== Set primitive variables =====
-      w0_(m, IDN, k, j, i) = 1.0;              // Density
-      w0_(m, IVX, k, j, i) = 0.0;               // Velocity x-component
-      w0_(m, IVY, k, j, i) = 0.0;               // Velocity y-component
-      //w0_(m, IVZ, k, j, i) = 0.0;               // Velocity z-component
-      w0_(m, IPR, k, j, i) = 1.0;             // Pressure
+      w0_(m, IDN, k, j, i) = rho;              
+      w0_(m, IVX, k, j, i) = vx;               
+      w0_(m, IVY, k, j, i) = vy;               
+      if (is_3d) w0_(m, IVZ, k, j, i) = vz;             
+      if (is_ideal) w0_(m, IPR, k, j, i) = P;   
     }); 
 
     // ===== Convert primitives to conserved variables =====
     pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is, ie, js, je, ks, ke);
-  }  
-
+  } // end hydro init 
+  std::cout << "Completed ProblemGenerator::UserProblem on rank " << global_variable::my_rank << std::endl;
 } 
 
 // ======================== User-Defined Source Terms =========================
 // ============================================================================
 
+// write NBody data to hst output TODO: internalise as standard output
+void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
-void FlybyHistory(HistoryData *pdata, Mesh *pm) {
-  // stores bh data into hist 
-  
-  // define storage labels
-  int nvar_per_bh = 4;
-  pdata->nhist = 2 * nvar_per_bh;
-  for (int s = 0; s < 2; ++s) {
-    int offset = s * nvar_per_bh;
-    pdata->label[0 + offset] = "m" + std::to_string(s);
-    pdata->label[1 + offset] = "x" + std::to_string(s);
-    pdata->label[2 + offset] = "y" + std::to_string(s);
-    pdata->label[3 + offset] = "z" + std::to_string(s);
-  }
+  // by default, HistoryOuptut reduces across hist_data all ranks
+  if (global_variable::my_rank != 0) return;
 
-  // if data out of scope, set all to zero
-  if (h_flyby == nullptr) {
-    for (int n = 0; n < pdata->nhist; ++n) { pdata->hdata[n] = 0.0; }
-    return;
-  }
+  // TEMP: verbose print of mb_packs on this rank
+  std::cout << "There are " << pm->nmb_packs_thisrank << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
 
-  // unpackage position data
-  const auto pos_data = h_flyby->BinaryPosition(pm->time);
+  // generate labels for nbody data using first pack on this rank
+  int num_nbody = pm->pmb_pack[0].pnbody->num_nbody;
+  pdata->nhist = num_nbody * NVAR_HIST; 
+  for (int n = 0; n < num_nbody; ++n) {
+    int hist_offset = n * NVAR_HIST;
+    pdata->label[M_HIST + hist_offset] = "m" + std::to_string(n); 
+    pdata->label[X_HIST + hist_offset] = "x" + std::to_string(n);
+    pdata->label[Y_HIST + hist_offset] = "y" + std::to_string(n);
+    pdata->label[Z_HIST + hist_offset] = "z" + std::to_string(n);
+    pdata->label[VX_HIST + hist_offset] = "vx" + std::to_string(n);
+    pdata->label[VY_HIST + hist_offset] = "vy" + std::to_string(n);
+    pdata->label[VZ_HIST + hist_offset] = "vz" + std::to_string(n);
+    pdata->label[AX_GRAV_HIST + hist_offset] = "ax_grav" + std::to_string(n);
+    pdata->label[AY_GRAV_HIST + hist_offset] = "ay_grav" + std::to_string(n);
+    pdata->label[AZ_GRAV_HIST + hist_offset] = "az_grav" + std::to_string(n);
+    pdata->label[AX_ACC_HIST + hist_offset] = "ax_acc" + std::to_string(n);
+    pdata->label[AY_ACC_HIST + hist_offset] = "ay_acc" + std::to_string(n);
+    pdata->label[AZ_ACC_HIST + hist_offset] = "az_acc" + std::to_string(n);
+  } // end body loop
 
-  // iterate over both minor and major bodies
-  for (int s = 0; s < 2; ++s) {
-    int offset = s * nvar_per_bh;
-    pdata->hdata[M_BH + offset] = h_flyby->m(s);
-    pdata->hdata[X_BH + offset] = pos_data[s][0];
-    pdata->hdata[Y_BH + offset] = pos_data[s][1];
-    pdata->hdata[Z_BH + offset] = pos_data[s][2];
-  }
+  // stash values
+  for (int n = 0; n < num_nbody; ++n) {
+    int hist_offset = n * NVAR_HIST;
+    for (int i = 0; i < VZ_HIST; i++) {
+      if (i <= AX_GRAV_HIST) { // read m, x, vx from nbody_data
+        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
+      } else { // read ax_grav, ax_acc from delta_all_meshes
+        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
+      }
+      
+    } // end var loop
+  } // end body loop
+  return;
+}
+
+// apply AMR to region about each body with non-zero refinement radius
+void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
+  auto &refine_flag = pmbp->pmesh->pmr->refine_flag;
+  int mbs = pmbp->pmesh->gids_eachrank[global_variable::my_rank];
+  int nmb = pmbp->nmb_thispack;
+  auto &size = pmbp->pmb->mb_size;
+  auto &multi_d = pmbp->pmesh->multi_d;
+  auto &three_d = pmbp->pmesh->three_d;
+
+  // loop over MeshBlocks in this MeshBlockPack
+  // MeshBlock count small, perfom on host
+  for (int mb_id = 0; mb_id < nmb; mb_id++) {
+
+    // by default, mark for derefine
+    bool refine = false;
+
+    // extract MeshBlock bounds
+    Real &x1min = size.h_view(mb_id).x1min;
+    Real &x1max = size.h_view(mb_id).x1max;
+    Real &x2min = size.h_view(mb_id).x2min;
+    Real &x2max = size.h_view(mb_id).x2max;
+    Real &x3min = size.h_view(mb_id).x3min;
+    Real &x3max = size.h_view(mb_id).x3max;
+
+    // cycle over bodies
+    for (int n = 0; n < pmbp->pnbody->num_nbody; n++) {
+      // if refinement radius for body is zero, skip
+      const Real rad = pmbp->pnbody->nbody_data.h_view(n, R_AMR_DATA);
+      if (rad == 0.0) continue;
+
+      // save position 
+      const Real x1 = pmbp->pnbody->nbody_data.h_view(n, X_DATA);
+      const Real x2 = pmbp->pnbody->nbody_data.h_view(n, Y_DATA);
+      const Real x3 = pmbp->pnbody->nbody_data.h_view(n, Z_DATA);
+      
+      // check overlap with AMR region and MeshBlock
+      if (((x1min < (x1+rad)) && (x1min > (x1-rad))) ||
+        ((x1max < (x1+rad)) && (x1max > (x1-rad))) ||
+        ((x1max > (x1+rad)) && (x1min < (x1-rad)))) {
+        if (!(multi_d) ||
+          (((x2min < (x2+rad)) && (x2min > (x2-rad))) ||
+          ((x2max < (x2+rad)) && (x2max > (x2-rad))) ||
+          ((x2max > (x2+rad)) && (x2min < (x2-rad)))) ) {
+          if (!(three_d) ||
+            (((x3min < (x3+rad)) && (x3min > (x3-rad))) ||
+            ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
+            ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
+            refine = true;
+          }
+        }
+      }
+    } // end n loop
+    if (refine) {
+      refine_flag.h_view(mb_id + mbs) = 1;
+    } else {
+      refine_flag.h_view(mb_id + mbs) = -1;
+    }
+  } // end mb_id loop
+
+  // sync host and device  DevExeSpace
+  refine_flag.template modify<HostMemSpace>();
+  refine_flag.template sync<DevExeSpace>();
 }

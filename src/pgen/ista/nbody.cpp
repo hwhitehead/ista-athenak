@@ -25,7 +25,6 @@
 // TODO: package these functions with NBody or existing classes
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
-    Real CalcLocalSoundSpeedSqr(const Real x, const Real y, const Real z);
 
 // nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
