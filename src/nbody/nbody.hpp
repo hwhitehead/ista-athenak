@@ -32,6 +32,8 @@ struct NBodyTaskIDs {
     TaskID reduce_mesh, reduce_meshes, integrate, scatter, calc_dt;
 };
 
+// indices for principle nbody data register
+// contains data read by source terms for gravity, accretion forcing
 enum NBodyDataIndices {M_DATA = 0, 
                         X_DATA = 1, Y_DATA = 2, Z_DATA = 3,
                         VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6,
@@ -39,6 +41,7 @@ enum NBodyDataIndices {M_DATA = 0,
                         R_SOFT_DATA = 10, R_AMR_DATA = 11, N_AMR_DATA = 12,
                         NVAR_DATA = 13};
 
+// indices for history output writing
 enum NBodyHistIndices {M_HIST = 0, 
                         X_HIST = 1, Y_HIST = 2, Z_HIST = 3,
                         VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6,
@@ -46,14 +49,23 @@ enum NBodyHistIndices {M_HIST = 0,
                         AX_ACC_HIST = 10, AY_ACC_HIST = 11, AZ_ACC_HIST = 12,
                         NVAR_HIST = 13};
 
-enum NBodyBackIndices {DM_BACK = 0, 
-                        DPX_GRAV_BACK = 1, DPY_GRAV_BACK = 2, DPZ_GRAV_BACK = 3,
-                        DPX_ACC_BACK = 4, DPY_ACC_BACK = 5, DPZ_ACC_BACK = 6,
+// indices for backreaction registers
+// after gather, register populated with derivates, not deltas (hence double definitions)
+enum NBodyBackIndices {DM_BACK = 0, MDOT_BACK = 0,
+                        DPX_GRAV_BACK = 1, AX_GRAV_BACK = 1, 
+                        DPY_GRAV_BACK = 2, AY_GRAV_BACK = 2,
+                        DPZ_GRAV_BACK = 3, AZ_GRAC_BACK = 3,
+                        DPX_ACC_BACK = 4, AX_ACC_BACK = 4,
+                        DPY_ACC_BACK = 5, AY_ACC_BACK = 5,
+                        DPZ_ACC_BACK = 6, AZ_ACC_BACK = 6,
                         NVAR_BACK = 7};
 
+// indicies for general registers
+// contains data not related to a specific bodhy
 enum NBodyGeneralIndices {DE_GENERAL = 0, 
                           NVAR_GENERAL = 1};
 
+// indices for nbody integration registers (scratch)
 enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0, 
                             X_REG = 1, XDOT_REG = 1, 
                             Y_REG = 2, YDOT_REG = 2, 
@@ -81,6 +93,7 @@ class NBody {
     DualArray2D<Real> nbody_data; 
 
     // register for non body specific quantities
+    // shape (NVAR_GENERAL)
     DualArray2D<Real> general_data;
 
     // summation space for mb_pack level backreaction updates

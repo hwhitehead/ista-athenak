@@ -93,16 +93,17 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 
   // Step 3: sum delta_pack_sum across ranks
 #if MPI_PARALLEL_ENABLED
-  MPI_Reduce(MPI_IN_PLACE, &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  // template: MPI_Reduce(write_addr, read_addr, data_count, data_type, operation, scope)
+  MPI_Reduce(&delta_all_meshes.view_host(), &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
-  // Step 4: convert delta sum into rate, and stash
+  // Step 4: convert sum of deltas into rates 
   for (int n = 0; n < num_nbody; n++) {
     for (int i = 0; i < NVAR_REG; i++) {
-      if (i == 0) { // dm -> m_dot
-        delta_all_meshes.h_view(n, i) = delta_this_mesh.h_view(n, i) / pmy_pack->pmesh->dt;
-      } else { // dpi -> vi_dot
-        delta_all_meshes.h_view(n, i) = delta_this_mesh.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * pmy_pack->pmesh->dt);
+      if (i == 0) { // mdot = dm / dt
+        delta_all_meshes.h_view(n, i) = delta_all_meshes.h_view(n, i) / pmy_pack->pmesh->dt; 
+      } else { // vdot = dp / (m * dt)
+        delta_all_meshes.h_view(n, i) = delta_all_meshes.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * pmy_pack->pmesh->dt);
       }
     }
   }
