@@ -99,7 +99,11 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
   // Step 4: convert delta sum into rate, and stash
   for (int n = 0; n < num_nbody; n++) {
     for (int i = 0; i < NVAR_REG; i++) {
-      delta_all_meshes.h_view(n, i) = delta_this_mesh.h_view(n, i) / pmy_pack->pmesh->dt;
+      if (i == 0) { // dm -> m_dot
+        delta_all_meshes.h_view(n, i) = delta_this_mesh.h_view(n, i) / pmy_pack->pmesh->dt;
+      } else { // dpi -> vi_dot
+        delta_all_meshes.h_view(n, i) = delta_this_mesh.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * pmy_pack->pmesh->dt);
+      }
     }
   }
   
@@ -177,6 +181,11 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
       } // end i
   }
 
+  if (verbose) {
+    std::cout << "Completed RK4 integration on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+              << " on rank " << global_variable::my_rank << std::endl; 
+  }
+
   return TaskStatus::complete;
 }
 
@@ -202,6 +211,11 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
     pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template sync<DevExeSpace>();
   } // end mb_pack loop
   
+  if (verbose) {
+    std::cout << "Forced Scatter on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+              << " on rank " << global_variable::my_rank << std::endl; 
+  }
+
   return TaskStatus::complete;
 }
 

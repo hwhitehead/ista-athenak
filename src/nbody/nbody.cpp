@@ -162,8 +162,8 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
   // f = (0, vx, vy, vz, ax, ay, az ...)
 
   for (int n = 0; n < num_nbody; n++) {
-    // mdot = 0 
-    f.h_view(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, MDOT_REG) : 0.0;
+    // register now contains mdot, not delta m
+    f.h_view(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DM_BACK) : 0.0;
 
     // dot(x) = v
     f.h_view(n, XDOT_REG) = y.h_view(n, VX_REG);
@@ -171,9 +171,10 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_REG);
     
     // dot(v) = dot(p) / m (use m from start of integration)
-    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_BACK) / nbody_data.h_view(n, M_DATA) : 0.0;
-    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_BACK) / nbody_data.h_view(n, M_DATA) : 0.0;
-    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_BACK) / nbody_data.h_view(n, M_DATA) : 0.0;
+    // registers now contain accelerations, not momentum changes
+    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_GRAV_BACK) + delta_all_meshes.h_view(n, DPX_ACC_BACK): 0.0;
+    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_GRAV_BACK) + delta_all_meshes.h_view(n, DPY_ACC_BACK): 0.0;
+    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_GRAV_BACK) + delta_all_meshes.h_view(n, DPZ_ACC_BACK): 0.0;
 
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
@@ -280,6 +281,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
   bool inc_backreaction_ = inc_backreaction;
+  bool sum_backreaction_ = sum_backreaction;
   bool src_local_iso_ = src_local_iso;
   bool src_accretion_ = src_accretion;
 
@@ -354,7 +356,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       }
 
       // compute backreaction on body 
-      if (inc_backreaction_) {
+      if (sum_backreaction_) {
         // gravity backreaction
         const Real dPx_grav = -dpx_grav * cell_volume;
         const Real dPy_grav = -dpy_grav * cell_volume;
@@ -366,16 +368,15 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
         const Real dPy_acc = -dpy_acc * cell_volume;
         const Real dPz_acc = -dpz_acc * cell_volume;
 
-        const Real dPx_tot = dPx_grav + dPx_acc;
-        const Real dPy_tot = dPy_grav + dPy_acc;
-        const Real dPz_tot = dPz_grav + dPz_acc;
-
         // stash backreaction registers, with care for race conditions
         // TODO: stash these seperately for analysis and sum for integration
         Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_BACK), dPx_tot);
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_BACK), dPy_tot);
-        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_BACK), dPz_tot);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_GRAV_BACK), dPx_grav);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_GRAV_BACK), dPy_grav);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_GRAV_BACK), dPz_grav);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_ACC_BACK), dPx_acc);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_ACC_BACK), dPy_acc);
+        Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_ACC_BACK), dPz_acc);
       }
     }); // end par_for
     
