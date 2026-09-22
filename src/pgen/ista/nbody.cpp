@@ -79,7 +79,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   {
 
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
-    auto pnbody = pmbp->pnbody; 
     Real inv_Mach_sqr = 1.0 / SQR(Mach);
     const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);

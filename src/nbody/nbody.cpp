@@ -46,7 +46,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_local_iso = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
-  sum_backreaction = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
+  sum_backreaction = pin->GetOrAddBoolean("nbody", "sum_backreaction", inc_backreaction);
   inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
 
   // set disc state variables
@@ -280,7 +280,6 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &delta_this_pack_ = delta_this_pack;
   auto grav_const = _G;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
-  bool inc_backreaction_ = inc_backreaction;
   bool sum_backreaction_ = sum_backreaction;
   bool src_local_iso_ = src_local_iso;
   bool src_accretion_ = src_accretion;
@@ -400,7 +399,7 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
 
   // NBody properties
   auto &nbody_data_ = nbody_data;
-  auto &general_data_ = general_data;
+  //auto &general_data_ = general_data;
   int num_nbody_ = num_nbody;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
