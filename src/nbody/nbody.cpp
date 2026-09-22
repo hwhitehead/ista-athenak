@@ -46,6 +46,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_local_iso = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
+  sum_backreaction = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
   inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
 
   // set disc state variables
@@ -58,6 +59,9 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   unit_T = pin->GetOrAddReal("nbody", "unit_T", 1.0);
   unit_V = unit_L / unit_T;
   unit_A = unit_A / unit_T;
+
+  // import verbose flag
+  verbose = pin->GetOrAddBoolean("nbody", "verbose", false);
 
   // principle registers for wider access
   // nbody_data and delta_nbody_data are dual on host/device
@@ -395,6 +399,7 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
 
   // NBody properties
   auto &nbody_data_ = nbody_data;
+  auto &general_data_ = general_data;
   int num_nbody_ = num_nbody;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
@@ -427,7 +432,11 @@ void NBody::NBodyIsoSrcTerm(const Real beta_dt) {
       const Real E_int = cs_sqr_local * rho * inv_gm1;
 
       // set local energy
-      cons(mb_id, IEN, k, j, i) = E_kin + E_int;
+      const Real E_last = cons(mb_id, IEN, k, j, i);
+      const Real dE = (E_kin + E_int) - E_last; 
+      cons(mb_id, IEN, k, j, i) += dE;
+      // store energy loss
+      // Kokkos::atomic_add(&general_data_.d_view(DE_GENERAL), dE); // TODO: implement collection of this
     }); // end par_for
     
   return;

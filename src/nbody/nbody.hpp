@@ -44,8 +44,13 @@ enum NBodyHistIndices {M_HIST = 0,
                         VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6,
                         NVAR_HIST = 7};
 
-enum NBodyBackIndices {DM_BACK = 0, DPX_BACK = 1, DPY_BACK = 2, DPZ_BACK = 3,
-                        NVAR_BACK = 4};
+enum NBodyBackIndices {DM_BACK = 0, 
+                        DPX_GRAV_BACK = 1, DPY_GRAV_BACK = 2, DPZ_GRAV_BACK = 3,
+                        DPX_ACC_BACK = 4, DPY_ACC_BACK = 5, DPZ_ACC_BACK = 6,
+                        NVAR_BACK = 7};
+
+enum NBodyGeneralIndices {DE_GENERAL = 0, 
+                          NVAR_GENERAL = 1};
 
 enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0, 
                             X_REG = 1, XDOT_REG = 1, 
@@ -69,9 +74,12 @@ class NBody {
     Real dt_new, dt_old; // nbody timestep (before prefactor scaling)
     Real eta_dt; // prefactor for timestep scaling
 
-    // principle data register for wider access 
+    // principle nbody register for wider access 
     // shape (num_nbody, NVAR_DATA)
     DualArray2D<Real> nbody_data; 
+
+    // register for non body specific quantities
+    DualArray2D<Real> general_data;
 
     // summation space for mb_pack level backreaction updates
     // shape (num_nbody, NVAR_BACK)
@@ -83,8 +91,11 @@ class NBody {
     NBodyTaskIDs id;
 
     // physics module booleans
-    bool src_gravity, src_local_iso, src_accretion; // hydro toggles
-    bool inc_backreaction, inc_pn;                  // nbody toggles
+    bool src_gravity, src_local_iso, src_accretion;   // hydro toggles
+    bool inc_backreaction, sum_backreaction, inc_pn;  // nbody toggles
+
+    // verbose flag for CPU writes
+    bool verbose;
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr;

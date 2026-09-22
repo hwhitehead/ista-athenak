@@ -57,19 +57,27 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
   // Step 1: If running without backreaction, skip summation
-  if (!inc_backreaction) return TaskStatus::complete;
+  if (!sum_backreaction) return TaskStatus::complete;
 
-  // Step 2: Init pack sum register as zero 
+  // Step 2: only run commincation on ONE mb_pack per rank
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 3: Init pack sum register as zero 
   Kokkos::deep_copy(delta_this_mesh.view_host(), 0.0);
 
-  // Step 3: Collect updates across mb_packs on this rank 
+  // Step 4: Collect updates across mb_packs on this rank 
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
     for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < NVAR_BACK; i++) {  // TODO: is there a Kokkos func for this loop?
+      for (int i = 0; i < NVAR_BACK; i++) {
         delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.h_view(n, i);
       } // end NVAR_BACK loop
     } // end n loop
   } // end mb_pack loop
+
+  if (verbose) {
+    std::cout << "Collected back reaction across " << pmy_pack->pmesh->nmb_packs_thisrank 
+              << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
+  }
 
   return TaskStatus::complete;
 }
@@ -78,7 +86,7 @@ TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 
   // Step 1: If running without backreaction, skip
-  if (!inc_backreaction) return TaskStatus::complete;
+  if (!sum_backreaction) return TaskStatus::complete;
 
   // Step 2: only run commincation on ONE mb_pack per rank
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
@@ -95,6 +103,11 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
     }
   }
   
+  if (verbose) {
+    std::cout << "Reduced across back reaction across " << global_variable::nranks
+              << "from rank " << global_variable::my_rank << std::endl;
+  }
+
   return TaskStatus::complete;
 }
 
