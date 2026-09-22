@@ -42,7 +42,9 @@ enum NBodyDataIndices {M_DATA = 0,
 enum NBodyHistIndices {M_HIST = 0, 
                         X_HIST = 1, Y_HIST = 2, Z_HIST = 3,
                         VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6,
-                        NVAR_HIST = 7};
+                        AX_GRAV_HIST = 7, AY_GRAV_HIST = 8, AZ_GRAV_HIST = 9,
+                        AX_ACC_HIST = 10, AY_ACC_HIST = 11, AZ_ACC_HIST = 12,
+                        NVAR_HIST = 13};
 
 enum NBodyBackIndices {DM_BACK = 0, 
                         DPX_GRAV_BACK = 1, DPY_GRAV_BACK = 2, DPZ_GRAV_BACK = 3,

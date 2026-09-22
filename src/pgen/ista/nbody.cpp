@@ -168,13 +168,24 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
     pdata->label[VX_HIST + hist_offset] = "vx" + std::to_string(n);
     pdata->label[VY_HIST + hist_offset] = "vy" + std::to_string(n);
     pdata->label[VZ_HIST + hist_offset] = "vz" + std::to_string(n);
+    pdata->label[AX_GRAV_HIST + hist_offset] = "ax_grav" + std::to_string(n);
+    pdata->label[AY_GRAV_HIST + hist_offset] = "ay_grav" + std::to_string(n);
+    pdata->label[AZ_GRAV_HIST + hist_offset] = "az_grav" + std::to_string(n);
+    pdata->label[AX_ACC_HIST + hist_offset] = "ax_acc" + std::to_string(n);
+    pdata->label[AY_ACC_HIST + hist_offset] = "ay_acc" + std::to_string(n);
+    pdata->label[AZ_ACC_HIST + hist_offset] = "az_acc" + std::to_string(n);
   } // end body loop
 
   // stash values
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * NVAR_HIST;
     for (int i = 0; i < NVAR_HIST; i++) {
-      pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
+      if (i <= AX_GRAV_HIST) { // read m, x, vx from nbody_data
+        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
+      } else { // read ax_grav, ax_acc from delta_all_meshes
+        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
+      }
+      
     } // end var loop
   } // end body loop
   return;

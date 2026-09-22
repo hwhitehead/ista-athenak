@@ -93,7 +93,7 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
 
   // Step 3: sum delta_pack_sum across ranks
 #if MPI_PARALLEL_ENABLED
-  MPI_ALLreduce(MPI_IN_PLACE, &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Reduce(MPI_IN_PLACE, &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
   // Step 4: convert delta sum into rate, and stash
@@ -108,7 +108,7 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
   }
   
   if (verbose) {
-    std::cout << "Reduced across back reaction across " << global_variable::nranks
+    std::cout << "Reduced back reaction across " << global_variable::nranks << " rank(s)"
               << "from rank " << global_variable::my_rank << std::endl;
   }
 
@@ -212,7 +212,7 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
   } // end mb_pack loop
   
   if (verbose) {
-    std::cout << "Forced Scatter on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+    std::cout << "Forced Scatter on root MeshBlockPack " 
               << " on rank " << global_variable::my_rank << std::endl; 
   }
 
