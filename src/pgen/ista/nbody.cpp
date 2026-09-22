@@ -179,7 +179,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   // stash values
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * NVAR_HIST;
-    for (int i = 0; i < NVAR_HIST; i++) {
+    for (int i = 0; i < VZ_HIST; i++) {
       if (i <= AX_GRAV_HIST) { // read m, x, vx from nbody_data
         pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
       } else { // read ax_grav, ax_acc from delta_all_meshes
