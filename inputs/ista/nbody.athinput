@@ -7,7 +7,7 @@ problem   = nbody
 basename  = nbody       # problem ID: basename of output filenames
 
 <mesh>
-nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
+nghost    = 2           # Number of ghost cells (must be even for SMR/AMR)
 nx1       = 256          # Number of zones in X1-direction (root level, dx=0.1)
 x1min     = -6.0        # minimum value of X1
 x1max     =  6.0        # maximum value of X1
@@ -59,8 +59,8 @@ ndiag      = 1          # cycles between diagostic output
 
 <hydro>
 eos         = ideal         # EOS type
-reconstruct = ppm4          # spatial reconstruction method
-rsolver     = hlle          # Riemann-solver to be used
+reconstruct = plm          # spatial reconstruction method
+rsolver     = hllc          # Riemann-solver to be used
 gamma       = 1.000001      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
 nu_iso = 1e-3
@@ -81,6 +81,7 @@ src_accretion = 1
 src_local_iso = 1
 sum_backreaction = 1
 inc_backreaction = 1 # WIP, zero set in src
+verbose = 1
 
 m0 = 1.0
 x0 = 0.5
