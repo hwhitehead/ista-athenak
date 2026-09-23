@@ -61,7 +61,7 @@ ndiag      = 1          # cycles between diagostic output
 eos         = ideal         # EOS type
 reconstruct = wenoz          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
-gamma       = 1.666667      # gamma = C_p/C_v (ideal only)
+gamma       = 1.001      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
 nu_iso = 1e-3
 dfloor = 1e-10
