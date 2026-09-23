@@ -489,6 +489,7 @@ class NBody:
 
         self.data = athena_read.hst(hist_str)
         self.t = self.data["time"]
+        self.num_chkpts = np.size(self.t)
         self.num_nbody = 0
         for key in self.data.keys():
             if key.startswith("m"):
@@ -504,7 +505,26 @@ class NBody:
             if key.endswith("0"): # scan first body for variable names
                 self.var_names.append(key.rstrip("0"))
 
-    def diff(self, i, j, var="r", t_index=None):
+    def check_body_index(self, i):
+
+        if i < 0:
+            raise Exception("Body index must be postive (recieved n = {0})".format(i))
+        elif i > self.num_nbody - 1:
+            raise Exception("Body index {0} exceeds bounds (num_nbody = {1})".format(i, self.num_nbody))
+
+    def check_time_index(self, i):
+
+        if i < 0:
+            raise Exception("Time index must be postive (recieved t_index = {0})".format(i))
+        elif i > self.num_chkpts:
+            raise Exception("Time index {0} exceeds bounds (num_nbody = {1})".format(i, self.num_chkpts))
+
+    def calc_diff(self, i = 0, j = 1, var="r", t_index=None):
+
+        # parse user input
+        self.check_body_index(i)
+        self.check_body_index(j)
+        if t_index is not None: self.check_time_index(t_index)
 
         if t_index is not None:
             slicer = np.s_[t_index]
@@ -529,4 +549,34 @@ class NBody:
             except_msg = "Unable to recognise var passed to NBody.diff\n"
             except_msg += "Please select from {0}, r or v".format(self.var_names)
             raise Exception(except_msg)
+    
+    def calc_Ebin(self, i = 0, j = 1, t_index=None):
 
+        # parse user input
+        self.check_body_index(i)
+        self.check_body_index(j)
+        if t_index is not None: self.check_time_index(t_index)
+
+        if t_index is not None:
+            slicer = np.s_[t_index]
+        else:
+            slicer = np.s_[:]
+
+        E_grav = self.G * (self.data["m{0}".format(i)][slicer] + self.data["m{0}".format(j)][slicer]) / self.diff(i, j, var="r", t_index=t_index)
+        E_kin = 0
+        for n in [i, j]:
+            v_sqr = 0
+            for axis in ["x","y","z"]:
+                v_sqr += self.data["v{0}{1}".format(axis, n)][slicer] ** 2
+            E_kin += 0.5 * self.data["m{0}".format(n)][slicer] * v_sqr
+
+        return E_grav + E_kin
+
+    def calc_disp(self, i = 0, j = 1, t_index=None):
+
+        # parse user input
+        self.check_body_index(i)
+        self.check_body_index(j)
+        if t_index is not None: self.check_time_index(t_index)
+
+        
