@@ -32,6 +32,9 @@ nx1       = 64         # Number of cells in each MeshBlock, X1-dir
 nx2       = 64         # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
+<mesh_refinement>
+refinement = static
+
 <refined_region1>
 x1min = -0.5            
 x1max =  0.5
