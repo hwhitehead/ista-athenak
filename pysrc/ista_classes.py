@@ -1,5 +1,5 @@
-import sys, os
-import numpy
+import sys, os, re
+import numpy as np
 import matplotlib.pyplot as plt
 
 vis_python = os.path.join(os.path.dirname(__file__), '../vis/python')
@@ -405,9 +405,9 @@ class HydroDataAthenaK:
         return data, levels
 
 class QuickPlot:
-    """"
+    """
     This class is used to generate simple plots from data packaged in the HydroData class
-    """"
+    """
     def __init__(self, h_str):
 
         self.Hydro = HydroData(h_str)
@@ -482,3 +482,51 @@ class QuickPlot:
         ax.set_aspect("equal")
         fig.savefig(save_str, dpi=300, bbox_inches="tight")
         plt.close("all")
+
+class NBody:
+
+    def __init__(self, hist_str):
+
+        self.data = athena_read.hst(hist_str)
+        self.t = self.data["time"]
+        self.num_nbody = 0
+        for key in self.data.keys():
+            if key.startswith("m"):
+                self.num_nbody += 1
+        self.G = 1
+        self.build_var_names()
+
+    def build_var_names(self):
+
+        keys = self.data.keys()
+        self.var_names = []
+        for key in keys:
+            if key.endswith("0"): # scan first body for variable names
+                self.var_names.append(key.rstrip("0"))
+
+    def diff(self, i, j, var="r", t_index=None):
+
+        if t_index is not None:
+            slicer = np.s_[t_index]
+        else:
+            slicer = np.s_[:]
+
+        # check if generic property or compound
+        if var in self.var_names:
+            # generic, direct access without computation
+            return self.data["{0}{1}".format(var,i)][slicer] - self.data["{0}{1}".format(var,j)][slicer]
+        elif var == "r": # compound: radial seperation
+            dx = self.diff(i, j, "x", t_index)
+            dy = self.diff(i, j, "y", t_index)
+            dz = self.diff(i, j, "z", t_index)
+            return np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+        elif var == "v": # compound, velocity differential
+            dvx = self.diff(i, j, "vx", t_index)
+            dvy = self.diff(i, j, "vy", t_index)
+            dvz = self.diff(i, j, "vz", t_index)
+            return np.sqrt(dvx ** 2 + dvy ** 2 + dvz ** 2)
+        else:
+            except_msg = "Unable to recognise var passed to NBody.diff\n"
+            except_msg += "Please select from {0}, r or v".format(self.var_names)
+            raise Exception(except_msg)
+

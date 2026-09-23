@@ -74,7 +74,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
   const Real alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
 
-
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
   {
@@ -85,13 +84,12 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
 
     // (3) loop over cells
-    par_for("pgen_nbody", 
+    par_for("pgen_nbody",                // par_for loop is inclusive of end index
             DevExeSpace(),               // CPU or GPU execution space
             0, (pmbp->nmb_thispack-1),   // Loop 1: m = mesh block index (0 to N-1)
             ks, ke,                      // Loop 2: k = z index
             js, je,                      // Loop 3: j = y index
             is, ie,                      // Loop 4: i = x index
-    
     KOKKOS_LAMBDA(int m, int k, int j, int i) { 
     // Lambda function for every (m,k,j,i) combination:
 
@@ -189,7 +187,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
       column_index++;
     } // end nbody loop
     // write (mdot,ax) using delta_all_meshes (now populated with derivated, not deltas)
-    for (int i = AX_GRAV_BACK; i < NVAR_BACK) { // skip mdot, implied by change in m
+    for (int i = AX_GRAV_BACK; i < NVAR_BACK; i++) { // skip mdot, implied by change in m
       pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
       column_index++;
     } // end delta loop
