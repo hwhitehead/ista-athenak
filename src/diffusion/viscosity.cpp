@@ -271,11 +271,11 @@ void Viscosity::AddViscousFluxIsoInhomo(const DvceArray5D<Real> &w0, const EOS_D
   bool &three_d = pmy_pack->pmesh->three_d;
   const Real inv_gm1 = 1.0 / (eos.gamma - 1.0); 
   
-  // stash nbody properties
-  auto pnbody = pmy_pack->pnbody;
-  const Real inv_Mach_sqr_ = pmy_pack->pnbody->inv_Mach_sqr;
-  const Real G_ = 1.0; // TODO: publicise in NBody
-  const Real alpha_ = alpha;
+  // stash nbody properties (WIP)
+  // auto pnbody = pmy_pack->pnbody;
+  // const Real inv_Mach_sqr_ = pmy_pack->pnbody->inv_Mach_sqr;
+  // const Real G_ = 1.0; // TODO: publicise in NBody
+  // const Real alpha_ = alpha;
 
   // fluxes in x1-direction
   int scr_level = 0;

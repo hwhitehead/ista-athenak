@@ -181,16 +181,18 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   } // end body loop
 
   // stash values
+  int column_index = 0;
   for (int n = 0; n < num_nbody; ++n) {
-    int hist_offset = n * NVAR_HIST;
-    for (int i = 0; i < VZ_HIST; i++) {
-      if (i <= AX_GRAV_HIST) { // read m, x, vx from nbody_data
-        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
-      } else { // read ax_grav, ax_acc from delta_all_meshes
-        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
-      }
-      
-    } // end var loop
+    // write (m,x,vx) using nbody_data
+    for (int i = M_HIST; i <= VZ_HIST; i++) {
+      pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
+      column_index++;
+    } // end nbody loop
+    // write (mdot,ax) using delta_all_meshes (now populated with derivated, not deltas)
+    for (int i = AX_GRAV_BACK; i < NVAR_BACK) { // skip mdot, implied by change in m
+      pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
+      column_index++;
+    } // end delta loop
   } // end body loop
   return;
 }
