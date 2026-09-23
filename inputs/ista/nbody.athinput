@@ -8,13 +8,13 @@ basename  = nbody       # problem ID: basename of output filenames
 
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
-nx1       = 256          # Number of zones in X1-direction (root level, dx=0.1)
-x1min     = -4.0        # minimum value of X1
-x1max     =  4.0        # maximum value of X1
+nx1       = 512          # Number of zones in X1-direction (root level, dx=0.1)
+x1min     = -6.0        # minimum value of X1
+x1max     =  6.0        # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
-nx2       = 256          # Number of zones in X2-direction (root level, dx=0.1)
+nx2       = 512          # Number of zones in X2-direction (root level, dx=0.1)
 x2min     = -4.0        # minimum value of X2
 x2max     =  4.0        # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
@@ -27,8 +27,8 @@ ix3_bc    = outflow     # inner-X3 boundary flag
 ox3_bc    = outflow     # outer-X3 boundary flag
 
 <meshblock>
-nx1       = 256          # Number of cells in each MeshBlock, X1-dir
-nx2       = 256         # Number of cells in each MeshBlock, X2-dir
+nx1       = 512          # Number of cells in each MeshBlock, X1-dir
+nx2       = 512         # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
@@ -68,7 +68,7 @@ dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
-r_cavity = 1
+r_cavity = 2.5
 Mach = 10.0
 rho0 = 1.0
 alpha = 0.0
