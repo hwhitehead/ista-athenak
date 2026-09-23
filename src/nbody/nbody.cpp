@@ -293,7 +293,6 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
-      const Real cell_volume = size.d_view(mb_id).dx1 * size.d_view(mb_id).dx2 * size.d_view(mb_id).dx3;
 
       // compute body-cell seperation
       const Real dx = x - nbody_data_.d_view(n, X_DATA);
@@ -358,6 +357,9 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
       // compute backreaction on body 
       if (sum_backreaction_) {
+        // convert from densities 
+        const Real cell_volume = size.d_view(mb_id).dx1 * size.d_view(mb_id).dx2 * size.d_view(mb_id).dx3;
+        
         // gravity backreaction
         const Real dPx_grav = -dpx_grav * cell_volume;
         const Real dPy_grav = -dpy_grav * cell_volume;
