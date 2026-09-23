@@ -151,6 +151,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
 // write NBody data to hst output TODO: internalise as standard output
 void NBodyHistory(HistoryData *pdata, Mesh *pm) {
+  // max number of history variables must be < NHISTORY_VARIABLES < NREDUCTION_VARIABLES
+  // set in outputs.hpp and athena.hpp respectively 
 
   // by default, HistoryOuptut reduces across hist_data all ranks
   if (global_variable::my_rank != 0) return;

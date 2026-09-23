@@ -256,7 +256,7 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
   return;
 }
 
-// apply BH gravity to all cells
+// apply BH gravity AND accretion to all cells in MeshBlockPack
 void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
 
   // unpack all data pre par_for
@@ -271,7 +271,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
-  // NBody properties
+  // NBody properties (bypass implicit this)
   auto &nbody_data_ = nbody_data;
   auto &delta_this_pack_ = delta_this_pack;
   auto grav_const = _G;
@@ -280,7 +280,13 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
   bool src_local_iso_ = src_local_iso;
   bool src_accretion_ = src_accretion;
 
-  par_for("nbody_gravity_src", DevExeSpace(), 0, nmb1, 0, num_nbody - 1, ks, ke, js, je, is, ie,
+  par_for("nbody_gravity_src", 
+          DevExeSpace(), 
+          0, nmb1, 
+          0, num_nbody - 1,     // par_for loop is INCLUSIVE, last nbody index at n = num_nbody - 1
+          ks, ke, 
+          js, je, 
+          is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int n, const int k, const int j, const int i) 
     {
       // identify cell position and volume
