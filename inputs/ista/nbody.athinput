@@ -15,8 +15,8 @@ ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
 nx2       = 512          # Number of zones in X2-direction (root level, dx=0.1)
-x2min     = -4.0        # minimum value of X2
-x2max     =  4.0        # maximum value of X2
+x2min     = -6.0        # minimum value of X2
+x2max     =  6.0        # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
 ox2_bc    = outflow     # outer-X2 boundary flag
 
