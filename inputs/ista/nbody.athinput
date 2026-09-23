@@ -60,7 +60,7 @@ ndiag      = 1          # cycles between diagostic output
 <hydro>
 eos         = ideal         # EOS type
 reconstruct = wenoz          # spatial reconstruction method
-rsolver     = hllc          # Riemann-solver to be used
+rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.666667      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
 nu_iso = 1e-3
@@ -77,7 +77,7 @@ alpha = 0.0
 num_nbody = 2
 hist_nbody = 1
 src_gravity = 1
-src_accretion = 1
+src_accretion = 0
 src_local_iso = 1
 sum_backreaction = 1
 inc_backreaction = 1 # WIP, zero set in src

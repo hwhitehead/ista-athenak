@@ -579,4 +579,20 @@ class NBody:
         self.check_body_index(j)
         if t_index is not None: self.check_time_index(t_index)
 
-        
+        dvx = self.diff(i, j, "vx", t_index)
+        dvy = self.diff(i, j, "vy", t_index)
+        dvz = self.diff(i, j, "vz", t_index)
+
+        dax_grav = self.diff(i, j, "ax_grav", t_index)
+        day_grav = self.diff(i, j, "ay_grav", t_index)
+        daz_grav = self.diff(i, j, "az_grav", t_index)
+
+        dax_acc = self.diff(i, j, "ax_acc", t_index)
+        day_acc = self.diff(i, j, "ay_acc", t_index)
+        daz_acc = self.diff(i, j, "az_acc", t_index)
+
+        # compute specific work done
+        Edot_grav = dvx * dax_grav + dvy * day_grav + dvz * daz_grav
+        Edot_acc = dvx * dax_acc + dvy * day_acc + dvz * daz_acc
+
+        return Edot_grav Edot_acc
