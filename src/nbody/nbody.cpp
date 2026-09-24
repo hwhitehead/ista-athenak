@@ -348,7 +348,7 @@ void NBody::NBodyGravitySrcTerm(const Real beta_dt) {
       cons(mb_id, IM3, k, j, i) += dpz_grav + dpz_acc;
 
       // TODO: this should be computed using acceleration and fluxes on cell FACES
-      if (is_ideal && !src_local_iso_) { // only compute energy change if ideal AND not forced iso
+      if (is_ideal) { // only compute energy change if ideal AND not forced iso
         const Real dE = dpx_grav * prim(mb_id, IVX, k, j, i)
                       + dpy_grav * prim(mb_id, IVY, k, j, i)
                       + dpz_grav * prim(mb_id, IVZ, k, j, j);
