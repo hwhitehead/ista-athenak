@@ -63,7 +63,7 @@ reconstruct = ppm4          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.001      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
-#nu_iso = 1e-3
+nu_iso = 1e-3
 dfloor = 1e-10
 pfloor = 1e-12
 
