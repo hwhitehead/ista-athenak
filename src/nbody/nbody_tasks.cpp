@@ -76,7 +76,7 @@ TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
   if (verbose) {
     std::cout << "Collected back reaction across " << pmy_pack->pmesh->nmb_packs_thisrank 
-              << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
+              << " MeshBlockPack(s) on rank " << global_variable::my_rank << std::endl;
   }
 
   return TaskStatus::complete;
@@ -213,7 +213,7 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
   } // end mb_pack loop
   
   if (verbose) {
-    std::cout << "Forced Scatter on root MeshBlockPack " 
+    std::cout << "Forced Scatter from root MeshBlockPack " 
               << " on rank " << global_variable::my_rank << std::endl; 
   }
 
