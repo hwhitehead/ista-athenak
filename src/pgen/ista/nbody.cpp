@@ -83,6 +83,17 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
 
+    // verbose read of nbody state assuming two bodies
+    const Real m0 = pin->GetOrAddReal("nbody", "m0", 0.0);
+    const Real m1 = pin->GetOrAddReal("nbody", "m1", 0.0);
+    const Real x0 = pin->GetOrAddReal("nbody", "x0", 0.0);
+    const Real x1 = pin->GetOrAddReal("nbody", "x1", 0.0);
+    const Real y0 = pin->GetOrAddReal("nbody", "y0", 0.0);
+    const Real y1 = pin->GetOrAddReal("nbody", "y1", 0.0);
+    const Real z0 = pin->GetOrAddReal("nbody", "z0", 0.0);
+    const Real z1 = pin->GetOrAddReal("nbody", "z1", 0.0);
+
+
     // (3) loop over cells
     par_for("pgen_nbody",                // par_for loop is inclusive of end index
             DevExeSpace(),               // CPU or GPU execution space
@@ -128,8 +139,14 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vy = v_phi * Kokkos::cos(phi);
       const Real vz = 0.0;
 
-      // set pressure
-      const Real cs_sqr_local = SQR(v_phi / Mach);
+      // set pressure using EXACT method from nbody (assumes binary)
+      Real abs_phi_sum = 0.0;
+      const Real dr0_sqr = SQR(x1v - x0) + SQR(x2v - y0) + SQR(x3v - z0);
+      abs_phi_sum += m0 * Kokkos::pow(dr0_sqr, -0.5);
+      const Real dr1_sqr = SQR(x1v - x1) + SQR(x2v - y1) + SQR(x3v - z1);
+      abs_phi_sum += m1 * Kokkos::pow(dr1_sqr, -0.5);
+      const Real cs_sqr_local = abs_phi_sum * inv_Mach_sqr;
+      // const Real cs_sqr_local = SQR(v_phi / Mach);
       const Real P = cs_sqr_local * rho;
       
       // ===== Set primitive variables =====
