@@ -131,7 +131,7 @@ class NBody {
     Real CalcTimeStep();
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);
-    void NBodyGravitySrcTerm(const Real beta_dt);
+    void NBodyPointSrcTerm(const Real beta_dt);
     void NBodyIsoSrcTerm(const Real beta_dt);
     Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z); // TODO: deprecated for new cs method (in diff.)
 
