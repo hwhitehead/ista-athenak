@@ -7,7 +7,7 @@ problem   = nbody
 basename  = nbody       # problem ID: basename of output filenames
 
 <mesh>
-nghost    = 2           # Number of ghost cells (must be even for SMR/AMR)
+nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
 nx1       = 384          # Number of zones in X1-direction (root level, dx=0.1)
 x1min     = -12.0        # minimum value of X1
 x1max     =  12.0        # maximum value of X1
@@ -51,7 +51,7 @@ level = 2
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
-integrator = rk2        # time integration algorithm
+integrator = rk3        # time integration algorithm
 cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1         # cycle limit
 tlim       = 1000.0       # time limit
@@ -59,7 +59,7 @@ ndiag      = 1          # cycles between diagostic output
 
 <hydro>
 eos         = ideal         # EOS type
-reconstruct = plm          # spatial reconstruction method
+reconstruct = wenoz          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.001      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
