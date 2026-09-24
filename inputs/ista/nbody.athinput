@@ -80,7 +80,7 @@ src_gravity = 1
 src_accretion = 1
 src_local_iso = 1
 sum_backreaction = 1
-inc_backreaction = 1 # WIP, zero set in src
+inc_backreaction = 1
 verbose = 1
 
 m0 = 1.0

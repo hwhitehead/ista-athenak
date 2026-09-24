@@ -172,9 +172,9 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
     
     // dot(v) = dot(p) / m (use m from start of integration)
     // registers now contain accelerations, not momentum changes
-    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_GRAV_BACK) + delta_all_meshes.h_view(n, DPX_ACC_BACK): 0.0;
-    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_GRAV_BACK) + delta_all_meshes.h_view(n, DPY_ACC_BACK): 0.0;
-    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_GRAV_BACK) + delta_all_meshes.h_view(n, DPZ_ACC_BACK): 0.0;
+    f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_GRAV_BACK) + delta_all_meshes.h_view(n, DPX_ACC_BACK) : 0.0;
+    f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_GRAV_BACK) + delta_all_meshes.h_view(n, DPY_ACC_BACK) : 0.0;
+    f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_GRAV_BACK) + delta_all_meshes.h_view(n, DPZ_ACC_BACK) : 0.0;
 
     // add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {
@@ -247,7 +247,7 @@ void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
   if (src_gravity) {
-    NBodyGravitySrcTerm(beta_dt);
+    NBodyPointSrcTerm(beta_dt);
   }
   if (src_local_iso && pmy_pack->phydro->peos->eos_data.is_ideal) {
     NBodyIsoSrcTerm(beta_dt);
