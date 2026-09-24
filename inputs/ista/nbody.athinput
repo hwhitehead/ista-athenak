@@ -27,8 +27,8 @@ ix3_bc    = outflow     # inner-X3 boundary flag
 ox3_bc    = outflow     # outer-X3 boundary flag
 
 <meshblock>
-nx1       = 128          # Number of cells in each MeshBlock, X1-dir
-nx2       = 128         # Number of cells in each MeshBlock, X2-dir
+nx1       = 384          # Number of cells in each MeshBlock, X1-dir
+nx2       = 384         # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
@@ -74,7 +74,7 @@ rho0 = 1.0
 alpha = 0.0
 
 <nbody>
-num_nbody = 1
+num_nbody = 2
 hist_nbody = 1
 src_gravity = 1
 src_accretion = 0
@@ -84,24 +84,24 @@ inc_backreaction = 0 # WIP, zero set in src
 verbose = 1
 
 m0 = 1.0
-x0 = 0.0
+x0 = 0.5
 y0 = 0.0
 z0 = 0.0
 vx0 = 0.0
-vy0 = 0.0 #7071067811865476
+vy0 = 0.7071067811865476
 vz0 = 0.0
 r_soft0 = 0.05
 r_amr0 = 0.25
 
-#m1 = 1.0
-#x1 = -0.5
-#y1 = 0.0
-#z1 = 0.0
-#vx1 = 0.0
-#vy1 = -0.7071067811865476
-#vz1 = 0.0
-#r_soft1 = 0.05
-#r_amr1 = 0.25
+m1 = 1.0
+x1 = -0.5
+y1 = 0.0
+z1 = 0.0
+vx1 = 0.0
+vy1 = -0.7071067811865476
+vz1 = 0.0
+r_soft1 = 0.05
+r_amr1 = 0.25
 
 <output1>
 file_type  = hst        # history data dump
