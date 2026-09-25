@@ -42,10 +42,10 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   // id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
 
   // fine timestep execution
-  id.initrk = tl["stagen"]->AddTask(&NBody::InitRK, this, id.none);
+  id.initrk = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
   id.flux   = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
   id.rkupdt = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
-  id.newdt  = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
+  id.calc_dt  = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
 
   return;
 }
@@ -61,7 +61,7 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   const Real dt_current = CalcTimeStep();
   const Real dt_sqr = dt_current * dt_current;
   dt_new = dt_sqr / dt_old;
-  
+
   return TaskStatus::complete;
 }
 
@@ -215,14 +215,14 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
   
   if (stage == 1) {
-    Kokkos::deep_copy(HostMemSpace(), nbody_data1, nbody_data);
+    Kokkos::deep_copy(HostMemSpace(), nbody_data1, nbody_data.view_host());
   } else {
     if (pdrive->integrator == "rk4") {
       // parallel loop to update y1 with y0 at later stages, only for rk4
       Real &delta = pdrive->delta[stage-1];
       for (int n = 0; n < num_nbody; n++) {
         for (int i = 0; i < NVAR_REG; i++) {
-          nbody_data1.h_view(n, i) += delta * nbody_data.h_view(n, i);
+          nbody_data1(n, i) += delta * nbody_data.h_view(n, i);
         } // end i
       } // end n
     } // end rk4
@@ -258,7 +258,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   // Step 3: Compute flux for each body in class
   for (int n = 0; n < num_nbody; n++) {
     // register now contains mdot, not delta m
-    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DM_BACK) : 0.0;
+    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DM_BACK) : 0.0;
 
     // dot(x) = v
     nbody_flux(n, XDOT_REG) = nbody_data.h_view(n, VX_REG);
@@ -339,7 +339,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   } // end n loop
 
   // Step 4: Cleanup collection registers for next finetimestep
-  Kokkos::deep_copy(HostMemSpace(), delta_all_meshes, 0.0);
+  Kokkos::deep_copy(delta_all_meshes.view_host(), 0.0);
   Kokkos::deep_copy(HostMemSpace(), delta_this_mesh, 0.0); // TODO: currently unused as no MPI comm
   Kokkos::deep_copy(HostMemSpace(), delta_this_pack, 0.0);
 
@@ -360,9 +360,9 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
   // load integration weights from general time integrator
-  Real &gam0 = pdriver->gam0[stage-1];
-  Real &gam1 = pdriver->gam1[stage-1];
-  Real beta_dt = (pdriver->beta[stage-1])*(pmy_pack->pmesh->dt);
+  Real &gam0 = pdrive->gam0[stage-1];
+  Real &gam1 = pdrive->gam1[stage-1];
+  Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
 
   // Step 1: only perform integration on ONE mb_pack on ONE rank
   if (global_variable::my_rank != 0) return TaskStatus::complete;
