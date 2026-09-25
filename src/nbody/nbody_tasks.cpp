@@ -371,7 +371,7 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
   // Step 2: bump nbody register to next fine timestep
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_REG; i++) { // skip iteration over "static" indices beyond NVAR_REG
-          nbody_data.h_view(n, i) = gam0 * nbody_data.h_view(n, i) + gam1 * nbody_data1.h_view(n, i) + beta_dt * nbody_data_flux(n, i);
+          nbody_data.h_view(n, i) = gam0 * nbody_data.h_view(n, i) + gam1 * nbody_data1(n, i) + beta_dt * nbody_flux(n, i);
       } // end i
   } // end n
 
