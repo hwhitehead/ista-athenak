@@ -46,14 +46,15 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_local_iso = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
   src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
-  sum_backreaction = pin->GetOrAddBoolean("nbody", "sum_backreaction", inc_backreaction);
+  sum_backreaction = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
+  if (inc_backreaction) sum_backreaction = true; // enforce summation if flagged for live backreaction
   inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
 
-  // set disc state variables
+  // set disc state variables TODO: export to seperate class?
   Mach = pin->GetOrAddReal("problem","Mach", 1.0);
   inv_Mach_sqr = 1.0 / SQR(Mach);
 
-  // import unit conversions (else all unity)
+  // import unit conversions (else all unity, used for PN terms WIP)
   unit_L = pin->GetOrAddReal("nbody", "unit_L", 1.0);
   unit_M = pin->GetOrAddReal("nbody", "unit_M", 1.0);
   unit_T = pin->GetOrAddReal("nbody", "unit_T", 1.0);
@@ -106,14 +107,9 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // mark host view as modified and sync to device
   nbody_data.template modify<HostMemSpace>();
   delta_this_pack.template modify<HostMemSpace>();
-  delta_this_mesh.template modify<HostMemSpace>();
-  delta_all_meshes.template modify<HostMemSpace>();
 
   nbody_data.template sync<DevExeSpace>();
   delta_this_pack.template sync<DevExeSpace>();
-  delta_this_mesh.template sync<DevExeSpace>();
-  delta_all_meshes.template sync<DevExeSpace>();
-
 } // end ctor
 
 // nbody destructor: delete/free memory from internal objects
@@ -374,7 +370,6 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real dPz_acc = -dpz_acc * cell_volume;
 
           // stash backreaction registers, with care for race conditions
-          // TODO: stash these seperately for analysis and sum for integration
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_GRAV_BACK), dPx_grav);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_GRAV_BACK), dPy_grav);

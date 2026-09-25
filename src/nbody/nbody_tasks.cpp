@@ -67,6 +67,10 @@ TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
   // Step 4: Collect updates across mb_packs on this rank 
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    // enforce device->host sync for MeshBlockPack
+    pmy_pack->pmesh->pmy_pack[mbp_id].pnbody->delta_this_pack.template modify<DeviceMemSpace>(); // TODO: shift this to source term?
+    pmy_pack->pmesh->pmy_pack[mbp_id].pnbody->delta_this_pack.template sync<HostMemSpace>();
+    // sum device-synchronised pack data into mesh data
     for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_BACK; i++) {
         delta_this_mesh.h_view(n, i) += pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.h_view(n, i);
@@ -92,6 +96,7 @@ TaskStatus NBody::ReduceAllMeshes(Driver *pdrive, int stage) {
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   // Step 3: sum delta_pack_sum across ranks
+  Kokkos::deep_copy(delta_all_meshes.view_host(), 0.0); // set to zero pre-reduction
 #if MPI_PARALLEL_ENABLED
   // template: MPI_Reduce(write_addr, read_addr, data_count, data_type, operation, scope)
   MPI_Reduce(&delta_all_meshes.view_host(), &delta_this_mesh.view_host(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
@@ -206,10 +211,15 @@ TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
     Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.view_host(), nbody_data.view_host());
   } // end mb_pack loop
 
-  // Step 4: force update of device state on ALL mb_packs
+  // Step 4: reset registers and force update of device state on ALL mb_packs
   for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    // wipe source-accesible backreaction register for next step
+    Kokkoss::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.view_host(), 0.0);
+    // sync updates to device
     pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template modify<HostMemSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.template modify<HostMemSpace>();
     pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template sync<DevExeSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.template sync<DevExeSpace>();
   } // end mb_pack loop
   
   if (verbose) {

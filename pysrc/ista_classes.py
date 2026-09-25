@@ -519,7 +519,7 @@ class NBody:
         elif i > self.num_chkpts:
             raise Exception("Time index {0} exceeds bounds (num_nbody = {1})".format(i, self.num_chkpts))
 
-    def calc_diff(self, i = 0, j = 1, var="r", t_index=None):
+    def calc_diff(self, var="r", i = 0, j = 1, t_index=None):
 
         # parse user input
         self.check_body_index(i)
@@ -536,14 +536,14 @@ class NBody:
             # generic, direct access without computation
             return self.data["{0}{1}".format(var,i)][slicer] - self.data["{0}{1}".format(var,j)][slicer]
         elif var == "r": # compound: radial seperation
-            dx = self.diff(i, j, "x", t_index)
-            dy = self.diff(i, j, "y", t_index)
-            dz = self.diff(i, j, "z", t_index)
+            dx = self.calc_diff("x", i, j, t_index)
+            dy = self.calc_diff("y", i, j, t_index)
+            dz = self.calc_diff("z", i, j, t_index)
             return np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
         elif var == "v": # compound, velocity differential
-            dvx = self.diff(i, j, "vx", t_index)
-            dvy = self.diff(i, j, "vy", t_index)
-            dvz = self.diff(i, j, "vz", t_index)
+            dvx = self.calc_diff("vx", i, j, t_index)
+            dvy = self.calc_diff("vy", i, j, t_index)
+            dvz = self.calc_diff("vz", i, j, t_index)
             return np.sqrt(dvx ** 2 + dvy ** 2 + dvz ** 2)
         else:
             except_msg = "Unable to recognise var passed to NBody.diff\n"
@@ -562,7 +562,7 @@ class NBody:
         else:
             slicer = np.s_[:]
 
-        E_grav = self.G * (self.data["m{0}".format(i)][slicer] + self.data["m{0}".format(j)][slicer]) / self.diff(i, j, var="r", t_index=t_index)
+        E_grav = self.G * (self.data["m{0}".format(i)][slicer] + self.data["m{0}".format(j)][slicer]) / self.calc_diff(var="r", i=i, j=j, t_index=t_index)
         E_kin = 0
         for n in [i, j]:
             v_sqr = 0
@@ -579,20 +579,20 @@ class NBody:
         self.check_body_index(j)
         if t_index is not None: self.check_time_index(t_index)
 
-        dvx = self.diff(i, j, "vx", t_index)
-        dvy = self.diff(i, j, "vy", t_index)
-        dvz = self.diff(i, j, "vz", t_index)
+        dvx = self.calc_diff("vx", i, j, t_index)
+        dvy = self.calc_diff("vy", i, j,  t_index)
+        dvz = self.calc_diff("vz", i, j, t_index)
 
-        dax_grav = self.diff(i, j, "ax_grav", t_index)
-        day_grav = self.diff(i, j, "ay_grav", t_index)
-        daz_grav = self.diff(i, j, "az_grav", t_index)
+        dax_grav = self.calc_diff("ax_grav", i, j, t_index)
+        day_grav = self.calc_diff("ay_grav", i, j, t_index)
+        daz_grav = self.calc_diff("az_grav", i, j, t_index)
 
-        dax_acc = self.diff(i, j, "ax_acc", t_index)
-        day_acc = self.diff(i, j, "ay_acc", t_index)
-        daz_acc = self.diff(i, j, "az_acc", t_index)
+        dax_acc = self.calc_diff("ax_acc", i, j, t_index)
+        day_acc = self.calc_diff("ay_acc", i, j, t_index)
+        daz_acc = self.calc_diff("az_acc", i, j, t_index)
 
         # compute specific work done
         Edot_grav = dvx * dax_grav + dvy * day_grav + dvz * daz_grav
         Edot_acc = dvx * dax_acc + dvy * day_acc + dvz * daz_acc
 
-        return Edot_grav Edot_acc
+        return Edot_grav, Edot_acc
