@@ -215,7 +215,7 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
   
   if (stage == 1) {
-    Kokkos::deep_copy(HostMemSpace(), nbody_data1, nbody_data.view_host());
+    Kokkos::deep_copy(nbody_data1, nbody_data.view_host());
   } else {
     if (pdrive->integrator == "rk4") {
       // parallel loop to update y1 with y0 at later stages, only for rk4
@@ -241,7 +241,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   // Step 1: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
   // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
   // TODO: add MPI comm stept to collect over ranks here
-  Real beta_dt = (pdriver->beta[stage-1])*(pmy_pack->pmesh->dt);
+  Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
   for (int n = 0; n < num_nbody; n++) {
     for (int i = 0; i < NVAR_REG; i++) {
       if (i == 0) { // mdot = dm / dt
@@ -253,7 +253,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   }
 
   // Step 2: Set nbody flux to zero for entire register
-  Kokkos::deep_copy(HostMemSpace(), nbody_flux, 0.0);
+  Kokkos::deep_copy(nbody_flux, 0.0);
 
   // Step 3: Compute flux for each body in class
   for (int n = 0; n < num_nbody; n++) {
@@ -340,8 +340,8 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 
   // Step 4: Cleanup collection registers for next finetimestep
   Kokkos::deep_copy(delta_all_meshes.view_host(), 0.0);
-  Kokkos::deep_copy(HostMemSpace(), delta_this_mesh, 0.0); // TODO: currently unused as no MPI comm
-  Kokkos::deep_copy(HostMemSpace(), delta_this_pack, 0.0);
+  Kokkos::deep_copy(delta_this_mesh.view_host(), 0.0); // TODO: currently unused as no MPI comm
+  Kokkos::deep_copy(delta_this_pack.view_host(), 0.0);
 
   // Step 5: Enforce update of register state on device for DualArray delta_this_pack
   delta_this_pack.template modify<HostMemSpace>();
@@ -371,7 +371,7 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
   // Step 2: bump nbody register to next fine timestep
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_REG; i++) { // skip iteration over "static" indices beyond NVAR_REG
-          nbody_data.h_view(n, i) = gam0 * nbody_data + gam1 * nbody_data1 + beta_dt * nbody_data_flux;
+          nbody_data.h_view(n, i) = gam0 * nbody_data.h_view(n, i) + gam1 * nbody_data1.h_view(n, i) + beta_dt * nbody_data_flux(n, i);
       } // end i
   } // end n
 
