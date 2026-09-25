@@ -34,11 +34,18 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   
   TaskID none(0);
 
-  id.reduce_mesh = tl["after_timeintegrator"]->AddTask(&NBody::ReduceParentMesh, this, none);
-  id.reduce_meshes = tl["after_timeintegrator"]->AddTask(&NBody::ReduceAllMeshes, this, id.reduce_mesh);
-  id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.reduce_meshes);
-  id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
-  id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
+  // coarse timestep execution
+  // id.reduce_mesh = tl["after_timeintegrator"]->AddTask(&NBody::ReduceParentMesh, this, none);
+  // id.reduce_meshes = tl["after_timeintegrator"]->AddTask(&NBody::ReduceAllMeshes, this, id.reduce_mesh);
+  // id.integrate = tl["after_timeintegrator"]->AddTask(&NBody::Integrate, this, id.reduce_meshes);
+  // id.scatter = tl["after_timeintegrator"]->AddTask(&NBody::Scatter, this, id.integrate);
+  // id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
+
+  // fine timestep execution
+  id.initrk = tl["stagen"]->AddTask(&NBody::InitRK, this, id.none);
+  id.flux   = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
+  id.rkupdt = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
+  id.newdt  = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
 
   return;
 }
@@ -46,10 +53,15 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
 // taskstatus wrapper to CalcTimeStep
 TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   
+  if (stage != (pdrive->nexp_stages)) {
+    return TaskStatus::complete; // only execute last stage
+  }
+
   // symmetrise nbody timestep with previous value
   const Real dt_current = CalcTimeStep();
   const Real dt_sqr = dt_current * dt_current;
   dt_new = dt_sqr / dt_old;
+  
   return TaskStatus::complete;
 }
 
@@ -189,6 +201,186 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
 
   if (verbose) {
     std::cout << "Completed RK4 integration on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+              << " on rank " << global_variable::my_rank << std::endl; 
+  }
+
+  return TaskStatus::complete;
+}
+
+// register initialistaion for finestep integraton
+TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
+  
+  // only run this task on the principle meshblock pack (rank0, mbpid=0)
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  
+  if (stage == 1) {
+    Kokkos::deep_copy(HostMemSpace(), nbody_data1, nbody_data);
+  } else {
+    if (pdrive->integrator == "rk4") {
+      // parallel loop to update y1 with y0 at later stages, only for rk4
+      Real &delta = pdrive->delta[stage-1];
+      for (int n = 0; n < num_nbody; n++) {
+        for (int i = 0; i < NVAR_REG; i++) {
+          nbody_data1.h_view(n, i) += delta * nbody_data.h_view(n, i);
+        } // end i
+      } // end n
+    } // end rk4
+  } // end stage check
+  return TaskStatus::complete;
+}
+
+// compute flux for nbody state
+TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
+  
+  // evaluate time evoluton of the NBody state nbody_flux
+  // only run this task on the principle meshblock pack (rank0, mbpid=0)
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 1: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
+  // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
+  // TODO: add MPI comm stept to collect over ranks here
+  Real beta_dt = (pdriver->beta[stage-1])*(pmy_pack->pmesh->dt);
+  for (int n = 0; n < num_nbody; n++) {
+    for (int i = 0; i < NVAR_REG; i++) {
+      if (i == 0) { // mdot = dm / dt
+        delta_all_meshes.h_view(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
+      } else { // vdot = dp / (m * dt)
+        delta_all_meshes.h_view(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
+      }
+    }
+  }
+
+  // Step 2: Set nbody flux to zero for entire register
+  Kokkos::deep_copy(HostMemSpace(), nbody_flux, 0.0);
+
+  // Step 3: Compute flux for each body in class
+  for (int n = 0; n < num_nbody; n++) {
+    // register now contains mdot, not delta m
+    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DM_BACK) : 0.0;
+
+    // dot(x) = v
+    nbody_flux(n, XDOT_REG) = nbody_data.h_view(n, VX_REG);
+    nbody_flux(n, YDOT_REG) = nbody_data.h_view(n, VY_REG);
+    nbody_flux(n, ZDOT_REG) = nbody_data.h_view(n, VZ_REG);
+    
+    // dot(v) = dot(p) / m (use m from start of integration)
+    // registers now contain accelerations, not momentum changes
+    nbody_flux(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_GRAV_BACK) + delta_all_meshes.h_view(n, DPX_ACC_BACK) : 0.0;
+    nbody_flux(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_GRAV_BACK) + delta_all_meshes.h_view(n, DPY_ACC_BACK) : 0.0;
+    nbody_flux(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_GRAV_BACK) + delta_all_meshes.h_view(n, DPZ_ACC_BACK) : 0.0;
+
+    // all later indices of nbody_flux left as ZERO
+
+    // add acceleraton by mutual nbody gravity
+    for (int m = 0; m < num_nbody; m++) {
+      if (m == n) continue; // no self-gravity
+        
+      // extract spatial seperation
+      const Real dx = nbody_data.h_view(n, X_REG) - nbody_data.h_view(m, X_REG);
+      const Real dy = nbody_data.h_view(n, Y_REG) - nbody_data.h_view(m, Y_REG);
+      const Real dz = nbody_data.h_view(n, Z_REG) - nbody_data.h_view(m, Z_REG);
+      Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+
+      // branch if PostNewtonian forcing to be included
+      if (!inc_pn) {
+        // compute Newtnonina pairwise acceleration
+        const Real g_fac = _G * nbody_data.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
+        
+        // decompose acceleration and update
+        nbody_flux(n, VXDOT_REG) -= g_fac * dx;
+        nbody_flux(n, VYDOT_REG) -= g_fac * dy;
+        nbody_flux(n, VZDOT_REG) -= g_fac * dz; 
+      } else {
+        // include additional expansion terms up to 2.5PN (WIP)
+        // formulaism from Eq 203 of "Gravitational Radiation from Post-Newtonian Sources 
+        // and Inspiralling Compact Binaries" Blanchet 2014
+        // notation switch from (1,2)->(n,m)
+
+
+        // label masses
+        Real m1 = nbody_data.h_view(n, M_REG);
+        Real m2 = nbody_data.h_view(m, M_REG);
+
+        // extract velocity terms
+        const Real dvx = nbody_data.h_view(n, VX_REG) - nbody_data.h_view(m, VX_REG);
+        const Real dvy = nbody_data.h_view(n, VY_REG) - nbody_data.h_view(m, VY_REG);
+        const Real dvz = nbody_data.h_view(n, VZ_REG) - nbody_data.h_view(m, VZ_REG);
+        Real v_sqr = SQR(dvx) + SQR(dvy) + SQR(dvz);
+        Real v_dot = nbody_data.h_view(n, VX_REG) * nbody_data.h_view(m, VX_REG) + 
+                      nbody_data.h_view(n, VY_REG) * nbody_data.h_view(m, VY_REG) +
+                      nbody_data.h_view(n, VZ_REG) * nbody_data.h_view(m, VZ_REG);
+
+        // compute unit directions
+        Real r = Kokkos::sqrt(r_sqr);
+        Real inv_r = 1.0 / r;
+        Real inv_r_sqr = SQR(inv_r);
+        Real n_x = dx * inv_r;
+        Real n_y = dy * inv_r;
+        Real n_z = dz * inv_r;
+
+        // TODO: add unit conversions here, including for _G
+
+        // 0th order (Newtonian)
+        const Real newtonian_fac = -_G * m2 * inv_r_sqr;
+        Real a_x = newtonian_fac * n_x;
+        Real a_y = newtonian_fac * n_y;
+        Real a_z = newtonian_fac * n_z;
+
+        // TODO: add higher order terms here
+
+        // convert back to code units and 
+        nbody_flux(n, VXDOT_REG) += a_x / unit_A;
+        nbody_flux(n, VYDOT_REG) += a_y / unit_A;
+        nbody_flux(n, VZDOT_REG) += a_z / unit_A;
+      } // end pn branch
+    } // end m loop
+  } // end n loop
+
+  // Step 4: Cleanup collection registers for next finetimestep
+  Kokkos::deep_copy(HostMemSpace(), delta_all_meshes, 0.0);
+  Kokkos::deep_copy(HostMemSpace(), delta_this_mesh, 0.0); // TODO: currently unused as no MPI comm
+  Kokkos::deep_copy(HostMemSpace(), delta_this_pack, 0.0);
+
+  // Step 5: Enforce update of register state on device for DualArray delta_this_pack
+  delta_this_pack.template modify<HostMemSpace>();
+  delta_this_pack.template sync<DevExeSpace>();
+
+  // Step 5: Report, if flagged
+  if (verbose) {
+    std::cout << "Completed stage " << stage << " of NBody::Fluxes on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+              << " on rank " << global_variable::my_rank << std::endl; 
+  }
+
+  return TaskStatus::complete;
+}
+
+// propogate nbody state forward by a single fine timestep
+TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
+
+  // load integration weights from general time integrator
+  Real &gam0 = pdriver->gam0[stage-1];
+  Real &gam1 = pdriver->gam1[stage-1];
+  Real beta_dt = (pdriver->beta[stage-1])*(pmy_pack->pmesh->dt);
+
+  // Step 1: only perform integration on ONE mb_pack on ONE rank
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 2: bump nbody register to next fine timestep
+  for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < NVAR_REG; i++) { // skip iteration over "static" indices beyond NVAR_REG
+          nbody_data.h_view(n, i) = gam0 * nbody_data + gam1 * nbody_data1 + beta_dt * nbody_data_flux;
+      } // end i
+  } // end n
+
+  // Step 3: enforce update of nbody state on device for DualArray registers
+  nbody_data.template modify<HostMemSpace>();
+  nbody_data.template sync<DevExeSpace>();
+
+  if (verbose) {
+    std::cout << "Completed stage " << stage << " of NBody integration on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
               << " on rank " << global_variable::my_rank << std::endl; 
   }
 

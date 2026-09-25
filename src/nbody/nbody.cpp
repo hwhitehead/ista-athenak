@@ -29,6 +29,8 @@ namespace nbody {
 
 NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   nbody_data("nbody_data",1,1),
+  nbody_data1("nbody_data1",1,1),
+  nbody_flux("nbody_flux",1,1),
   delta_this_pack("delta_nbody_data",1,1),
   delta_this_mesh("delta_this_mesh",1,1),
   delta_all_meshes("delta_all_meshes",1,1),
@@ -66,12 +68,15 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // principle registers for wider access
   // nbody_data and delta_nbody_data are dual on host/device
+  // TODO: cleanup array types here
   Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);
+  Kokkos::realloc(nbody_data1, num_nbody, NVAR_REG); // only register length
+  Kokkos::realloc(nbody_flux, num_nbody, NVAR_REG); // only register length
   Kokkos::realloc(delta_this_pack, num_nbody, NVAR_BACK);
   // TODO: the following are ONLY accessed on the host, could change type
   Kokkos::realloc(delta_this_mesh, num_nbody, NVAR_BACK);
   Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
-  Kokkos::realloc(_y_init, num_nbody, NVAR_REG);
+  Kokkos::realloc(_y_init, num_nbody, NVAR_REG); // depreciate these registers on full switch to finetimestep
   Kokkos::realloc(_y_sub, num_nbody, NVAR_REG);
   Kokkos::realloc(_y_ret, num_nbody, NVAR_REG);
   Kokkos::realloc(_k_sub, num_nbody, NVAR_REG);

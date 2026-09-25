@@ -30,6 +30,7 @@ class Driver;
 
 struct NBodyTaskIDs {
     TaskID reduce_mesh, reduce_meshes, integrate, scatter, calc_dt;
+    TaskID initrk, flux, rkupdt;
 };
 
 // indices for principle nbody data register
@@ -92,6 +93,11 @@ class NBody {
     // shape (num_nbody, NVAR_DATA)
     DualArray2D<Real> nbody_data; 
 
+    // reduced length scratch register for fine timestep intergration
+    // shape (num_nbody, NVAR_REG)
+    HostArray2D<Real> nbody_data1;  // nbody state at intermediate time step
+    HostArray2D<Real> nbody_flux;   // time derivative of current nbody state
+
     // register for non body specific quantities
     // shape (NVAR_GENERAL)
     DualArray2D<Real> general_data;
@@ -126,6 +132,11 @@ class NBody {
     TaskStatus Integrate(Driver *d, int stage);
     TaskStatus Scatter(Driver *d, int state);
     TaskStatus NewTimeStep(Driver *pdrive, int stage);
+
+    // finetimestep task functions
+    TaskStatus InitRK(Driver *d, int state); // prep intermediate register
+    TaskStatus Fluxes(Driver *pdrive, int stage); // compute derivate of nbody state
+    TaskStatus RKUpdate(Driver *pdrive, int stage); // propogate nbody state
 
     // methods
     Real CalcTimeStep();
