@@ -80,79 +80,78 @@ Real CalcLocalSoundSpeedSqr(DualArray2D<Real> nbody_data, int num_nbody, Real in
 
 namespace nbody {
 
+//----------------------------------------------------------------------------------------
+//! \fn  class NBody
+//! \brief The NBody class tracks an arbitrary number of bodies that evolve in tandem
+//! with the Hydro state. Initial conditions are specified in the athinput file using the 
+//! <nbody> block. During runtime, the body masses, positions and velocites are evolved 
+//! according to their mutual gravity and coupling with the gas, connected using source 
+//! terms which allow for gas-body gravity and accretion. The nbody state is evolved on 
+//! the same timestep as the Hydro state, ensuring direct 
 class NBody {
   public:
     NBody(MeshBlockPack *ppack, ParameterInput *pin);
     ~NBody();
     
-    int num_nbody; // number of discrete particles to track
-    Real dt_new, dt_old; // nbody timestep (before prefactor scaling)
-    Real eta_dt; // prefactor for timestep scaling
+    // Data
+    int num_nbody;                // number of discrete bodies to track
+    Real dt_new, dt_old;          // stable nbody timestep
+    Real eta_dt;                  // prefactor for stable timestep
+    DualArray2D<Real> nbody_data; // principle data register shape = (num_nbody, NVAR_DATA)
+    bool verbose;                 // boolean flag for command line progress writes
 
-    // principle nbody register for wider access 
-    // shape (num_nbody, NVAR_DATA)
-    DualArray2D<Real> nbody_data; 
+    // Back reaction communicators shape = (num_nbody, NVAR_REG)
+    DualArray2D<Real> delta_this_pack;  // DUAL summation for backreaction in this MeshBlockPack
+    HostArray2D<Real> delta_this_mesh;  // HOST summation for backreaction in this Mesh (this rank)
+    HostArray2D<Real> delta_all_meshes; // HOST summation for backreaction in all Meshes (all ranks)
 
-    // reduced length scratch register for fine timestep intergration
-    // shape (num_nbody, NVAR_REG)
+    // Registers used for time evolution shape = (num_nbody, NVAR_REG)
     HostArray2D<Real> nbody_data1;  // nbody state at intermediate time step
     HostArray2D<Real> nbody_flux;   // time derivative of current nbody state
 
-    // register for non body specific quantities
-    // shape (NVAR_GENERAL)
-    DualArray2D<Real> general_data;
-
-    // summation space for mb_pack level backreaction updates
-    // shape (num_nbody, NVAR_BACK)
-    DualArray2D<Real> delta_this_pack; // summation for all MeshBlocks in this MeshBlockPack
-    DualArray2D<Real> delta_this_mesh; // summation for all MeshBlockPacks in this Mesh (this rank)
-    DualArray2D<Real> delta_all_meshes; // summation for all Meshes (all ranks)
-
+    // WIP: DUAL register for non body specific quantities shape = (NVAR_GEN)
+    DualArray2D<Real> general_data; 
+    
     // container to hold names of TaskIDs
     NBodyTaskIDs id;
 
     // physics module booleans
-    bool src_gravity, src_local_iso, src_accretion;   // hydro toggles
-    bool inc_backreaction, sum_backreaction, inc_pn;  // nbody toggles
-
-    // verbose flag for CPU writes
-    bool verbose;
+    bool src_gravity, src_local_iso, src_accretion;   // Hydro toggles
+    bool inc_backreaction, sum_backreaction, inc_pn;  // NBody toggles
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr;
 
-    // physical units (for PN terms)
-    Real unit_L, unit_M, unit_T; // set in pin
-    Real unit_V, unit_A;// derived units
+    // physical units (for post-newtonian terms)
+    Real unit_L, unit_M, unit_T;  // set by user in athinput
+    Real unit_V, unit_A;          // compound units (derived)
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
-    TaskStatus ReduceParentMesh(Driver *d, int state);
-    TaskStatus ReduceAllMeshes(Driver *d, int state);
-    TaskStatus Integrate(Driver *d, int stage);
-    TaskStatus Scatter(Driver *d, int state);
-    TaskStatus NewTimeStep(Driver *pdrive, int stage);
-
-    // finetimestep task functions
-    TaskStatus InitRK(Driver *d, int state); // prep intermediate register
-    TaskStatus Fluxes(Driver *pdrive, int stage); // compute derivate of nbody state
+    TaskStatus InitRK(Driver *d, int state);        // prep intermediate register
+    TaskStatus Fluxes(Driver *pdrive, int stage);   // compute derivate of nbody state
     TaskStatus RKUpdate(Driver *pdrive, int stage); // propogate nbody state
+    // TaskStatus ReduceParentMesh(Driver *d, int state);
+    // TaskStatus ReduceAllMeshes(Driver *d, int state);
+    // TaskStatus Integrate(Driver *d, int stage);
+    // TaskStatus Scatter(Driver *d, int state);
+    // TaskStatus NewTimeStep(Driver *pdrive, int stage);
 
-    // methods
+    // non-task methods
     Real CalcTimeStep();
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
-    void NBodySrcTerms(const Real beta_dt);
-    void NBodyPointSrcTerm(const Real beta_dt);
-    void NBodyIsoSrcTerm(const Real beta_dt);
+    void NBodySrcTerms(const Real beta_dt);         // wrapped to call all source terms
+    void NBodyPointSrcTerm(const Real beta_dt);     // per-body source terms (gravity, accretion)
+    void NBodyIsoSrcTerm(const Real beta_dt);       // enforce local isothermality
     Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z); // TODO: deprecated for new cs method (in diff.)
 
   private:
-    MeshBlockPack* pmy_pack;
-    // private registers for intermediate integrator states (rk4)
+    MeshBlockPack* pmy_pack;  // ptr to MeshBlockPack containing this NBody
+    Real _G = 1.0;            // gravitational constant (TODO: deprivatise)
+    // these registers are only used for coarse timestep RK4 integration, depreciate 
     DualArray2D<Real> _y_init, _y_sub, _y_ret; 
     DualArray2D<Real> _k_sub;
-    Real _G = 1.0; // gravitational constant
-};
+}; // end NBody class
 
 } // end namespace nbody
 

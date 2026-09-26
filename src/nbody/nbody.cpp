@@ -27,6 +27,9 @@
 
 namespace nbody {
 
+//----------------------------------------------------------------------------------------
+//! \fn  NBody::NBody
+//! \brief Constructor: initialises data structures and parameters for the NBody class
 NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   nbody_data("nbody_data",1,1),
   nbody_data1("nbody_data1",1,1),
@@ -40,15 +43,15 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   _k_sub("k_sub",1,1),
   pmy_pack(ppack) {
 
-  // determine array dimensions from user input
+  // determine number of bodies to read from input
   num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
 
-  // set physics modules
-  src_gravity = pin->GetOrAddBoolean("nbody", "src_gravity", false);
-  src_local_iso = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
-  src_accretion = pin->GetOrAddBoolean("nbody", "src_accretion", false);
-  inc_backreaction = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
-  sum_backreaction = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
+  // set physics module options using user input
+  src_gravity       = pin->GetOrAddBoolean("nbody", "src_gravity", false);
+  src_local_iso     = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
+  src_accretion     = pin->GetOrAddBoolean("nbody", "src_accretion", false);
+  inc_backreaction  = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
+  sum_backreaction  = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
   if (inc_backreaction) sum_backreaction = true; // enforce summation if flagged for live backreaction
   inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
 
@@ -117,7 +120,9 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   delta_this_pack.template sync<DevExeSpace>();
 } // end ctor
 
-// nbody destructor: delete/free memory from internal objects
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::~NBody
+//! \brief Destructor, frees any memory allocated during construction
 NBody::~NBody() {
 }
 

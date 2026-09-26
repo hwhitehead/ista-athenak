@@ -30,6 +30,10 @@
 
 namespace nbody {
 
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::AssembleNBodyTasks
+//! \brief Adds nbody tasks to appropriate task lists used by time integrators.
+//! Called by MeshBlockPack::AddPhysics() function directly after NBody constructor.
 void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl) {
   
   TaskID none(0);
@@ -42,15 +46,19 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   // id.calc_dt = tl["after_timeintegrator"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
 
   // fine timestep execution
-  id.initrk = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
-  id.flux   = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
-  id.rkupdt = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
+  id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
+  id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
+  id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
   id.calc_dt  = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
 
   return;
 }
 
-// taskstatus wrapper to CalcTimeStep
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::InitRK
+//! \brief Simple task list function that computes the maximum time step for stable nbody
+//! integration and symmtetrises it with the previous stable timestep. This time step is 
+//! enfactored in the Mesh::NewTimeStep() function at the end of the time step
 TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   
   if (stage != (pdrive->nexp_stages)) {
@@ -65,6 +73,7 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   return TaskStatus::complete;
 }
 
+/*
 // collect forcing by hydro on nbody state on THIS rank
 TaskStatus NBody::ReduceParentMesh(Driver *pdrive, int stage) {
 
@@ -207,7 +216,46 @@ TaskStatus NBody::Integrate(Driver *pdrive, int stage) {
   return TaskStatus::complete;
 }
 
-// register initialistaion for finestep integraton
+// scatter nbody state from rank 0 to all ranks
+TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
+
+  // Step 1: scatter from and to ONE mb_pack per rank
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+
+  // Step 2: scatter nbody state from rank 0 to all
+#if MPI_PARALLEL_ENABLED
+  MPI_Bcast(nbody_data.view_host(), NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+#endif
+
+  // Step 3: scatter nbody state from this mb_pack to all on rank
+  for (int mbp_id = 1; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.view_host(), nbody_data.view_host());
+  } // end mb_pack loop
+
+  // Step 4: reset registers and force update of device state on ALL mb_packs
+  for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
+    // wipe source-accesible backreaction register for next step
+    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.view_host(), 0.0);
+    // sync updates to device
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template modify<HostMemSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.template modify<HostMemSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template sync<DevExeSpace>();
+    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.template sync<DevExeSpace>();
+  } // end mb_pack loop
+  
+  if (verbose) {
+    std::cout << "Forced Scatter from root MeshBlockPack " 
+              << " on rank " << global_variable::my_rank << std::endl; 
+  }
+
+  return TaskStatus::complete;
+}
+*/
+
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::InitRK
+//! \brief Simple task list function that copies nbody_data --> nbody_data1 in first 
+//! stage. Extended to handle RK register logic at given stage
 TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   
   // only run this task on the principle meshblock pack (rank0, mbpid=0)
@@ -215,7 +263,12 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
   
   if (stage == 1) {
-    Kokkos::deep_copy(nbody_data1, nbody_data.view_host());
+    // copy by element (no deep_copy with length mistmatch)
+    for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < NVAR_REG; i++) {
+        nbody_data1(n, i) = nbody_data.h_view(n, i);
+      } // end i
+    } // end n
   } else {
     if (pdrive->integrator == "rk4") {
       // parallel loop to update y1 with y0 at later stages, only for rk4
@@ -230,7 +283,14 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   return TaskStatus::complete;
 }
 
-// compute flux for nbody state
+//----------------------------------------------------------------------------------------
+//! \fn  TaskStatus NBody::Fluxes
+//! \brief Computes the "flux" in the nbody state, namely the rate of change in time for 
+//! the mass, position and velocity for all bodies in the class. Acceleration on each body
+//! is computed according to the pairwise gravitational attraction, and forcing by gas 
+//! (gravity and accretion) which is populated during the HydroSrcTerms execution. All 
+//! forces are computed on the same fine timestep, such that the NBody and Hydro state are 
+//! evolved in exact tandem. 
 TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   
   // evaluate time evoluton of the NBody state nbody_flux
@@ -356,7 +416,11 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   return TaskStatus::complete;
 }
 
-// propogate nbody state forward by a single fine timestep
+//----------------------------------------------------------------------------------------
+//! \fn  TaskStatus NBody::RKUpdate
+//! \brief Performs explicit update of the nbody state (nbody_data) for each stage of the
+//! integration (set by the Hydro integrator), using weighted average and partial time step 
+//! updates of the pairwise gravity and hydro forces.
 TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
   // load integration weights from general time integrator
@@ -381,41 +445,6 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
   if (verbose) {
     std::cout << "Completed stage " << stage << " of NBody integration on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
-              << " on rank " << global_variable::my_rank << std::endl; 
-  }
-
-  return TaskStatus::complete;
-}
-
-// scatter nbody state from rank 0 to all ranks
-TaskStatus NBody::Scatter(Driver *pdrive, int stage) {
-
-  // Step 1: scatter from and to ONE mb_pack per rank
-  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
-
-  // Step 2: scatter nbody state from rank 0 to all
-#if MPI_PARALLEL_ENABLED
-  MPI_Bcast(nbody_data.view_host(), NVAR_DATA * num_nbody, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
-#endif
-
-  // Step 3: scatter nbody state from this mb_pack to all on rank
-  for (int mbp_id = 1; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.view_host(), nbody_data.view_host());
-  } // end mb_pack loop
-
-  // Step 4: reset registers and force update of device state on ALL mb_packs
-  for (int mbp_id = 0; mbp_id < pmy_pack->pmesh->nmb_packs_thisrank; mbp_id++) {
-    // wipe source-accesible backreaction register for next step
-    Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.view_host(), 0.0);
-    // sync updates to device
-    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template modify<HostMemSpace>();
-    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.template modify<HostMemSpace>();
-    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->nbody_data.template sync<DevExeSpace>();
-    pmy_pack->pmesh->pmb_pack[mbp_id].pnbody->delta_this_pack.template sync<DevExeSpace>();
-  } // end mb_pack loop
-  
-  if (verbose) {
-    std::cout << "Forced Scatter from root MeshBlockPack " 
               << " on rank " << global_variable::my_rank << std::endl; 
   }
 

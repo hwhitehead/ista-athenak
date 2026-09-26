@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     fig = plt.figure(figsize=(10.0 / 3, 5.0 /3))
     ax = fig.add_subplot()
-    r = nbody.calc_diff("r")
-    ax.plot(nbody.t, r)
+    t = nbody.t
+    ax.plot(nbody.t, nbody.t)
     fig.savefig("diff_test.png", dpi=300, bbox_inches="tight")
     plt.close("all")
