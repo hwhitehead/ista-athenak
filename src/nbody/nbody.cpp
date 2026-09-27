@@ -182,7 +182,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   auto &nbody_data_ = nbody_data;
   int num_nbody_ = num_nbody;
   auto &delta_this_pack_ = delta_this_pack;
-  auto grav_const = _G;
+  auto G_const_ = G_const;
   bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
   bool sum_backreaction_ = sum_backreaction;
   bool src_local_iso_ = src_local_iso;
@@ -214,7 +214,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         // compute Newtonian gravitational acceleration
         const Real rho = prim(mb_id, IDN, k, j, i);
         // g_fac = Gm/r^3 where r is softened by r_soft 
-        const Real g_fac = grav_const * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_soft, -3.0);
+        const Real g_fac = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_soft, -3.0);
         const Real dp_grav_fac = -g_fac * beta_dt * rho;
         const Real dpx_grav = dp_grav_fac * dx;
         const Real dpy_grav = dp_grav_fac * dy;
