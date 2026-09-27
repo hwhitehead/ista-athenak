@@ -374,10 +374,10 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real dPz_grav = -dpz_grav * cell_volume;
 
           // accretion backreaction
-          const Real dm_tot = -drho_acc * cell_volume; 
-          const Real dPx_acc = -dpx_acc * cell_volume;
-          const Real dPy_acc = -dpy_acc * cell_volume;
-          const Real dPz_acc = -dpz_acc * cell_volume;
+          const Real dm_tot   = -drho_acc * cell_volume; 
+          const Real dPx_acc  = -dpx_acc * cell_volume;
+          const Real dPy_acc  = -dpy_acc * cell_volume;
+          const Real dPz_acc  = -dpz_acc * cell_volume;
 
           // stash backreaction registers, with care for race conditions
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
