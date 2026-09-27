@@ -136,18 +136,18 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   // Step 4: Compute flux for each body in class
   for (int n = 0; n < num_nbody; n++) {
     // register now contains mdot, not delta m
-    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DM_BACK) : 0.0;
+    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, MDOT_BACK) : 0.0;
 
     // dot(x) = v
-    nbody_flux(n, XDOT_REG) = nbody_data.h_view(n, VX_REG);
-    nbody_flux(n, YDOT_REG) = nbody_data.h_view(n, VY_REG);
-    nbody_flux(n, ZDOT_REG) = nbody_data.h_view(n, VZ_REG);
+    nbody_flux(n, XDOT_REG) = nbody_data.h_view(n, VX_DATA);
+    nbody_flux(n, YDOT_REG) = nbody_data.h_view(n, VY_DATA);
+    nbody_flux(n, ZDOT_REG) = nbody_data.h_view(n, VZ_DATA);
     
     // dot(v) = dot(p) / m (use m from start of integration)
     // registers now contain accelerations, not momentum changes
-    nbody_flux(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPX_GRAV_BACK) + delta_all_meshes(n, DPX_ACC_BACK) : 0.0;
-    nbody_flux(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPY_GRAV_BACK) + delta_all_meshes(n, DPY_ACC_BACK) : 0.0;
-    nbody_flux(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPZ_GRAV_BACK) + delta_all_meshes(n, DPZ_ACC_BACK) : 0.0;
+    nbody_flux(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, AX_GRAV_BACK) + delta_all_meshes(n, AX_ACC_BACK) : 0.0;
+    nbody_flux(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, AY_GRAV_BACK) + delta_all_meshes(n, AY_ACC_BACK) : 0.0;
+    nbody_flux(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, AZ_GRAV_BACK) + delta_all_meshes(n, AZ_ACC_BACK) : 0.0;
 
     // all later indices of nbody_flux left as ZERO
 
@@ -163,7 +163,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 
       // branch if PostNewtonian forcing to be included
       if (!inc_pn) {
-        // compute Newtnonina pairwise acceleration
+        // compute Newtnonian pairwise acceleration
         const Real g_fac = G_const * nbody_data.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
         
         // decompose acceleration and update
@@ -219,12 +219,14 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   // Step 5: Copy gravitational and accretion acceleration delta to data
   if (stage == (pdrive->nexp_stages)) { // only execute on last stage of cycle
     for (int n = 0; n < num_nbody; n++) {
-    // skip mdot - m(t) already tracked
-    for (int i = AX_GRAV_BACK; i <= AZ_ACC_BACK; i++) {
-      nbody_data.h_view(n, i) = delta_all_meshes(n, i);
-    } // end variable loop
-  } // end body loop
-  }
+      nbody_data.h_view(n, AX_GRAV_DATA) = delta_all_meshes(n, AX_GRAV_BACK);
+      nbody_data.h_view(n, AY_GRAV_DATA) = delta_all_meshes(n, AY_GRAV_BACK);
+      nbody_data.h_view(n, AZ_GRAV_DATA) = delta_all_meshes(n, AZ_GRAV_BACK);
+      nbody_data.h_view(n, AX_ACC_DATA)  = delta_all_meshes(n, AX_ACC_BACK);
+      nbody_data.h_view(n, AY_ACC_DATA)  = delta_all_meshes(n, AY_ACC_BACK);
+      nbody_data.h_view(n, AZ_ACC_DATA)  = delta_all_meshes(n, AZ_ACC_BACK);
+    } // end body loop
+  } // end acceleration copy
   
   // Step 5: Cleanup collection registers for next finetimestep
   Kokkos::deep_copy(delta_all_meshes, 0.0);
