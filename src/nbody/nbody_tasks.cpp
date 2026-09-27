@@ -120,17 +120,19 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   // Step 2: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
   // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
   // TODO: add MPI comm step to collect over ranks here
-  Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
-  for (int n = 0; n < num_nbody; n++) {
-    for (int i = 0; i < NVAR_REG; i++) {
-      if (i == 0) { // mdot = dm / (beta * dt)
-        delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
-      } else { // vdot = dp / (m * beta * dt)
-        delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
-      }
-    } // end register loop
-  } // end body loop
-
+  if (sum_backreaction) {
+    Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
+    for (int n = 0; n < num_nbody; n++) {
+      for (int i = 0; i < NVAR_REG; i++) {
+        if (i == 0) { // mdot = dm / (beta * dt)
+          delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
+        } else { // vdot = dp / (m * beta * dt)
+          delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
+        }
+      } // end register loop
+    } // end body loop
+  } // end if sum_backreaction
+  
   // Step 3: Set nbody flux to zero for entire register
   Kokkos::deep_copy(nbody_flux, 0.0);
 
@@ -217,8 +219,19 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     } // end m loop
   } // end n loop
 
-  // Step 5: Copy gravitational and accretion acceleration delta to data
-  if (stage == (pdrive->nexp_stages)) { // only execute on last stage of cycle
+  // Step 5: Skip later steps in sum_backreaction not flagged
+  if (!sum_backreaction) {
+    // Step 6: Report, if flagged
+    if (verbose) {
+      std::cout << "Completed stage " << stage << " of NBody::Fluxes on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+                << " on rank " << global_variable::my_rank << std::endl; 
+    }
+    return TaskStatus::complete;
+  } 
+
+  // Step 6: Copy gravitational and accretion acceleration delta to data for storage
+  // Copy only performed on last stage on integrator
+  if ((stage == (pdrive->nexp_stages))) { 
     for (int n = 0; n < num_nbody; n++) {
       nbody_data.h_view(n, AX_GRAV_DATA) = delta_all_meshes(n, AX_GRAV_BACK);
       nbody_data.h_view(n, AY_GRAV_DATA) = delta_all_meshes(n, AY_GRAV_BACK);
@@ -229,16 +242,16 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     } // end body loop
   } // end acceleration copy
   
-  // Step 5: Cleanup collection registers for next finetimestep
+  // Step 7: Cleanup collection registers for next finetimestep
   Kokkos::deep_copy(delta_all_meshes, 0.0);
   Kokkos::deep_copy(delta_this_mesh, 0.0); // TODO: currently unused as no MPI comm
   Kokkos::deep_copy(delta_this_pack.view_host(), 0.0);
 
-  // Step 6: Enforce update of register state on device for DualArray delta_this_pack
+  // Step 8: Enforce update of register state on device for DualArray delta_this_pack
   delta_this_pack.template modify<HostMemSpace>();
   delta_this_pack.template sync<DevExeSpace>();
 
-  // Step 7: Report, if flagged
+  // Step 9: Report, if flagged
   if (verbose) {
     std::cout << "Completed stage " << stage << " of NBody::Fluxes on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
               << " on rank " << global_variable::my_rank << std::endl; 
