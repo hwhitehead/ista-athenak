@@ -164,7 +164,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
       // branch if PostNewtonian forcing to be included
       if (!inc_pn) {
         // compute Newtnonina pairwise acceleration
-        const Real g_fac = _G * nbody_data.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
+        const Real g_fac = G_const * nbody_data.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
         
         // decompose acceleration and update
         nbody_flux(n, VXDOT_REG) -= g_fac * dx;
@@ -201,7 +201,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
         // TODO: add unit conversions here, including for _G
 
         // 0th order (Newtonian)
-        const Real newtonian_fac = -_G * m2 * inv_r_sqr;
+        const Real newtonian_fac = - G_const * m2 * inv_r_sqr;
         Real a_x = newtonian_fac * n_x;
         Real a_y = newtonian_fac * n_y;
         Real a_z = newtonian_fac * n_z;

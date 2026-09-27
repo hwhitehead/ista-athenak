@@ -37,10 +37,6 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   delta_this_pack("delta_nbody_data",1,1),
   delta_this_mesh("delta_this_mesh",1,1),
   delta_all_meshes("delta_all_meshes",1,1),
-  _y_init("y_init",1,1),
-  _y_sub("y_sub",1,1),
-  _y_ret("y_ret",1,1),
-  _k_sub("k_sub",1,1),
   pmy_pack(ppack) {
 
   // determine number of bodies to read from input
@@ -60,6 +56,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   inv_Mach_sqr = 1.0 / SQR(Mach);
 
   // import unit conversions (else all unity, used for PN terms WIP)
+  G_const = pin->GetOrAddReal("nbody", "G_const", 1.0);
   unit_L = pin->GetOrAddReal("nbody", "unit_L", 1.0);
   unit_M = pin->GetOrAddReal("nbody", "unit_M", 1.0);
   unit_T = pin->GetOrAddReal("nbody", "unit_T", 1.0);
@@ -70,19 +67,12 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   verbose = pin->GetOrAddBoolean("nbody", "verbose", false);
 
   // principle registers for wider access
-  // nbody_data and delta_nbody_data are dual on host/device
-  // TODO: cleanup array types here
-  Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);
-  Kokkos::realloc(nbody_data1, num_nbody, NVAR_REG); // only register length
-  Kokkos::realloc(nbody_flux, num_nbody, NVAR_REG); // only register length
-  Kokkos::realloc(delta_this_pack, num_nbody, NVAR_BACK);
-  // TODO: the following are ONLY accessed on the host, could change type
-  Kokkos::realloc(delta_this_mesh, num_nbody, NVAR_BACK);
+  Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);    
+  Kokkos::realloc(nbody_data1, num_nbody, NVAR_REG);        
+  Kokkos::realloc(nbody_flux, num_nbody, NVAR_REG);        
+  Kokkos::realloc(delta_this_pack, num_nbody, NVAR_BACK);   
+  Kokkos::realloc(delta_this_mesh, num_nbody, NVAR_BACK);  
   Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
-  Kokkos::realloc(_y_init, num_nbody, NVAR_REG); // depreciate these registers on full switch to finetimestep
-  Kokkos::realloc(_y_sub, num_nbody, NVAR_REG);
-  Kokkos::realloc(_y_ret, num_nbody, NVAR_REG);
-  Kokkos::realloc(_k_sub, num_nbody, NVAR_REG);
   
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
@@ -138,7 +128,7 @@ Real NBody::CalcTimeStep() {
     for (int m = 0; m < num_nbody; m++) {
       if (m == n) continue; // no self-interaction
       // compute binary properties
-      const Real Gm_bin = _G * (nbody_data.h_view(n, M_DATA) + nbody_data.h_view(m, M_DATA));
+      const Real Gm_bin = G_const * (nbody_data.h_view(n, M_DATA) + nbody_data.h_view(m, M_DATA));
       const Real dx = nbody_data.h_view(n, X_DATA) - nbody_data.h_view(m, X_DATA);
       const Real dy = nbody_data.h_view(n, Y_DATA) - nbody_data.h_view(m, Y_DATA);
       const Real dz = nbody_data.h_view(n, Z_DATA) - nbody_data.h_view(m, Z_DATA);
@@ -160,95 +150,6 @@ Real NBody::CalcTimeStep() {
   // return unscaled timestep 
   return std::pow(hm4_max, -0.25);
 }
-
-// void NBody::EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f) {
-  
-//   // evaluate forcing function f = ydot for nbody state
-//   // y = (m, x, y, z, vx, vy, vz ....)
-//   // f = (0, vx, vy, vz, ax, ay, az ...)
-
-//   for (int n = 0; n < num_nbody; n++) {
-//     // register now contains mdot, not delta m
-//     f.h_view(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DM_BACK) : 0.0;
-
-//     // dot(x) = v
-//     f.h_view(n, XDOT_REG) = y.h_view(n, VX_REG);
-//     f.h_view(n, YDOT_REG) = y.h_view(n, VY_REG);
-//     f.h_view(n, ZDOT_REG) = y.h_view(n, VZ_REG);
-    
-//     // dot(v) = dot(p) / m (use m from start of integration)
-//     // registers now contain accelerations, not momentum changes
-//     f.h_view(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPX_GRAV_BACK) + delta_all_meshes(n, DPX_ACC_BACK) : 0.0;
-//     f.h_view(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPY_GRAV_BACK) + delta_all_meshes(n, DPY_ACC_BACK) : 0.0;
-//     f.h_view(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPZ_GRAV_BACK) + delta_all_meshes(n, DPZ_ACC_BACK) : 0.0;
-
-//     // add acceleraton by mutual nbody gravity
-//     for (int m = 0; m < num_nbody; m++) {
-//       if (m == n) continue; // no self-gravity
-        
-//       // extract spatial seperation
-//       const Real dx = y.h_view(n, X_REG) - y.h_view(m, X_REG);
-//       const Real dy = y.h_view(n, Y_REG) - y.h_view(m, Y_REG);
-//       const Real dz = y.h_view(n, Z_REG) - y.h_view(m, Z_REG);
-//       Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-
-//       // branch if PostNewtonian forcing to be included
-//       if (!inc_pn) {
-//         // compute Newtnonina pairwise acceleration
-//         const Real g_fac = _G * y.h_view(m, M_REG) / (r_sqr * std::sqrt(r_sqr));
-        
-//         // decompose acceleration and update
-//         f.h_view(n, VXDOT_REG) -= g_fac * dx;
-//         f.h_view(n, VYDOT_REG) -= g_fac * dy;
-//         f.h_view(n, VZDOT_REG) -= g_fac * dz; 
-//       } else {
-//         // include additional expansion terms up to 2.5PN (WIP)
-//         // formulaism from Eq 203 of "Gravitational Radiation from Post-Newtonian Sources 
-//         // and Inspiralling Compact Binaries" Blanchet 2014
-//         // notation switch from (1,2)->(n,m)
-
-
-//         // label masses
-//         Real m1 = y.h_view(n, M_REG);
-//         Real m2 = y.h_view(m, M_REG);
-
-//         // extract velocity terms
-//         const Real dvx = y.h_view(n, VX_REG) - y.h_view(m, VX_REG);
-//         const Real dvy = y.h_view(n, VY_REG) - y.h_view(m, VY_REG);
-//         const Real dvz = y.h_view(n, VZ_REG) - y.h_view(m, VZ_REG);
-//         Real v_sqr = SQR(dvx) + SQR(dvy) + SQR(dvz);
-//         Real v_dot = y.h_view(n, VX_REG) * y.h_view(m, VX_REG) + 
-//                       y.h_view(n, VY_REG) * y.h_view(m, VY_REG) +
-//                       y.h_view(n, VZ_REG) * y.h_view(m, VZ_REG);
-
-//         // compute unit directions
-//         Real r = Kokkos::sqrt(r_sqr);
-//         Real inv_r = 1.0 / r;
-//         Real inv_r_sqr = SQR(inv_r);
-//         Real n_x = dx * inv_r;
-//         Real n_y = dy * inv_r;
-//         Real n_z = dz * inv_r;
-
-//         // TODO: add unit conversions here, including for _G
-
-//         // 0th order (Newtonian)
-//         const Real newtonian_fac = -_G * m2 * inv_r_sqr;
-//         Real a_x = newtonian_fac * n_x;
-//         Real a_y = newtonian_fac * n_y;
-//         Real a_z = newtonian_fac * n_z;
-
-//         // TODO: add higher order terms here
-
-//         // convert back to code units and 
-//         f.h_view(n, VXDOT_REG) += a_x / unit_A;
-//         f.h_view(n, VYDOT_REG) += a_y / unit_A;
-//         f.h_view(n, VZDOT_REG) += a_z / unit_A;
-//       } // end pn branch
-//     } // end m loop
-//   } // end n loop
-
-//   return;
-// }
 
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
@@ -467,7 +368,7 @@ Real NBody::CalcLocalOmegaSqr(const Real x, const Real y, const Real z) {
     const Real dy = y - nbody_data.d_view(n, Y_DATA);
     const Real dz = z - nbody_data.d_view(n, Z_DATA);
     const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-    sum_omega_sqr += _G * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -3.0);
+    sum_omega_sqr += G_const * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr, -3.0);
   }
   return sum_omega_sqr;
 }
