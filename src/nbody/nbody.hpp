@@ -128,14 +128,15 @@ class NBody {
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
-    TaskStatus InitRK(Driver *d, int state);        // prep intermediate register
-    TaskStatus Fluxes(Driver *pdrive, int stage);   // compute derivate of nbody state
-    TaskStatus RKUpdate(Driver *pdrive, int stage); // propogate nbody state
+    TaskStatus InitRK(Driver *d, int state);            // prep intermediate register
+    TaskStatus Fluxes(Driver *pdrive, int stage);       // compute derivate of nbody state
+    TaskStatus RKUpdate(Driver *pdrive, int stage);     // propogate nbody state
+    TaskStatus NewTimeStep(Driver *pdrive, int stage);  // compute next stable time step
     // TaskStatus ReduceParentMesh(Driver *d, int state);
     // TaskStatus ReduceAllMeshes(Driver *d, int state);
     // TaskStatus Integrate(Driver *d, int stage);
     // TaskStatus Scatter(Driver *d, int state);
-    // TaskStatus NewTimeStep(Driver *pdrive, int stage);
+    
 
     // non-task methods
     Real CalcTimeStep();

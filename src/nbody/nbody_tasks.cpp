@@ -49,7 +49,7 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
   id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
   id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
-  id.calc_dt  = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.scatter);
+  id.calc_dt  = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.rkupdt);
 
   return;
 }
@@ -261,7 +261,7 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   // only run this task on the principle meshblock pack (rank0, mbpid=0)
   if (global_variable::my_rank != 0) return TaskStatus::complete;
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
-  
+
   if (stage == 1) {
     // copy by element (no deep_copy with length mistmatch)
     for (int n = 0; n < num_nbody; n++) {
@@ -298,27 +298,31 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   if (global_variable::my_rank != 0) return TaskStatus::complete;
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
-  // Step 1: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
+  // Step 1: Force comm from device to host for backreaction registers
+  delta_this_pack.template modify<DevExeSpace>();
+  delta_this_pack.template sync<HostMemSpace>();
+
+  // Step 2: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
   // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
   // TODO: add MPI comm stept to collect over ranks here
   Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
   for (int n = 0; n < num_nbody; n++) {
     for (int i = 0; i < NVAR_REG; i++) {
       if (i == 0) { // mdot = dm / dt
-        delta_all_meshes.h_view(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
+        delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
       } else { // vdot = dp / (m * dt)
-        delta_all_meshes.h_view(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
+        delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
       }
-    }
-  }
+    } // end register loop
+  } // end body loop
 
-  // Step 2: Set nbody flux to zero for entire register
+  // Step 3: Set nbody flux to zero for entire register
   Kokkos::deep_copy(nbody_flux, 0.0);
 
-  // Step 3: Compute flux for each body in class
+  // Step 4: Compute flux for each body in class
   for (int n = 0; n < num_nbody; n++) {
     // register now contains mdot, not delta m
-    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DM_BACK) : 0.0;
+    nbody_flux(n, MDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DM_BACK) : 0.0;
 
     // dot(x) = v
     nbody_flux(n, XDOT_REG) = nbody_data.h_view(n, VX_REG);
@@ -327,9 +331,9 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     
     // dot(v) = dot(p) / m (use m from start of integration)
     // registers now contain accelerations, not momentum changes
-    nbody_flux(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPX_GRAV_BACK) + delta_all_meshes.h_view(n, DPX_ACC_BACK) : 0.0;
-    nbody_flux(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPY_GRAV_BACK) + delta_all_meshes.h_view(n, DPY_ACC_BACK) : 0.0;
-    nbody_flux(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes.h_view(n, DPZ_GRAV_BACK) + delta_all_meshes.h_view(n, DPZ_ACC_BACK) : 0.0;
+    nbody_flux(n, VXDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPX_GRAV_BACK) + delta_all_meshes(n, DPX_ACC_BACK) : 0.0;
+    nbody_flux(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPY_GRAV_BACK) + delta_all_meshes(n, DPY_ACC_BACK) : 0.0;
+    nbody_flux(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, DPZ_GRAV_BACK) + delta_all_meshes(n, DPZ_ACC_BACK) : 0.0;
 
     // all later indices of nbody_flux left as ZERO
 
@@ -398,16 +402,16 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     } // end m loop
   } // end n loop
 
-  // Step 4: Cleanup collection registers for next finetimestep
-  Kokkos::deep_copy(delta_all_meshes.view_host(), 0.0);
-  Kokkos::deep_copy(delta_this_mesh.view_host(), 0.0); // TODO: currently unused as no MPI comm
+  // Step 5: Cleanup collection registers for next finetimestep
+  Kokkos::deep_copy(delta_all_meshes, 0.0);
+  Kokkos::deep_copy(delta_this_mesh, 0.0); // TODO: currently unused as no MPI comm
   Kokkos::deep_copy(delta_this_pack.view_host(), 0.0);
 
-  // Step 5: Enforce update of register state on device for DualArray delta_this_pack
+  // Step 6: Enforce update of register state on device for DualArray delta_this_pack
   delta_this_pack.template modify<HostMemSpace>();
   delta_this_pack.template sync<DevExeSpace>();
 
-  // Step 5: Report, if flagged
+  // Step 7: Report, if flagged
   if (verbose) {
     std::cout << "Completed stage " << stage << " of NBody::Fluxes on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
               << " on rank " << global_variable::my_rank << std::endl; 
@@ -443,6 +447,7 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
   nbody_data.template modify<HostMemSpace>();
   nbody_data.template sync<DevExeSpace>();
 
+  // Step 4: Report, if flagged
   if (verbose) {
     std::cout << "Completed stage " << stage << " of NBody integration on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
               << " on rank " << global_variable::my_rank << std::endl; 
