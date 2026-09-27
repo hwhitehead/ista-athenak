@@ -1,6 +1,7 @@
 import sys, os, re
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.integrate import cumulative_trapezoid
 
 vis_python = os.path.join(os.path.dirname(__file__), '../vis/python')
 if vis_python not in sys.path: sys.path.append(vis_python)
@@ -552,6 +553,8 @@ class NBody:
     
     def calc_Ebin(self, i = 0, j = 1, t_index=None):
 
+        # compute specific orbital energy for the binary defined by bodies i and j
+
         # parse user input
         self.check_body_index(i)
         self.check_body_index(j)
@@ -562,17 +565,20 @@ class NBody:
         else:
             slicer = np.s_[:]
 
-        E_grav = self.G * (self.data["m{0}".format(i)][slicer] + self.data["m{0}".format(j)][slicer]) / self.calc_diff(var="r", i=i, j=j, t_index=t_index)
-        E_kin = 0
-        for n in [i, j]:
-            v_sqr = 0
-            for axis in ["x","y","z"]:
-                v_sqr += self.data["v{0}{1}".format(axis, n)][slicer] ** 2
-            E_kin += 0.5 * self.data["m{0}".format(n)][slicer] * v_sqr
+        e_grav = -self.G * (self.data["m{0}".format(i)][slicer] + self.data["m{0}".format(j)][slicer]) / self.calc_diff(var="r", i=i, j=j, t_index=t_index)
+        dr = self.calc_diff(var="r", i = i, j = j, t_index = t_index)
+        dv = self.calc_diff(var="v", i = i, j = j, t_index = t_index)
+        mu = self.G * (self.data["m{0}".format(i)][slicer] + self.data["m{0}".format(j)][slicer])
 
-        return E_grav + E_kin
+        e_grav = - mu / dr
+        e_kin = 0.5 * dv ** 2
+
+        return e_grav + e_kin
 
     def calc_disp(self, i = 0, j = 1, t_index=None):
+
+        # compute the dissipation of orbital energy for the binary defined by bodies i and j
+        # as driven by gravitational and accretion acceleration
 
         # parse user input
         self.check_body_index(i)
@@ -591,8 +597,14 @@ class NBody:
         day_acc = self.calc_diff("ay_acc", i, j, t_index)
         daz_acc = self.calc_diff("az_acc", i, j, t_index)
 
-        # compute specific work done
-        Edot_grav = dvx * dax_grav + dvy * day_grav + dvz * daz_grav
-        Edot_acc = dvx * dax_acc + dvy * day_acc + dvz * daz_acc
+        # compute specific rate of dissipation
+        edot_grav = dvx * dax_grav + dvy * day_grav + dvz * daz_grav
+        edot_acc  = dvx * dax_acc + dvy * day_acc + dvz * daz_acc
 
-        return Edot_grav, Edot_acc
+        # include term due to mass change
+        mu = self.G * (self.data["m{0}".format(i)] + self.data["m{0}".format(j)])
+        mudot = np.gradient(mu, self.t)
+        dr = self.calc_diff("r", i, j, t_index)
+        edot_acc += - mudot / dr
+
+        return edot_grav, edot_acc

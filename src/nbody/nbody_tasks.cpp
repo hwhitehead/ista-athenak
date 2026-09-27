@@ -106,9 +106,10 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
 //! forces are computed on the same fine timestep, such that the NBody and Hydro state are 
 //! evolved in exact tandem. 
 TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
-  
+
   // evaluate time evoluton of the NBody state nbody_flux
   // only run this task on the principle meshblock pack (rank0, mbpid=0)
+  // TODO: when MPI comm step included, ensure dev2host executed on all ranks
   if (global_variable::my_rank != 0) return TaskStatus::complete;
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
@@ -118,7 +119,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 
   // Step 2: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
   // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
-  // TODO: add MPI comm stept to collect over ranks here
+  // TODO: add MPI comm step to collect over ranks here
   Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
   for (int n = 0; n < num_nbody; n++) {
     for (int i = 0; i < NVAR_REG; i++) {
@@ -275,7 +276,7 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
   // Step 4: Report, if flagged
   if (verbose) {
-    std::cout << "Completed stage " << stage << " of NBody integration on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
+    std::cout << "Completed stage " << stage << " of NBody::RKUpdate on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
               << " on rank " << global_variable::my_rank << std::endl; 
   }
 
