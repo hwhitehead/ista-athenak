@@ -207,7 +207,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
     } // end nbody loop
     // write (mdot,ax) using delta_all_meshes (now populated with derivated, not deltas)
     for (int i = AX_GRAV_BACK; i < NVAR_BACK; i++) { // skip mdot, implied by change in m
-      pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
+      pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->delta_all_meshes(n, i);
       column_index++;
     } // end delta loop
   } // end body loop
