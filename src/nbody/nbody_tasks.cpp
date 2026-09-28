@@ -42,7 +42,7 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
   id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
   id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
-  id.send     = tl["stagen"]->AddTack(&NBody::Send, this, id.rkupdt);
+  id.send     = tl["stagen"]->AddTask(&NBody::Send, this, id.rkupdt);
   id.newdt    = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.send);
 
   return;
@@ -132,7 +132,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
         } // end register loop
       } // end body loop
       // Step 1c: Wipe register on MeshBlockPack mbpid and sync to host
-      Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.host_view(), 0.0);
+      Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.view_host(), 0.0);
       pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.template modify<HostMemSpace>();
       pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.template sync<DevExeSpace>();
     } // end mbp loop
@@ -360,14 +360,14 @@ TaskStatus NBody::Send(Driver *pdrive, int stage) {
 
   // Step 2: Send-recv updated nbody_data state to all ranks
   #if MPI_PARALLEL_ENABLED 
-    MPI_Bcast(nbody_data.host_view(), NVAR_DATA, 0, MPI_COMM_WORLD);
+    MPI_Bcast(nbody_data.view_host(), NVAR_DATA, 0, MPI_COMM_WORLD);
   #endif
 
   // Step 3: Copy nbody_data state from this MeshBlockPack to all others
   for (int mbpid = 0; mbpid < pmy_pack->pmesh->nmb_packs_thisrank; mbpid++) {
     // Step 3a: Copy nbody_data on host
     if (mbpid != 0) {
-      Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbpid].pnbody->nbody_data.host_view(), nbody_data.host_view());
+      Kokkos::deep_copy(pmy_pack->pmesh->pmb_pack[mbpid].pnbody->nbody_data.view_host(), nbody_data.view_host());
     }
     // Step 3b: Force update of nbody_data on device
     pmy_pack->pmesh->pmb_pack[mbpid].pnbody->nbody_data.template modify<HostMemSpace>();
