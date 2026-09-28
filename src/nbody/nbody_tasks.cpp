@@ -107,31 +107,70 @@ TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
 //! evolved in exact tandem. 
 TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 
-  // evaluate time evoluton of the NBody state nbody_flux
-  // only run this task on the principle meshblock pack (rank0, mbpid=0)
-  // TODO: when MPI comm step included, ensure dev2host executed on all ranks
-  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  // only perform this task on the primary MeshBlockPack on each rank
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
-  // Step 1: Force comm from device to host for backreaction registers
-  delta_this_pack.template modify<DevExeSpace>();
-  delta_this_pack.template sync<HostMemSpace>();
-
-  // Step 2: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
-  // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
-  // TODO: add MPI comm step to collect over ranks here
+  // Step 1: Iterate over all MeshBlockPacks on this rank
+  // Comm Dev2Host and convert deltas into rates
   if (sum_backreaction) {
-    Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
-    for (int n = 0; n < num_nbody; n++) {
-      for (int i = 0; i < NVAR_REG; i++) {
-        if (i == 0) { // mdot = dm / (beta * dt)
-          delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
-        } else { // vdot = dp / (m * beta * dt)
-          delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
-        }
-      } // end register loop
-    } // end body loop
-  } // end if sum_backreaction
+    // Step 1a: Set backreaction register for this Mesh to zero
+    Kokkos::deep_copy(delta_this_mesh, 0.0);
+    for (int mbpid = 0; mbpid < nmb_packs_thisrank; mbpid++) {
+      // Step 1a: Force comm from device to host for MeshBlockPack mbpid
+      pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.template modify<DevExeSpace>();
+      pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.template sync<HostMemSpace>();
+      // Step 1b: Collect nbody deltas across MeshBlockPack mbpid
+      Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
+      for (int n = 0; n < num_nbody; n++) {
+        for (int i = 0; i < NVAR_REG; i++) {
+          if (i == 0) { // mdot = dm / (beta * dt)
+            delta_this_mesh(n, i) += pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.h_view(n, i) / beta_dt;
+          } else { // vdot = dp / (m * beta * dt)
+            delta_this_mesh(n, i) += pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.h_view(n, i) / (pmy_pack->pmesh->pmb_pack[mbpid].nbody_data.h_view(n, M_DATA) * beta_dt);
+          }
+        } // end register loop
+      } // end body loop
+    } // end mbp loop
+  } // end if backreaction
+  
+  // Step 2: Sum across all ranks
+  Kokkos::deep_copy(delta_all_meshes, delta_this_mesh); // copy into comm buffer
+  #if MPI_PARALLEL_ENABLED 
+  if (global_variable::my_rank == 0) {
+    MPI_Reduce(MPI_IN_PLACE, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(delta_all_meshes, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+  #endif
+
+  // Step 3: Skip following computations if not at root
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+
+  // // evaluate time evoluton of the NBody state nbody_flux
+  // // only run this task on the principle meshblock pack (rank0, mbpid=0)
+  // // TODO: when MPI comm step included, ensure dev2host executed on all ranks
+  // if (global_variable::my_rank != 0) return TaskStatus::complete;
+  
+
+  // // Step 1: Force comm from device to host for backreaction registers
+  // delta_this_pack.template modify<DevExeSpace>();
+  // delta_this_pack.template sync<HostMemSpace>();
+
+  // // Step 2: Collect nbody deltas across system (WARNING: currently safe only for single MeshBlockPack)
+  // // Convert deltas into rates (e.g. dm into mdot), averaging over fine timestep
+  // // TODO: add MPI comm step to collect over ranks here
+  // if (sum_backreaction) {
+  //   Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
+  //   for (int n = 0; n < num_nbody; n++) {
+  //     for (int i = 0; i < NVAR_REG; i++) {
+  //       if (i == 0) { // mdot = dm / (beta * dt)
+  //         delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / beta_dt;
+  //       } else { // vdot = dp / (m * beta * dt)
+  //         delta_all_meshes(n, i) = delta_this_pack.h_view(n, i) / (nbody_data.h_view(n, M_DATA) * beta_dt);
+  //       }
+  //     } // end register loop
+  //   } // end body loop
+  // } // end if sum_backreaction
   
   // Step 3: Set nbody flux to zero for entire register
   Kokkos::deep_copy(nbody_flux, 0.0);
@@ -297,6 +336,8 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
   // Step 3: enforce update of nbody state on device for DualArray registers
   nbody_data.template modify<HostMemSpace>();
   nbody_data.template sync<DevExeSpace>();
+
+  // TODO: when running with MPI, communicate this updated state to all ranks, mbps (latter always one)
 
   // Step 4: Report, if flagged
   if (verbose) {
