@@ -226,7 +226,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real r_ratio = dr_true / nbody_data_.d_view(n, R_SOFT_DATA);
           if (r_ratio < 2) { 
             // compute mass loss rate
-            Real sink_rate = 1e3 * Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
+            Real sink_rate = 10 * Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
             sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);
             // only accrete down to floor value to avoid blowup
             const Real drho_floor = 1e-6 - rho; // TODO: set at runtime with pin
