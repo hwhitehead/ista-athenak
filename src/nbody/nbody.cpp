@@ -67,11 +67,11 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   verbose = pin->GetOrAddBoolean("nbody", "verbose", false);
 
   // principle registers for wider access
-  Kokkos::realloc(nbody_data, num_nbody, NVAR_DATA);    
+  Kokkos::realloc(nbody_data,  num_nbody, NVAR_DATA);    
   Kokkos::realloc(nbody_data1, num_nbody, NVAR_REG);        
-  Kokkos::realloc(nbody_flux, num_nbody, NVAR_REG);        
-  Kokkos::realloc(delta_this_pack, num_nbody, NVAR_BACK);   
-  Kokkos::realloc(delta_this_mesh, num_nbody, NVAR_BACK);  
+  Kokkos::realloc(nbody_flux,  num_nbody, NVAR_REG);        
+  Kokkos::realloc(delta_this_pack,  num_nbody, NVAR_BACK);   
+  Kokkos::realloc(delta_this_mesh,  num_nbody, NVAR_BACK);  
   Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
   
   // load initial nbody state from user input
@@ -138,8 +138,8 @@ Real NBody::CalcTimeStep() {
       const Real dvz = nbody_data.h_view(n, VZ_DATA) - nbody_data.h_view(m, VZ_DATA);
       const Real dv_sqr = dvx * dvx + dvy * dvy + dvz * dvz;
       // compute timescales
-      const Real hm2_fb = dv_sqr / dr_sqr;                              // flyby time
-      const Real hm4_ff = Gm_bin * Gm_bin / (dr_sqr * dr_sqr * dr_sqr); // freefall time
+      const Real hm2_fb = dv_sqr / dr_sqr;                                // flyby time
+      const Real hm4_ff = Gm_bin * Gm_bin / (dr_sqr * dr_sqr * dr_sqr);   // freefall time
       const Real hm4_hydro = a_hydro_sqr / dr_sqr;                        // gas acceleration time
       // combine timescales
       const Real hm4 = hm2_fb * hm2_fb + hm4_ff + hm4_hydro;
@@ -228,6 +228,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             // compute mass loss rate
             Real sink_rate = Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
             sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);
+            sink_rate = 0.9; // TEMP, flat sink profile
             const Real rhodot = - rho * sink_rate;
             // apply torque free sink
             const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
