@@ -29,7 +29,7 @@ class ShearingBoxCC;
 class Driver;
 
 struct NBodyTaskIDs {
-    TaskID initrk, flux, rkupdt, newdt;
+    TaskID initrk, flux, rkupdt, send, newdt;
 };
 
 // indices for principle nbody data register
@@ -132,6 +132,7 @@ class NBody {
     TaskStatus InitRK(Driver *d, int state);            // prep intermediate register
     TaskStatus Fluxes(Driver *pdrive, int stage);       // compute derivate of nbody state
     TaskStatus RKUpdate(Driver *pdrive, int stage);     // propogate nbody state
+    TaskStatus Send(Driver *pdrive, int stage);     // pass updated state to all NBody instances
     TaskStatus NewTimeStep(Driver *pdrive, int stage);  // compute next stable time step
     // TaskStatus ReduceParentMesh(Driver *d, int state);
     // TaskStatus ReduceAllMeshes(Driver *d, int state);
