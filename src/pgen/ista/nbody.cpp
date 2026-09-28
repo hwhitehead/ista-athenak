@@ -92,7 +92,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     const Real y1 = pin->GetOrAddReal("nbody", "y1", 0.0);
     const Real z0 = pin->GetOrAddReal("nbody", "z0", 0.0);
     const Real z1 = pin->GetOrAddReal("nbody", "z1", 0.0);
-
+    const Real r_soft0 = pin->GetOrAddReal("nbody", "r_soft0", 0.05);
+    const Real r_soft1 = pin->GetOrAddReal("nbody", "r_soft1", 0.05);
 
     // (3) loop over cells
     par_for("pgen_nbody",                // par_for loop is inclusive of end index
@@ -141,9 +142,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set pressure using EXACT method from nbody (assumes binary)
       Real abs_phi_sum = 0.0;
-      const Real dr0_sqr = SQR(x1v - x0) + SQR(x2v - y0) + SQR(x3v - z0) + SQR(pin->GetOrAddReal("nbody","r_soft0",0.05));
+      const Real dr0_sqr = SQR(x1v - x0) + SQR(x2v - y0) + SQR(x3v - z0) + SQR(r_soft0);
       abs_phi_sum += m0 * Kokkos::pow(dr0_sqr, -0.5);
-      const Real dr1_sqr = SQR(x1v - x1) + SQR(x2v - y1) + SQR(x3v - z1) + SQR(pin->GetOrAddReal("nbody","r_soft1",0.05));
+      const Real dr1_sqr = SQR(x1v - x1) + SQR(x2v - y1) + SQR(x3v - z1) + SQR(r_soft1);
       abs_phi_sum += m1 * Kokkos::pow(dr1_sqr, -0.5);
       const Real cs_sqr_local = abs_phi_sum * inv_Mach_sqr;
       // const Real cs_sqr_local = SQR(v_phi / Mach);
