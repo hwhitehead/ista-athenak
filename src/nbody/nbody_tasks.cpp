@@ -179,37 +179,48 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
         // and Inspiralling Compact Binaries" Blanchet 2014
         // notation switch from (1,2)->(n,m)
 
+        // TODO: the form given by Blanchet is very bulky, consider other 
+        // numeric implementations for faster forms
 
         // label masses
-        Real m1 = nbody_data.h_view(n, M_REG);
-        Real m2 = nbody_data.h_view(m, M_REG);
+        const Real m1 = nbody_data.h_view(n, M_DATA);
+        const Real m2 = nbody_data.h_view(m, M_DATA);
+        const Real m1m2 = m1 * m2;
+        const Real m2m2 = m2 * m2;
+        const Real G2 = SQR(G_const);
+        const Real G3 = G_const * G2;
 
         // extract velocity terms
-        const Real dvx = nbody_data.h_view(n, VX_REG) - nbody_data.h_view(m, VX_REG);
-        const Real dvy = nbody_data.h_view(n, VY_REG) - nbody_data.h_view(m, VY_REG);
-        const Real dvz = nbody_data.h_view(n, VZ_REG) - nbody_data.h_view(m, VZ_REG);
+        const Real dvx = nbody_data.h_view(n, VX_DATA) - nbody_data.h_view(m, VX_DATA);
+        const Real dvy = nbody_data.h_view(n, VY_DATA) - nbody_data.h_view(m, VY_DATA);
+        const Real dvz = nbody_data.h_view(n, VZ_DATA) - nbody_data.h_view(m, VZ_DATA);
         Real v_sqr = SQR(dvx) + SQR(dvy) + SQR(dvz);
-        Real v_dot = nbody_data.h_view(n, VX_REG) * nbody_data.h_view(m, VX_REG) + 
-                      nbody_data.h_view(n, VY_REG) * nbody_data.h_view(m, VY_REG) +
-                      nbody_data.h_view(n, VZ_REG) * nbody_data.h_view(m, VZ_REG);
+        Real v1v2  = nbody_data.h_view(n, VX_DATA) * nbody_data.h_view(m, VX_DATA) + 
+                     nbody_data.h_view(n, VY_DATA) * nbody_data.h_view(m, VY_DATA) +
+                     nbody_data.h_view(n, VZ_DATA) * nbody_data.h_view(m, VZ_DATA);
+        const Real v1_sqr = SQR(nbody_data.h_view(n, VX_DATA)) + nbody_data.h_view(n, VY_DATA) + nbody_data.h_view(n, VZ_DATA);
+        const Real v2_sqr = SQR(nbody_data.h_view(m, VX_DATA)) + nbody_data.h_view(m, VY_DATA) + nbody_data.h_view(m, VZ_DATA);
+
 
         // compute unit directions
-        Real r = Kokkos::sqrt(r_sqr);
-        Real inv_r = 1.0 / r;
-        Real inv_r_sqr = SQR(inv_r);
-        Real n_x = dx * inv_r;
-        Real n_y = dy * inv_r;
-        Real n_z = dz * inv_r;
+        const Real r = Kokkos::sqrt(r_sqr);
+        const Real inv_r = 1.0 / r;
+        const Real inv_r2 = SQR(inv_r);
+        const Real inv_r3 = inv_r2 * inv_r;
+        const Real n_x = dx * inv_r;
+        const Real n_y = dy * inv_r;
+        const Real n_z = dz * inv_r;
 
         // TODO: add unit conversions here, including for _G
 
         // 0th order (Newtonian)
-        const Real newtonian_fac = - G_const * m2 * inv_r_sqr;
+        const Real newtonian_fac = - G_const * m2 * inv_r2;
         Real a_x = newtonian_fac * n_x;
         Real a_y = newtonian_fac * n_y;
         Real a_z = newtonian_fac * n_z;
 
-        // TODO: add higher order terms here
+        // 1st order (v/c)^2
+        Real f_1st = G2 * inv_r3 * (5 * m1m2 + 4 * m2m2); //
 
         // convert back to code units and 
         nbody_flux(n, VXDOT_REG) += a_x / unit_A;

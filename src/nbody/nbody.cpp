@@ -226,9 +226,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real r_ratio = dr_true / nbody_data_.d_view(n, R_SOFT_DATA);
           if (r_ratio < 2) { 
             // compute mass loss rate
-            Real sink_rate = Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
+            Real sink_rate = 1e3 * Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
             sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);
-            sink_rate = 0.9; // TEMP, flat sink profile
             const Real rhodot = - rho * sink_rate;
             // apply torque free sink
             const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
