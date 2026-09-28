@@ -333,14 +333,6 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
       } // end i
   } // end n
 
-  // Step 3: enforce update of nbody state on device for DualArray registers
-  nbody_data.template modify<HostMemSpace>();
-  nbody_data.template sync<DevExeSpace>();
-
-  // TODO: when running with MPI, communicate this updated state to all NBody instances
-  // comm across ranks, and MeshBlockPacks, may require seperate function if RkUpdate only runs 
-  // on root process
-
   // Step 4: Report, if flagged
   if (verbose) {
     std::cout << "Completed stage " << stage << " of NBody::RKUpdate on MeshBlockPack " << pmy_pack->pmesh->nmb_packs_thisrank
@@ -352,7 +344,9 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
 //----------------------------------------------------------------------------------------
 //! \fn  TaskStatus NBody::RKUpdate
-//! \brief After NBody::RKUpdate, the root meshblockpack contains the updates 
+//! \brief After NBody::RKUpdate, the root meshblockpack contains the updated nbody_data 
+//! state on the host ONLY. Communicate this updated state to all NBody instances and 
+//! force update on device in prep for next (fine) time step.
 TaskStatus NBody::Send(Driver *pdrive, int stage) {
 
   // Step 1: Only perform send-rcev on principle MeshBlockPack
