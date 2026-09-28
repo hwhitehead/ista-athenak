@@ -228,25 +228,31 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             // compute mass loss rate
             Real sink_rate = 1e3 * Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
             sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);
-            const Real rhodot = - rho * sink_rate;
-            // apply torque free sink
-            const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
-            const Real rhatx = dx * inv_r;
-            const Real rhaty = dy * inv_r;
-            const Real rhatz = dz * inv_r;
-            const Real vx_n = nbody_data_.d_view(n, VX_DATA);
-            const Real vy_n = nbody_data_.d_view(n, VY_DATA);
-            const Real vz_n = nbody_data_.d_view(n, VZ_DATA);
-            const Real dvdotrhat = (prim(mb_id, IVX, k, j, i) - vx_n) * rhatx 
-                                 + (prim(mb_id, IVY, k, j, i) - vy_n) * rhaty 
-                                 + (prim(mb_id, IVZ, k, j, i) - vz_n) * rhatz;
-            const Real vxstar    = dvdotrhat * rhatx + vx_n;
-            const Real vystar    = dvdotrhat * rhaty + vy_n;
-            const Real vzstar    = dvdotrhat * rhatz + vz_n;
-            drho_acc = rhodot * beta_dt;
-            dpx_acc = drho_acc * vxstar;
-            dpy_acc = drho_acc * vystar;
-            dpz_acc = drho_acc * vzstar;
+            // only accrete down to floor value to avoid blowup
+            const Real drho_floor = 1e-6 - rho; // TODO: set at runtime with pin
+            if (drho_floor < 0) { // rho > rho_floor
+              const Real rhodot = - rho * sink_rate;
+              drho_acc = rhodot * beta_dt;
+              // ensure accretion only drives to sink value
+              drho_acc = Kokkos::max(drho_acc, drho_floor);
+              // apply torque free sink
+              const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
+              const Real rhatx = dx * inv_r;
+              const Real rhaty = dy * inv_r;
+              const Real rhatz = dz * inv_r;
+              const Real vx_n = nbody_data_.d_view(n, VX_DATA);
+              const Real vy_n = nbody_data_.d_view(n, VY_DATA);
+              const Real vz_n = nbody_data_.d_view(n, VZ_DATA);
+              const Real dvdotrhat = (prim(mb_id, IVX, k, j, i) - vx_n) * rhatx 
+                                  + (prim(mb_id, IVY, k, j, i) - vy_n) * rhaty 
+                                  + (prim(mb_id, IVZ, k, j, i) - vz_n) * rhatz;
+              const Real vxstar    = dvdotrhat * rhatx + vx_n;
+              const Real vystar    = dvdotrhat * rhaty + vy_n;
+              const Real vzstar    = dvdotrhat * rhatz + vz_n;
+              dpx_acc = drho_acc * vxstar;
+              dpy_acc = drho_acc * vystar;
+              dpz_acc = drho_acc * vzstar;
+            } // end +ve rho_to_flor check
           } // end in sink
         } // end src_accretion
 
