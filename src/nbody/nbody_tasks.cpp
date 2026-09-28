@@ -131,18 +131,17 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
         } // end register loop
       } // end body loop
     } // end mbp loop
+    // Step 2: Sum across all ranks
+    Kokkos::deep_copy(delta_all_meshes, delta_this_mesh); // copy into comm buffer
+    #if MPI_PARALLEL_ENABLED 
+    if (global_variable::my_rank == 0) {
+      MPI_Reduce(MPI_IN_PLACE, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
+    } else {
+      MPI_Reduce(delta_all_meshes, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+    #endif
   } // end if backreaction
   
-  // Step 2: Sum across all ranks
-  Kokkos::deep_copy(delta_all_meshes, delta_this_mesh); // copy into comm buffer
-  #if MPI_PARALLEL_ENABLED 
-  if (global_variable::my_rank == 0) {
-    MPI_Reduce(MPI_IN_PLACE, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
-  } else {
-    MPI_Reduce(delta_all_meshes, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
-  #endif
-
   // Step 3: Skip following computations if not at root
   if (global_variable::my_rank != 0) return TaskStatus::complete;
 

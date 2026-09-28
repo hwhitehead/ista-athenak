@@ -47,7 +47,7 @@ x2min = -2.0
 x2max =  2.0
 x3min = -0.05
 x3max = 0.05
-level = 2
+level = 1
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -78,7 +78,7 @@ num_nbody = 2
 eta_dt = 0.1
 hist_nbody = 1
 src_gravity = 1
-src_accretion = 1
+src_accretion = 0
 src_local_iso = 1
 sum_backreaction = 1
 inc_backreaction = 0
