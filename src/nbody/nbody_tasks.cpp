@@ -115,18 +115,18 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   if (sum_backreaction) {
     // Step 1a: Set backreaction register for this Mesh to zero
     Kokkos::deep_copy(delta_this_mesh, 0.0);
-    for (int mbpid = 0; mbpid < nmb_packs_thisrank; mbpid++) {
+    for (int mbpid = 0; mbpid < pmy_pack->pmesh->nmb_packs_thisrank; mbpid++) {
       // Step 1a: Force comm from device to host for MeshBlockPack mbpid
-      pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.template modify<DevExeSpace>();
-      pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.template sync<HostMemSpace>();
+      pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.template modify<DevExeSpace>();
+      pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.template sync<HostMemSpace>();
       // Step 1b: Collect nbody deltas across MeshBlockPack mbpid
       Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
       for (int n = 0; n < num_nbody; n++) {
         for (int i = 0; i < NVAR_REG; i++) {
           if (i == 0) { // mdot = dm / (beta * dt)
-            delta_this_mesh(n, i) += pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.h_view(n, i) / beta_dt;
+            delta_this_mesh(n, i) += pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.h_view(n, i) / beta_dt;
           } else { // vdot = dp / (m * beta * dt)
-            delta_this_mesh(n, i) += pmy_pack->pmesh->pmb_pack[mbpid].delta_this_pack.h_view(n, i) / (pmy_pack->pmesh->pmb_pack[mbpid].nbody_data.h_view(n, M_DATA) * beta_dt);
+            delta_this_mesh(n, i) += pmy_pack->pmesh->pmb_pack[mbpid].pnbody->delta_this_pack.h_view(n, i) / (pmy_pack->pmesh->pmb_pack[mbpid].pnbody->nbody_data.h_view(n, M_DATA) * beta_dt);
           }
         } // end register loop
       } // end body loop

@@ -246,9 +246,9 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               const Real dvdotrhat = (prim(mb_id, IVX, k, j, i) - vx_n) * rhatx 
                                    + (prim(mb_id, IVY, k, j, i) - vy_n) * rhaty 
                                    + (prim(mb_id, IVZ, k, j, i) - vz_n) * rhatz;
-              const Real vxstar    = dvdotrhat * rhatx;
-              const Real vystar    = dvdotrhat * rhaty;
-              const Real vzstar    = dvdotrhat * rhatz;
+              const Real vxstar    = dvdotrhat * rhatx + vx_n;
+              const Real vystar    = dvdotrhat * rhaty + vy_n;
+              const Real vzstar    = dvdotrhat * rhatz + vz_n;
               dpx_acc = drho_acc * vxstar;
               dpy_acc = drho_acc * vystar;
               dpz_acc = drho_acc * vzstar;
