@@ -403,7 +403,7 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   // by default, HistoryOuptut reduces across hist_data all ranks
   if (global_variable::my_rank != 0) return;
 
-  if (pm->pmy_pack[0].pnbody == nullptr) return; // do not attempt write if no NBody instance
+  if (pm->pmb_pack[0].pnbody == nullptr) return; // do not attempt write if no NBody instance
 
   // generate labels for nbody data using first pack on this rank
   int num_nbody = pm->pmb_pack[0].pnbody->num_nbody;
