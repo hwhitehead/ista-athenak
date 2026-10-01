@@ -22,10 +22,6 @@
 #include "nbody/nbody.hpp"
 #include "globals.hpp"
 
-// TODO: package these functions with NBody or existing classes
-void NBodyHistory(HistoryData *pdata, Mesh *pm);
-void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
-
 // nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
@@ -34,7 +30,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   bool hist_nbody = pin->GetOrAddBoolean("nbody", "hist_nbody", false);
   if (hist_nbody) {
     user_hist = true;
-    user_hist_func = &NBodyHistory; // TODO: embed into nbody class
+    user_hist_func = NBodyHistory; 
   }
 
   // enroll AMR if flagged
@@ -151,109 +147,3 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 // ======================== User-Defined Source Terms =========================
 // ============================================================================
 
-// write NBody data to hst output TODO: internalise as standard output
-void NBodyHistory(HistoryData *pdata, Mesh *pm) {
-  // max number of history variables must be < NHISTORY_VARIABLES < NREDUCTION_VARIABLES
-  // set in outputs.hpp and athena.hpp respectively 
-
-  // by default, HistoryOuptut reduces across hist_data all ranks
-  if (global_variable::my_rank != 0) return;
-
-  // TEMP: verbose print of mb_packs on this rank
-  std::cout << "There are " << pm->nmb_packs_thisrank << " MeshBlockPacks on rank " << global_variable::my_rank << std::endl;
-
-  // generate labels for nbody data using first pack on this rank
-  int num_nbody = pm->pmb_pack[0].pnbody->num_nbody;
-  pdata->nhist = num_nbody * NVAR_HIST; 
-  for (int n = 0; n < num_nbody; ++n) {
-    int hist_offset = n * NVAR_HIST;
-    pdata->label[M_HIST + hist_offset] = "m" + std::to_string(n); 
-    pdata->label[X_HIST + hist_offset] = "x" + std::to_string(n);
-    pdata->label[Y_HIST + hist_offset] = "y" + std::to_string(n);
-    pdata->label[Z_HIST + hist_offset] = "z" + std::to_string(n);
-    pdata->label[VX_HIST + hist_offset] = "vx" + std::to_string(n);
-    pdata->label[VY_HIST + hist_offset] = "vy" + std::to_string(n);
-    pdata->label[VZ_HIST + hist_offset] = "vz" + std::to_string(n);
-    pdata->label[AX_GRAV_HIST + hist_offset] = "ax_grav" + std::to_string(n);
-    pdata->label[AY_GRAV_HIST + hist_offset] = "ay_grav" + std::to_string(n);
-    pdata->label[AZ_GRAV_HIST + hist_offset] = "az_grav" + std::to_string(n);
-    pdata->label[AX_ACC_HIST + hist_offset] = "ax_acc" + std::to_string(n);
-    pdata->label[AY_ACC_HIST + hist_offset] = "ay_acc" + std::to_string(n);
-    pdata->label[AZ_ACC_HIST + hist_offset] = "az_acc" + std::to_string(n);
-  } // end body loop
-
-  // stash values
-  int column_index = 0;
-  for (int n = 0; n < num_nbody; ++n) {
-    // write per-body output using nbody_data
-    for (int i = M_HIST; i <= AZ_ACC_HIST; i++) {
-      pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
-      column_index++;
-    } // end variable loop
-  } // end body loop
-  return;
-}
-
-// apply AMR to region about each body with non-zero refinement radius
-void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
-  auto &refine_flag = pmbp->pmesh->pmr->refine_flag;
-  int mbs = pmbp->pmesh->gids_eachrank[global_variable::my_rank];
-  int nmb = pmbp->nmb_thispack;
-  auto &size = pmbp->pmb->mb_size;
-  auto &multi_d = pmbp->pmesh->multi_d;
-  auto &three_d = pmbp->pmesh->three_d;
-
-  // loop over MeshBlocks in this MeshBlockPack
-  // MeshBlock count small, perfom on host
-  for (int mb_id = 0; mb_id < nmb; mb_id++) {
-
-    // by default, mark for derefine
-    bool refine = false;
-
-    // extract MeshBlock bounds
-    Real &x1min = size.h_view(mb_id).x1min;
-    Real &x1max = size.h_view(mb_id).x1max;
-    Real &x2min = size.h_view(mb_id).x2min;
-    Real &x2max = size.h_view(mb_id).x2max;
-    Real &x3min = size.h_view(mb_id).x3min;
-    Real &x3max = size.h_view(mb_id).x3max;
-
-    // cycle over bodies
-    for (int n = 0; n < pmbp->pnbody->num_nbody; n++) {
-      // if refinement radius for body is zero, skip
-      const Real rad = pmbp->pnbody->nbody_data.h_view(n, R_AMR_DATA);
-      if (rad == 0.0) continue;
-
-      // save position 
-      const Real x1 = pmbp->pnbody->nbody_data.h_view(n, X_DATA);
-      const Real x2 = pmbp->pnbody->nbody_data.h_view(n, Y_DATA);
-      const Real x3 = pmbp->pnbody->nbody_data.h_view(n, Z_DATA);
-      
-      // check overlap with AMR region and MeshBlock
-      if (((x1min < (x1+rad)) && (x1min > (x1-rad))) ||
-        ((x1max < (x1+rad)) && (x1max > (x1-rad))) ||
-        ((x1max > (x1+rad)) && (x1min < (x1-rad)))) {
-        if (!(multi_d) ||
-          (((x2min < (x2+rad)) && (x2min > (x2-rad))) ||
-          ((x2max < (x2+rad)) && (x2max > (x2-rad))) ||
-          ((x2max > (x2+rad)) && (x2min < (x2-rad)))) ) {
-          if (!(three_d) ||
-            (((x3min < (x3+rad)) && (x3min > (x3-rad))) ||
-            ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
-            ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
-            refine = true;
-          }
-        }
-      }
-    } // end n loop
-    if (refine) {
-      refine_flag.h_view(mb_id + mbs) = 1;
-    } else {
-      refine_flag.h_view(mb_id + mbs) = -1;
-    }
-  } // end mb_id loop
-
-  // sync host and device  DevExeSpace
-  refine_flag.template modify<HostMemSpace>();
-  refine_flag.template sync<DevExeSpace>();
-}
