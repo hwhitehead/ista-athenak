@@ -153,6 +153,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
 // write NBody data to hst output TODO: internalise as standard output
 void NBodyHistory(HistoryData *pdata, Mesh *pm) {
+  // max number of history variables must be < NHISTORY_VARIABLES < NREDUCTION_VARIABLES
+  // set in outputs.hpp and athena.hpp respectively 
 
   // by default, HistoryOuptut reduces across hist_data all ranks
   if (global_variable::my_rank != 0) return;
@@ -181,16 +183,13 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   } // end body loop
 
   // stash values
+  int column_index = 0;
   for (int n = 0; n < num_nbody; ++n) {
-    int hist_offset = n * NVAR_HIST;
-    for (int i = 0; i < VZ_HIST; i++) {
-      if (i <= AX_GRAV_HIST) { // read m, x, vx from nbody_data
-        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
-      } else { // read ax_grav, ax_acc from delta_all_meshes
-        pdata->hdata[i + hist_offset] = pm->pmb_pack[0].pnbody->delta_all_meshes.h_view(n, i);
-      }
-      
-    } // end var loop
+    // write per-body output using nbody_data
+    for (int i = M_HIST; i <= AZ_ACC_HIST; i++) {
+      pdata->hdata[column_index] = pm->pmb_pack[0].pnbody->nbody_data.h_view(n, i);
+      column_index++;
+    } // end variable loop
   } // end body loop
   return;
 }
