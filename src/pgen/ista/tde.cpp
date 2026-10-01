@@ -117,7 +117,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // set density using inverse cavity kernel
       const Real delta_floor = 1e-6;
       const Real cavity_func = (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
-      const Real disc_func = 1.0 - Kokkos::exp(-Kokkos::pow((r_disc / (r - r_disc)), 12.0));
+      const Real disc_func = 1.0 - Kokkos::exp(-Kokkos::pow((r_minidisc / (r - r_disc)), 12.0));
       const Real rho = rho0 * (disc_func * cavity_func + delta_floor);
 
       // set velocity in disc (everything Keplerian about primary, including cavity)
