@@ -403,7 +403,8 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   // by default, HistoryOuptut reduces across hist_data all ranks
   if (global_variable::my_rank != 0) return;
 
-  if (pm->pmb_pack[0].pnbody == nullptr) return; // do not attempt write if no NBody instance
+  // do not attempt write if no NBody instance
+  if (pm->pmb_pack[0].pnbody == nullptr) return; 
 
   // generate labels for nbody data using first pack on this rank
   int num_nbody = pm->pmb_pack[0].pnbody->num_nbody;
@@ -439,6 +440,10 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
 
 // apply AMR to region about each body with non-zero refinement radius
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
+  
+  // do not attempt write if no NBody instance
+  if (pmbp->pnbody == nullptr) return; 
+
   auto &refine_flag = pmbp->pmesh->pmr->refine_flag;
   int mbs = pmbp->pmesh->gids_eachrank[global_variable::my_rank];
   int nmb = pmbp->nmb_thispack;
