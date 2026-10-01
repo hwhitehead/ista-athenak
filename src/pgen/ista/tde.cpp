@@ -50,7 +50,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const bool is_3d = pmy_mesh_->three_d;
 
   // load minidisc properties
-  const Real r_minidisc = pin->GetOrAddReal("problem", "r_minidisc", 0.05);
+  const Real r_minidisc = pin->GetOrAddReal("problem", "r_minidisc", 0.25);
+  const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 0.05);
   const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
   const Real Mach = pin->GetOrAddReal("problem", "Mach", 10.0);
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
@@ -102,33 +103,27 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       int nx3     = indcs.nx3;                              // nz
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
-      // TEMP integrator test, set init as flat
-      const Real rho = rho0;
-      const Real vx = 0.0;
-      const Real vy = 0.0;
+      // determine distance from secondary
+      const Real r_sqr = SQR(x1v - x_sec) + SQR(x2v - y_sec) + SQR(x3v - z_sec);
+      const Real r = Kokkos::sqrt(r_sqr);
+
+      // set density using inverse cavity kernel
+      const Real delta_floor = 1e-6;
+      const Real cavity_func = (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
+      const Real disc_func = 1.0 - 1.0 / (1 + Kokkos::exp(-2 * (r - r_minidisc)))
+      Real rho = rho0 * disc_func * cavity_func + delta_floor * rho0;;
+
+      // set velocity in disc (everything Keplerian about secondary, including cavity)
+      const Real v_phi = Kokkos::sqrt(m_sec / r);
+      const Real phi = Kokkos::atan2(x2v - y_sec, x1v - x_sec); // RH argument from +x axis
+      const Real vx = vx_sec - v_phi * Kokkos::sin(phi);
+      const Real vy = vy_sec + v_phi * Kokkos::cos(phi);
       const Real vz = 0.0;
-      const Real P = cs_sqr * rho;
+      // ^ todo: generalise this to 3D
 
-      // // determine distance from secondary
-      // const Real r_sqr = SQR(x1v - x_sec) + SQR(x2v - y_sec) + SQR(x3v - z_sec);
-      // const Real r = Kokkos::sqrt(r_sqr);
-
-      // // set density using inverse cavity kernel
-      // const Real delta_floor = 1e-6;
-      // const Real disc_func = 1 - 1.0 / (1 + Kokkos::exp(-2 * (r - r_minidisc)))
-      // Real rho = rho0 * disc_func;
-
-      // // set velocity in disc (everything Keplerian about secondary, including cavity)
-      // const Real v_phi = Kokkos::sqrt(m_sec / r);
-      // const Real phi = Kokkos::atan2(x2v - y_sec, x1v - x_sec); // RH argument from +x axis
-      // const Real vx = -v_phi * Kokkos::sin(phi);
-      // const Real vy = v_phi * Kokkos::cos(phi);
-      // const Real vz = 0.0;
-      // // ^ todo: generalise this to 3D
-
-      // // set pressure
-      // const Real cs_sqr_local = SQR(v_phi / Mach) + cs_sqr_floor;
-      // const Real P = cs_sqr_local * rho;
+      // set pressure
+      const Real cs_sqr_local = SQR(v_phi / Mach) + cs_sqr_floor;
+      const Real P = cs_sqr_local * rho;
       
       // ===== Set primitive variables =====
       w0_(m, IDN, k, j, i) = rho;              
