@@ -24,6 +24,7 @@
 #include "coordinates/cell_locations.hpp"
 
 #include "nbody/nbody.hpp"
+#include "globals.hpp"
 
 namespace nbody {
 
