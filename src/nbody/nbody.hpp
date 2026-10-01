@@ -77,10 +77,11 @@ enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0,
                             NVAR_REG = 7};
 
 Real CalcLocalSoundSpeedSqr(DualArray2D<Real> nbody_data, int num_nbody, Real inv_Mach_sqr, const Real x, const Real y, const Real z);
-void NBodyHistory(HistoryData *pdata, Mesh *pm);
-void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 
 namespace nbody {
+
+void NBodyHistory(HistoryData *pdata, Mesh *pm);
+void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 
 //----------------------------------------------------------------------------------------
 //! \fn  class NBody
