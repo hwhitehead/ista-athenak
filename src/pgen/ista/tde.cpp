@@ -30,11 +30,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   bool hist_nbody = pin->GetOrAddBoolean("nbody", "hist_nbody", false);
   if (hist_nbody) {
     user_hist = true;
-    user_hist_func = NBodyHistory; 
+    user_hist_func = nbody::NBodyHistory; 
   }
 
   // enroll AMR if flagged
-  user_ref_func = NBodyTrackRefinementCondition;
+  user_ref_func = nbody::NBodyTrackRefinementCondition;
 
   // Skip initialization if this is a restart
   if (restart) return;
