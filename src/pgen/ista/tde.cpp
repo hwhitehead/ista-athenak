@@ -65,6 +65,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real vx_prim = pin->GetReal("nbody", "vx0");
   const Real vy_prim = pin->GetReal("nbody", "vy0");
   const Real vz_prim = pin->GetReal("nbody", "vz0");
+  const Real r_soft_prim = pin->GetReal("nbody", "r_soft0");
 
   const Real m_sec = pin->GetReal("nbody", "m1");
   const Real x_sec = pin->GetReal("nbody", "x1");
@@ -113,15 +114,19 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // determine distance from primary
       const Real r_sqr = SQR(x1v - x_prim) + SQR(x2v - y_prim) + SQR(x3v - z_prim);
       const Real r = Kokkos::sqrt(r_sqr);
+      const Real soft_r_sqr = SQR(r_soft_prim) + r_sqr;
 
       // set density using inverse cavity kernel
       const Real delta_floor = 1e-6;
-      const Real cavity_func = (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
+      //const Real cavity_func = (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
+      const Real cavity_func = 1.0; // TEMP run without cavity for low-res runs
       const Real disc_func = 1.0 - Kokkos::exp(-Kokkos::pow((r_minidisc / (r - r_minidisc)), 12.0));
       const Real rho = rho0 * (disc_func * cavity_func + delta_floor);
 
       // set velocity in disc (everything Keplerian about primary, including cavity)
-      const Real v_phi = Kokkos::sqrt(m_prim / r);
+      // velocity profile should match softened potential
+      const Real v_phi_sqr = m_prim * r / soft_r_sqr;
+      const Real v_phi = Kokkos::sqrt(v_phi_sqr);
       const Real phi = Kokkos::atan2(x2v - y_prim, x1v - x_prim); // RH argument from +x axis
       const Real vx = vx_prim - v_phi * Kokkos::sin(phi);
       const Real vy = vy_prim + v_phi * Kokkos::cos(phi);

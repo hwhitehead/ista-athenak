@@ -27,13 +27,13 @@ ix3_bc    = outflow     # inner-X3 boundary flag
 ox3_bc    = outflow     # outer-X3 boundary flag
 
 <meshblock>
-nx1       = 256          # Number of cells in each MeshBlock, X1-dir
-nx2       = 256          # Number of cells in each MeshBlock, X2-dir
+nx1       = 32          # Number of cells in each MeshBlock, X1-dir
+nx2       = 32          # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
-refinement = dynamic     # static mesh refinement (SMR)
-num_levels = 1
+refinement = adaptive     # static mesh refinement (SMR)
+num_levels = 3
 #refinement_interval = 3
 #max_nmb_per_rank = 4096
 
@@ -93,7 +93,7 @@ vx0 = 0.0
 vy0 = -0.008562346815634279
 vz0 = 0.0
 r_soft0 = 0.01
-r_amr0 = 0.25
+r_amr0 = 0.1
 
 m1 =  0.01
 x1 = 1.8036363636363617
