@@ -10,11 +10,11 @@ basename  = nbody       # problem ID: basename of output filenames
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
 nx1       = 384         # Number of zones in X1-direction (root level, dx=0.1)
 x1min     = -1.0       # minimum value of X1
-x1max     =  3       # maximum value of X1
+x1max     =  2       # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
-nx2       = 192         # Number of zones in X2-direction (root level, dx=0.1)
+nx2       = 256         # Number of zones in X2-direction (root level, dx=0.1)
 x2min     = -1.0       # minimum value of X2
 x2max     =  1.0       # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
@@ -47,7 +47,7 @@ x2min = -0.2
 x2max =  0.2
 x3min = -0.05
 x3max = 0.05
-level = 2
+level = 3
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
