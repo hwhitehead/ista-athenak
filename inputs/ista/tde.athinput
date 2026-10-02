@@ -86,21 +86,21 @@ inc_backreaction    = 0
 verbose             = 1
 
 m0 = 1.0
-x0 = -0.1803636363636362
+x0 = -0.17272727272727273
 y0 = 0.0
 z0 = 0.0
 vx0 = 0.0
-vy0 = -0.008562346815634279
+vy0 = -0.021873931962990353
 vz0 = 0.0
 r_soft0 = 0.01
 r_amr0 = 0.1
 
-m1 =  0.01
-x1 = 1.8036363636363617
+m1 =  0.1
+x1 = 1.727272727272727
 y1 = 0.0
 z1 = 0.0
 vx1 = 0.0
-vy1 = 0.0856234681563428
+vy1 = 0.2187393196299035
 vz1 = 0.0
 r_soft1 = 0.01
 r_amr1 = 0.1
@@ -112,4 +112,4 @@ dt         = 0.01       # time increment between outputs
 <output2>
 file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
 variable   = hydro_w    # variables to be output
-dt         = 0.25        # time increment between outputs
+dt         = 0.025        # time increment between outputs
