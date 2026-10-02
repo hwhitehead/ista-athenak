@@ -79,7 +79,7 @@ num_nbody           = 2
 eta_dt              = 0.1
 hist_nbody          = 1
 src_gravity         = 1
-src_accretion       = 0
+src_accretion       = 1
 src_local_iso       = 1
 sum_backreaction    = 0
 inc_backreaction    = 0
@@ -93,7 +93,7 @@ vx0 = 0.0
 vy0 = -0.008562346815634279
 vz0 = 0.0
 r_soft0 = 0.01
-r_amr0 = 0.1
+r_amr0 = 0.05
 
 m1 =  0.01
 x1 = 1.8036363636363617
@@ -103,7 +103,7 @@ vx1 = 0.0
 vy1 = -0.0856234681563428
 vz1 = 0.0
 r_soft1 = 0.01
-r_amr1 = 0.25
+r_amr1 = 0.05
 
 <output1>
 file_type  = hst        # history data dump
