@@ -68,13 +68,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real vz_prim = pin->GetReal("nbody", "vz0");
   const Real r_soft_prim = pin->GetReal("nbody", "r_soft0");
 
-  const Real m_sec = pin->GetReal("nbody", "m1");
-  const Real x_sec = pin->GetReal("nbody", "x1");
-  const Real y_sec = pin->GetReal("nbody", "y1");
-  const Real z_sec = pin->GetReal("nbody", "z1");
-  const Real vx_sec = pin->GetReal("nbody", "vx1");
-  const Real vy_sec = pin->GetReal("nbody", "vy1");
-  const Real vz_sec = pin->GetReal("nbody", "vz1");
+  // const Real m_sec = pin->GetReal("nbody", "m1");
+  // const Real x_sec = pin->GetReal("nbody", "x1");
+  // const Real y_sec = pin->GetReal("nbody", "y1");
+  // const Real z_sec = pin->GetReal("nbody", "z1");
+  // const Real vx_sec = pin->GetReal("nbody", "vx1");
+  // const Real vy_sec = pin->GetReal("nbody", "vy1");
+  // const Real vz_sec = pin->GetReal("nbody", "vz1");
 
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
