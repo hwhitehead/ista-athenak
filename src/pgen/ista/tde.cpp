@@ -50,6 +50,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const bool is_3d = pmy_mesh_->three_d;
 
   // load minidisc properties
+  const int prograde = pin->GetOrAddBoolean("problem", "prograde", true);
   const Real r_minidisc = pin->GetOrAddReal("problem", "r_minidisc", 0.25);
   const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 0.05);
   const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
@@ -127,6 +128,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // velocity profile should match softened potential
       const Real v_phi_sqr = m_prim * r / soft_r_sqr;
       const Real v_phi = Kokkos::sqrt(v_phi_sqr);
+      if (prograde) {
+        v_phi = v_phi;
+      } else {
+        v_phi *= -1.0;
+      }
       const Real phi = Kokkos::atan2(x2v - y_prim, x1v - x_prim); // RH argument from +x axis
       const Real vx = vx_prim - v_phi * Kokkos::sin(phi);
       const Real vy = vy_prim + v_phi * Kokkos::cos(phi);
