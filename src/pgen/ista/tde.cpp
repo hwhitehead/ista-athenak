@@ -127,7 +127,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // set velocity in disc (everything Keplerian about primary, including cavity)
       // velocity profile should match softened potential
       const Real v_phi_sqr = m_prim * r / soft_r_sqr;
-      const Real v_phi = Kokkos::sqrt(v_phi_sqr);
+      Real v_phi = Kokkos::sqrt(v_phi_sqr);
       if (prograde) {
         v_phi = v_phi;
       } else {
