@@ -121,7 +121,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real delta_floor = 1e-6;
       //const Real cavity_func = (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
       const Real cavity_func = 1.0; // TEMP run without cavity for low-res runs
-      const Real disc_func = 1.0 - Kokkos::exp(-Kokkos::pow((r_minidisc / (r - r_minidisc)),2.0));
+      //const Real disc_func = 1.0 - Kokkos::exp(-Kokkos::pow((r_minidisc / (r - r_minidisc)),2.0));
+      const Real disc_func = 1.0 / Kokkos::cosh(Kokkos::pow(r/r_minidisc,4.0));
       const Real rho = rho0 * (disc_func * cavity_func + delta_floor);
 
       // set velocity in disc (everything Keplerian about primary, including cavity)
