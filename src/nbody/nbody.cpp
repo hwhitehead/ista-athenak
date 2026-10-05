@@ -57,6 +57,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   inv_Mach_sqr = 1.0 / SQR(Mach);
 
   // import unit conversions (else all unity, used for PN terms WIP)
+  // X_SI = X_CODE * unit_X
   G_const = pin->GetOrAddReal("nbody", "G_const", 1.0);
   unit_L = pin->GetOrAddReal("nbody", "unit_L", 1.0);
   unit_M = pin->GetOrAddReal("nbody", "unit_M", 1.0);

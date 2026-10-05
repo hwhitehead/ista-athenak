@@ -69,22 +69,23 @@ pfloor = 1e-12
 
 <problem>
 prograde            = 1
-r_minidisc          = 0.1
+r_minidisc          = 0.025 # defval 0.1
 r_cavity            = 0.01
 Mach = 10.0
 rho0 = 1.0
 alpha = 0.0
+orbit_primary       = 0
 
 <nbody>
 num_nbody           = 2
 eta_dt              = 0.1
 hist_nbody          = 1
 src_gravity         = 1
-src_accretion       = 1
+src_accretion       = 0
 src_local_iso       = 1
 sum_backreaction    = 0
 inc_backreaction    = 0
-verbose             = 1
+verbose             = 0
 
 m0 = 1.0
 x0 = -0.17272727272727273

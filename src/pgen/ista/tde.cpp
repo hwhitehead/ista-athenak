@@ -68,13 +68,37 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real vz_prim = pin->GetReal("nbody", "vz0");
   const Real r_soft_prim = pin->GetReal("nbody", "r_soft0");
 
-  // const Real m_sec = pin->GetReal("nbody", "m1");
-  // const Real x_sec = pin->GetReal("nbody", "x1");
-  // const Real y_sec = pin->GetReal("nbody", "y1");
-  // const Real z_sec = pin->GetReal("nbody", "z1");
-  // const Real vx_sec = pin->GetReal("nbody", "vx1");
-  // const Real vy_sec = pin->GetReal("nbody", "vy1");
-  // const Real vz_sec = pin->GetReal("nbody", "vz1");
+  const Real m_sec = pin->GetReal("nbody", "m1");
+  const Real x_sec = pin->GetReal("nbody", "x1");
+  const Real y_sec = pin->GetReal("nbody", "y1");
+  const Real z_sec = pin->GetReal("nbody", "z1");
+  const Real vx_sec = pin->GetReal("nbody", "vx1");
+  const Real vy_sec = pin->GetReal("nbody", "vy1");
+  const Real vz_sec = pin->GetReal("nbody", "vz1");
+  const Real r_soft_sec = pin->GetReal("nbody", "r_soft1");
+
+  // specify disc parent using pin
+  const bool orbit_primary = pin->GetOrAddBoolean("problem", "orbit_primary", true);
+  Real m_parent, x_parent, y_parent, z_parent, vx_parent, vy_parent, vz_parent, r_soft_parent;
+  if (orbit_primary) {
+    m_parent = m_prim;
+    x_parent = x_prim;
+    y_parent = y_prim;
+    z_parent = z_prim;
+    vx_parent = vx_prim;
+    vy_parent = vy_prim;
+    vz_parent = vz_prim;
+    r_soft_parent = r_soft_prim;
+  } else {
+    m_parent = m_sec;
+    x_parent = x_sec;
+    y_parent = y_sec;
+    z_parent = z_sec;
+    vx_parent = vx_sec;
+    vy_parent = vy_sec;
+    vz_parent = vz_sec;
+    r_soft_parent = r_soft_sec;
+  }
 
   // (2) access prims from mesh block pack
   if (pmbp->phydro != nullptr) 
@@ -113,9 +137,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
       // determine distance from primary
-      const Real r_sqr = SQR(x1v - x_prim) + SQR(x2v - y_prim) + SQR(x3v - z_prim);
+      const Real r_sqr = SQR(x1v - x_parent) + SQR(x2v - y_parent) + SQR(x3v - z_parent);
       const Real r = Kokkos::sqrt(r_sqr);
-      const Real soft_r_sqr = SQR(r_soft_prim) + r_sqr;
+      const Real soft_r_sqr = SQR(r_soft_parent) + r_sqr;
 
       // set density using inverse cavity kernel
       const Real delta_floor = 1e-6;
@@ -134,9 +158,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       } else {
         v_phi *= -1.0;
       }
-      const Real phi = Kokkos::atan2(x2v - y_prim, x1v - x_prim); // RH argument from +x axis
-      const Real vx = vx_prim - v_phi * Kokkos::sin(phi);
-      const Real vy = vy_prim + v_phi * Kokkos::cos(phi);
+      const Real phi = Kokkos::atan2(x2v - y_parent, x1v - x_parent); // RH argument from +x axis
+      const Real vx = vx_parent - v_phi * Kokkos::sin(phi);
+      const Real vy = vy_parent + v_phi * Kokkos::cos(phi);
       const Real vz = 0.0;
       // ^ todo: generalise this to 3D
 

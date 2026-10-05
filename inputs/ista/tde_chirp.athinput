@@ -84,7 +84,7 @@ src_accretion       = 0
 src_local_iso       = 1
 sum_backreaction    = 0
 inc_backreaction    = 0
-verbose             = 1
+verbose             = 0
 
 m0 = 1.0
 x0 = -0.1803636363636362
