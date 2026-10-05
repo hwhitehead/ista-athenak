@@ -8,9 +8,9 @@ basename  = nbody       # problem ID: basename of output filenames
 
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
-nx1       = 384         # Number of zones in X1-direction (root level, dx=0.1)
+nx1       = 512         # Number of zones in X1-direction (root level, dx=0.1)
 x1min     = -1.0       # minimum value of X1
-x1max     =  2       # maximum value of X1
+x1max     =  3       # maximum value of X1
 ix1_bc    = diode     # inner-X1 boundary flag
 ox1_bc    = diode     # outer-X1 boundary flag
 
@@ -41,8 +41,8 @@ max_nmb_per_rank = 4096
 method = user
 
 <refined_region1>
-x1min = -0.2            
-x1max =  0.2
+x1min = -0.4            
+x1max =  0.0
 x2min = -0.2
 x2max =  0.2
 x3min = -0.05
@@ -109,7 +109,7 @@ r_amr1 = 0.1
 
 <output1>
 file_type  = hst        # history data dump
-dt         = 0.01       # time increment between outputs
+dt         = 0.001       # time increment between outputs
 
 <output2>
 file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
