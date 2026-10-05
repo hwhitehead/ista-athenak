@@ -76,8 +76,6 @@ enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0,
                             VZ_REG = 6, VZDOT_REG = 6,
                             NVAR_REG = 7};
 
-Real CalcLocalSoundSpeedSqr(DualArray2D<Real> nbody_data, int num_nbody, Real inv_Mach_sqr, const Real x, const Real y, const Real z);
-
 namespace nbody {
 
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
@@ -129,6 +127,13 @@ class NBody {
     // physical units (for post-newtonian terms)
     Real unit_L, unit_M, unit_T;  // set by user in athinput
     Real unit_V, unit_A;          // compound units (derived)
+    Real kappa_es_code;           // electron scattering opacity in code units  
+    Real rad_const_code;          // radiation constant in code units 
+    Real c_light_code;            // speed of light in code units 
+    Real k_boltzmann_code;        // boltzmann constant in code units
+    Real mu_gas;                  // mean molecular weight of gas in code units
+    Real proton_mass_code;        // proton mass in code units
+    Real gas_const_code;          // gas constant in code units
 
     // task functions
     void AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
@@ -148,8 +153,9 @@ class NBody {
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);         // wrapped to call all source terms
     void NBodyPointSrcTerm(const Real beta_dt);     // per-body source terms (gravity, accretion)
-    void NBodyIsoSrcTerm(const Real beta_dt);       // enforce local isothermality
-    Real CalcLocalOmegaSqr(const Real x, const Real y, const Real z); // TODO: deprecated for new cs method (in diff.)
+    void NBodyForcedIsoSrcTerm(const Real beta_dt);       // enforce local isothermality
+    void NBodyBlackBodySrcTerm(const Real beta_dt); // cool as black body 
+    void NBodyBetaCoolSrcTerm(const Real beta_dt);  // beta cooling
 
   private:
     MeshBlockPack* pmy_pack;  // ptr to MeshBlockPack containing this NBody
