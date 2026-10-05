@@ -151,7 +151,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set velocity in disc (everything Keplerian about primary, including cavity)
       // velocity profile should match softened potential
-      const Real v_phi_sqr = m_prim * r / soft_r_sqr;
+      const Real v_phi_sqr = m_parent * r / soft_r_sqr;
       Real v_phi = Kokkos::sqrt(v_phi_sqr);
       if (prograde) {
         v_phi = v_phi;
@@ -161,7 +161,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real phi = Kokkos::atan2(x2v - y_parent, x1v - x_parent); // RH argument from +x axis
       const Real vx = vx_parent - v_phi * Kokkos::sin(phi);
       const Real vy = vy_parent + v_phi * Kokkos::cos(phi);
-      const Real vz = 0.0;
+      const Real vz = vz_parent;
       // ^ todo: generalise this to 3D
 
       // set pressure
