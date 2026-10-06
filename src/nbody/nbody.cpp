@@ -373,7 +373,7 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
         const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         const Real r = Kokkos::sqrt(r_sqr);
         const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real v_sqr = Kokkos::sqrt(nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr);
+        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
         sum_v_sqr += v_sqr;
       }
       const Real cs_sqr_local = sum_v_sqr * inv_Mach_sqr_;
@@ -485,8 +485,8 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         const Real r = Kokkos::sqrt(r_sqr);
         const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real v_sqr = Kokkos::sqrt(nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr);
-        const Real omega_sqr = v_sqr / r;
+        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
+        const Real omega_sqr = v_sqr / r_sqr;
         sum_v_sqr += v_sqr;
         sum_omega_sqr += omega_sqr;
       }
