@@ -576,7 +576,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
       }
 
       // calculate local kinematic viscosity
-      const Real cs_sqr;
+      Real cs_sqr;
       if (src_local_iso_) { // use assumed fixed Mach profile
         cs_sqr = sum_v_sqr * inv_Mach_sqr_;
       } else { // use local hydro state
