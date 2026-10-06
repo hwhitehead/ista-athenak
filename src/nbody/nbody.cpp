@@ -568,7 +568,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         const Real r = Kokkos::sqrt(r_sqr) + tiny_number;
         const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real v_sqr = nbody_data.d_view(n, M_DATA) * r / soft_r_sqr;
+        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
         sum_v_sqr += v_sqr;
         const Real omega_sqr = nbody_data_.d_view(n, M_DATA) / (r * soft_r_sqr);
         omega_tilde_sqr += omega_sqr;
