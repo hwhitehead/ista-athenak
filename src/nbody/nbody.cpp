@@ -580,7 +580,7 @@ void NBody::CalcViscousFluxAlpha() {
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
-      Kokkos::atomic_max(&max_nu_iso_(mb_id), nu_iso_local);
+      Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
     }); // end par_for
     
   // enforce update of maximum tracker on host
