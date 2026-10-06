@@ -72,11 +72,11 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // import unit conversions (else all unity, used for PN terms WIP)
   // X_SI = X_CODE * unit_X
   G_const = pin->GetOrAddReal("nbody", "G_const", 1.0);
-  unit_L = pin->GetOrAddReal("nbody", "unit_L", 1.0);
-  unit_M = pin->GetOrAddReal("nbody", "unit_M", 1.0);
-  unit_T = pin->GetOrAddReal("nbody", "unit_T", 1.0);
-  unit_V = unit_L / unit_T;
-  unit_A = unit_A / unit_T;
+  unit_L  = pin->GetOrAddReal("nbody", "unit_L", 1.0);
+  unit_M  = pin->GetOrAddReal("nbody", "unit_M", 1.0);
+  unit_T  = pin->GetOrAddReal("nbody", "unit_T", 1.0);
+  unit_V  = unit_L / unit_T;
+  unit_A  = unit_A / unit_T;
 
   // opacity scaling (WIP, set as unity for now)
   kappa_es_code     = pin->GetOrAddReal("nbody", "kappa_es_code", 1.0);
@@ -95,9 +95,9 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   if (alpha != 0.0) {
     // allocate array for viscosity coefficient, including ghosts
     auto &indcs = pmy_pack->pmesh->mb_indcs;
-    int ncells1 = indcs.nx1 + 2*(indcs.ng);
-    int ncells2 = (indcs.nx2 > 1)? (indcs.nx2 + 2*(indcs.ng)) : 1;
-    int ncells3 = (indcs.nx3 > 1)? (indcs.nx3 + 2*(indcs.ng)) : 1;
+    int ncells1 = indcs.nx1 + 2 * (indcs.ng);
+    int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
+    int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
     Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
@@ -518,7 +518,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 }
 
 // compute cell diffusivity according to beta cooling
-void NBody::CalcViscousFluxAlpha() {
+void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
 
   // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
@@ -534,7 +534,6 @@ void NBody::CalcViscousFluxAlpha() {
     ks -= indcs.ng; ke += indcs.ng;
   }
   int nmb1 = pmy_pack->nmb_thispack - 1;
-  auto &prim = pmy_pack->phydro->w0;
 
   // set maximum register to zero
   Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
@@ -572,7 +571,7 @@ void NBody::CalcViscousFluxAlpha() {
       }
 
       // set local viscosity according to alpha prescription
-      const Real cs_sqr = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+      const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       const Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
@@ -647,8 +646,8 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie+1, [&](const int i) {
-      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
-      Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
+      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
+      //Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
       flx1(m,IVX,k,j,i) -= nud*fvx(i);
       flx1(m,IVY,k,j,i) -= nud*fvy(i);
       flx1(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -693,8 +692,8 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
-      Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
+      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
+      //Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx2(m,IVX,k,j,i) -= nud*fvx(i);
       flx2(m,IVY,k,j,i) -= nud*fvy(i);
       flx2(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -733,8 +732,8 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
-      Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
+      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
+      //Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx3(m,IVX,k,j,i) -= nud*fvx(i);
       flx3(m,IVY,k,j,i) -= nud*fvy(i);
       flx3(m,IVZ,k,j,i) -= nud*fvz(i);

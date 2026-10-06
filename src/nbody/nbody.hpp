@@ -157,7 +157,7 @@ class NBody {
 
     // inhomogeneous viscosity handling
     Real alpha; // viscosity coefficient for alpha-disc prescription
-    void CalcViscousFluxAlpha(); // compute by-cell viscosity according to alpha prescription
+    void CalcViscousFluxAlpha(const DvceArray5D<Real> &w0); // compute by-cell viscosity according to alpha prescription
     void AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos, DvceFaceFld5D<Real> &flx);
     void NewViscousTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
     DvceArray4D<Real> nu_iso;      // inhomogeneous viscosity coefficient, shape = (nmb, k, j, i)

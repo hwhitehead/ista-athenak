@@ -85,7 +85,7 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo
     DvceFaceFld5D<Real> &flx) {
   if (nu_iso != 0.0) {
     if ((pmy_pack->pnbody != nullptr) && (pmy_pack->pnbody->alpha != 0.0)) {
-      pmy_pack->pnbody->CalcViscousFluxAlpha();
+      pmy_pack->pnbody->CalcViscousFluxAlpha(w0);
       pmy_pack->pnbody->AddViscousFlux(w0, eos, flx);
     }  else {
       AddViscousFluxIso(w0, eos, flx);
