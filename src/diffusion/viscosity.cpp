@@ -55,14 +55,8 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
     pmy_pack(pp) {
   dtnew = static_cast<Real>(std::numeric_limits<float>::max());
   
-  // check if cst. alpha visc flagged
-  alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
-  
   // Read parameters for viscosity (if any)
   nu_iso = pin->GetOrAddReal(block,"nu_iso",0.0);
-
-  // override nu_iso if using cst. alpha to small +ve value
-  if (alpha != 0.0) nu_iso = 1e-8;
 
   nu_aniso = pin->GetOrAddReal(block,"nu_aniso",0.0);
   mode = ParseViscosityIntegrator(block, pin);
