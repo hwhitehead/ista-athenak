@@ -130,7 +130,11 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {
     pcond->NewTimeStep(w0, peos->eos_data);
   }
   if (pvisc != nullptr) {
-    pvisc->NewTimeStep(w0, peos->eos_data);
+    if ((pmy_pack->pnbody != nullptr) && (pmy_pack->pnbody->alpha != 0.0)) {
+      pmy_pack->pnbody->NewViscousTimeStep(w0, peos->eos_data);
+    } else {
+      pvisc->NewTimeStep(w0, peos->eos_data);
+    }
   }
   // compute source terms timestep
   if (psrc != nullptr) {

@@ -143,11 +143,6 @@ class NBody {
     TaskStatus RKUpdate(Driver *pdrive, int stage);     // propogate nbody state
     TaskStatus Send(Driver *pdrive, int stage);     // pass updated state to all NBody instances
     TaskStatus NewTimeStep(Driver *pdrive, int stage);  // compute next stable time step
-    // TaskStatus ReduceParentMesh(Driver *d, int state);
-    // TaskStatus ReduceAllMeshes(Driver *d, int state);
-    // TaskStatus Integrate(Driver *d, int stage);
-    // TaskStatus Scatter(Driver *d, int state);
-    
 
     // non-task methods
     Real CalcTimeStep();
@@ -157,6 +152,14 @@ class NBody {
     void NBodyForcedIsoSrcTerm(const Real beta_dt);       // enforce local isothermality
     void NBodyBlackBodySrcTerm(const Real beta_dt); // cool as black body 
     void NBodyBetaCoolSrcTerm(const Real beta_dt);  // beta cooling
+
+    // inhomogeneous viscosity handling
+    Real alpha; // viscosity coefficient for alpha-disc prescription
+    void NBody::CalcViscousFluxAlpha(); // compute by-cell viscosity according to alpha prescription
+    void AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos, DvceFaceFld5D<Real> &flx);
+    void NewViscousTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
+    DvceArray4D<Real> nu_iso;      // inhomogeneous viscosity coefficient, shape = (nmb, k, j, i)
+    DualArray1D<Real> max_nu_iso;  // maximum viscosity coefficient for each MeshBlock, shape = (nmb)
 
   private:
     MeshBlockPack* pmy_pack;  // ptr to MeshBlockPack containing this NBody

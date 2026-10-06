@@ -38,6 +38,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   delta_this_pack("delta_nbody_data",1,1),
   delta_this_mesh("delta_this_mesh",1,1),
   delta_all_meshes("delta_all_meshes",1,1),
+  nu_iso("nu_iso",1,1,1,1),
+  max_nu_iso("max_nu_iso",1),
   pmy_pack(ppack) {
 
   // determine number of bodies to read from input
@@ -87,6 +89,19 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   
   // import verbose flag
   verbose = pin->GetOrAddBoolean("nbody", "verbose", false);
+
+  // determine viscosity usage
+  alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
+  if (alpha != 0.0) {
+    // allocate array for viscosity coefficient, including ghosts
+    auto &indcs = pmy_pack->pmesh->mb_indcs;
+    int ncells1 = indcs.nx1 + 2*(indcs.ng);
+    int ncells2 = (indcs.nx2 > 1)? (indcs.nx2 + 2*(indcs.ng)) : 1;
+    int ncells3 = (indcs.nx3 > 1)? (indcs.nx3 + 2*(indcs.ng)) : 1;
+    Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
+    // allocate register for tracking maximal viscosity
+    Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
+  }
 
   // principle registers for wider access
   Kokkos::realloc(nbody_data,  num_nbody, NVAR_DATA);    
@@ -499,6 +514,261 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
       cons(mb_id, IEN, k, j, i) += dE_int;
     }); // end par_for
     
+  return;
+}
+
+// compute cell diffusivity according to beta cooling
+void NBody::CalcViscousFluxAlpha() {
+
+  // MeshBlock properties
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  auto &size  = pmy_pack->pmb->mb_size;
+  // par_for includes ghosts (dimension sensitive)
+  int is = indcs.is - indcs.ng, ie = indcs.ie + indcs.ng;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  if (pmy_pack->pmesh->two_d) {
+    jl -= indcs.ng; ju += indcs.ng;
+  }
+  if (pmy_pack->pmesh->three_d) {
+    kl -= indcs.ng; ku += indcs.ng;
+  }
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto &prim = pmy_pack->phydro->w0;
+
+  // privatise nbody data for par_for
+  auto &nbody_data_ = nbody_data;
+  auto &nu_iso_ = nu_iso;
+  int num_nbody_ = num_nbody;
+  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  const Real inv_Mach_sqr_ = inv_Mach_sqr;
+  const Real alpha_ = alpha;
+
+  // set maximum register to zero
+  Kokkos::deep_copy(nu_iso_.view_host(), 0.0);
+  nu_iso_.template modify<HostMemSpace>();
+  nu_iso_.template sync<DevExeSpace>();
+
+  par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
+    KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
+    {
+
+      // identify cell position
+      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
+
+      // compute Omega_tilde as quadrature sum of orbital frequency about each body
+      Real omega_tilde_sqr = 0.0;
+      for (int n = 0; n < num_nbody_; n++) {
+        const Real dx = x - nbody_data_.d_view(n, X_DATA);
+        const Real dy = y - nbody_data_.d_view(n, Y_DATA);
+        const Real dz = z - nbody_data_.d_view(n, Z_DATA);
+        const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+        const Real r = Kokkos::sqrt(r_sqr);
+        const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real omega_sqr = nbody_data_.d_view(n, M_DATA) / (r * soft_r_sqr);
+        omega_tilde_sqr += omega_sqr;
+      }
+
+      // set local viscosity according to alpha prescription
+      const Real cs_sqr = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+      const Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
+
+      // stash viscosity state in register
+      nu_iso_.h_view(mb_id, k, j, i) = nu_iso_local;
+
+      // thread-safe maximum check for tracker
+      Kokkos::atomic_max(&max_nu_iso.d_view(), nu_iso_local);
+    }); // end par_for
+    
+  // enforce update of maximum tracker on host
+  nu_iso_.template modify<DevExeSpace>();
+  nu_iso_.template sync<HostMemSpace>();
+
+  return;
+}
+
+// compute viscous fluxes according to inhomogeneous isotropic viscosity
+void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
+    DvceFaceFld5D<Real> &flx) {
+
+  // get shorthand to Viscosity instance
+  auto &pvisc = pmy_pack->phydro->pvisc;
+
+  // unpack mesh data per par_for
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  int is = indcs.is, ie = indcs.ie;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  int ncells1 = indcs.nx1 + 2*(indcs.ng);
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto size = pmy_pack->pmb->mb_size;
+  bool &multi_d = pmy_pack->pmesh->multi_d;
+  bool &three_d = pmy_pack->pmesh->three_d;
+  Real nu_iso_ = 1e-6; // TEMP: set to low homogeneousvalue
+
+  // fluxes in x1-direction
+  int scr_level = 0;
+  size_t scr_size = (ScrArray1D<Real>::shmem_size(ncells1)) * 3;
+  auto flx1 = pvisc->flx.x1f;
+
+  par_for_outer("nbody_visc1", DevExeSpace(), scr_size, scr_level, 0, nmb1, ks, ke, js, je,
+  KOKKOS_LAMBDA(TeamMember_t member, const int m, const int k, const int j) {
+    ScrArray1D<Real> fvx(member.team_scratch(scr_level), ncells1);
+    ScrArray1D<Real> fvy(member.team_scratch(scr_level), ncells1);
+    ScrArray1D<Real> fvz(member.team_scratch(scr_level), ncells1);
+
+    // Add [2(dVx/dx)-(2/3)dVx/dx, dVy/dx, dVz/dx]
+    par_for_inner(member, is, ie+1, [&](const int i) {
+      fvx(i) = 4.0*(w0(m,IVX,k,j,i) - w0(m,IVX,k,j,i-1))/(3.0*size.d_view(m).dx1);
+      fvy(i) =     (w0(m,IVY,k,j,i) - w0(m,IVY,k,j,i-1))/size.d_view(m).dx1;
+      fvz(i) =     (w0(m,IVZ,k,j,i) - w0(m,IVZ,k,j,i-1))/size.d_view(m).dx1;
+    });
+
+    // In 2D/3D Add [(-2/3)dVy/dy, dVx/dy, 0]
+    if (multi_d) {
+      par_for_inner(member, is, ie+1, [&](const int i) {
+        fvx(i) -= ((w0(m,IVY,k,j+1,i) + w0(m,IVY,k,j+1,i-1)) -
+                   (w0(m,IVY,k,j-1,i) + w0(m,IVY,k,j-1,i-1)))/(6.0*size.d_view(m).dx2);
+        fvy(i) += ((w0(m,IVX,k,j+1,i) + w0(m,IVX,k,j+1,i-1)) -
+                   (w0(m,IVX,k,j-1,i) + w0(m,IVX,k,j-1,i-1)))/(4.0*size.d_view(m).dx2);
+      });
+    }
+
+    // In 3D Add [(-2/3)dVz/dz, 0,  dVx/dz]
+    if (three_d) {
+      par_for_inner(member, is, ie+1, [&](const int i) {
+        fvx(i) -= ((w0(m,IVZ,k+1,j,i) + w0(m,IVZ,k+1,j,i-1)) -
+                   (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k-1,j,i-1)))/(6.0*size.d_view(m).dx3);
+        fvz(i) += ((w0(m,IVX,k+1,j,i) + w0(m,IVX,k+1,j,i-1)) -
+                   (w0(m,IVX,k-1,j,i) + w0(m,IVX,k-1,j,i-1)))/(4.0*size.d_view(m).dx3);
+      });
+    }
+
+    // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
+    par_for_inner(member, is, ie+1, [&](const int i) {
+      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
+      flx1(m,IVX,k,j,i) -= nud*fvx(i);
+      flx1(m,IVY,k,j,i) -= nud*fvy(i);
+      flx1(m,IVZ,k,j,i) -= nud*fvz(i);
+      if (eos.is_ideal) {
+        flx1(m,IEN,k,j,i) -= 0.5*nud*((w0(m,IVX,k,j,i-1) + w0(m,IVX,k,j,i))*fvx(i) +
+                                      (w0(m,IVY,k,j,i-1) + w0(m,IVY,k,j,i))*fvy(i) +
+                                      (w0(m,IVZ,k,j,i-1) + w0(m,IVZ,k,j,i))*fvz(i));
+      }
+    });
+  });
+  if (pmy_pack->pmesh->one_d) {return;}
+
+  // fluxes in x2-direction
+  auto flx2 = pvisc->flx.x2f;
+
+  par_for_outer("nbody_visc2", DevExeSpace(), scr_size, scr_level, 0, nmb1, ks, ke, js, je+1,
+  KOKKOS_LAMBDA(TeamMember_t member, const int m, const int k, const int j) {
+    ScrArray1D<Real> fvx(member.team_scratch(scr_level), ncells1);
+    ScrArray1D<Real> fvy(member.team_scratch(scr_level), ncells1);
+    ScrArray1D<Real> fvz(member.team_scratch(scr_level), ncells1);
+
+    // Add [(dVx/dy+dVy/dx), 2(dVy/dy)-(2/3)(dVx/dx+dVy/dy), dVz/dy]
+    par_for_inner(member, is, ie, [&](const int i) {
+      fvx(i) = (w0(m,IVX,k,j,i  ) - w0(m,IVX,k,j-1,i  ))/size.d_view(m).dx2 +
+              ((w0(m,IVY,k,j,i+1) + w0(m,IVY,k,j-1,i+1)) -
+               (w0(m,IVY,k,j,i-1) + w0(m,IVY,k,j-1,i-1)))/(4.0*size.d_view(m).dx1);
+      fvy(i) = (w0(m,IVY,k,j,i) - w0(m,IVY,k,j-1,i))*4.0/(3.0*size.d_view(m).dx2) -
+              ((w0(m,IVX,k,j,i+1) + w0(m,IVX,k,j-1,i+1)) -
+               (w0(m,IVX,k,j,i-1) + w0(m,IVX,k,j-1,i-1)))/(6.0*size.d_view(m).dx1);
+      fvz(i) = (w0(m,IVZ,k,j,i  ) - w0(m,IVZ,k,j-1,i  ))/size.d_view(m).dx2;
+    });
+
+    // In 3D Add [0, (-2/3)dVz/dz, dVy/dz]
+    if (three_d) {
+      par_for_inner(member, is, ie, [&](const int i) {
+        fvy(i) -= ((w0(m,IVZ,k+1,j,i) + w0(m,IVZ,k+1,j-1,i)) -
+                   (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k-1,j-1,i)))/(6.0*size.d_view(m).dx3);
+        fvz(i) += ((w0(m,IVY,k+1,j,i) + w0(m,IVY,k+1,j-1,i)) -
+                   (w0(m,IVY,k-1,j,i) + w0(m,IVY,k-1,j-1,i)))/(4.0*size.d_view(m).dx3);
+      });
+    }
+
+    // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
+    par_for_inner(member, is, ie, [&](const int i) {
+      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
+      flx2(m,IVX,k,j,i) -= nud*fvx(i);
+      flx2(m,IVY,k,j,i) -= nud*fvy(i);
+      flx2(m,IVZ,k,j,i) -= nud*fvz(i);
+      if (eos.is_ideal) {
+        flx2(m,IEN,k,j,i) -= 0.5*nud*((w0(m,IVX,k,j-1,i) + w0(m,IVX,k,j,i))*fvx(i) +
+                                      (w0(m,IVY,k,j-1,i) + w0(m,IVY,k,j,i))*fvy(i) +
+                                      (w0(m,IVZ,k,j-1,i) + w0(m,IVZ,k,j,i))*fvz(i));
+      }
+    });
+  });
+  if (pmy_pack->pmesh->two_d) {return;}
+
+  // fluxes in x3-direction
+  auto flx3 = pvisc->flx.x3f;
+
+  par_for_outer("nbody_visc3", DevExeSpace(), scr_size, scr_level, 0, nmb1, ks, ke+1, js, je,
+  KOKKOS_LAMBDA(TeamMember_t member, const int m, const int k, const int j) {
+    ScrArray1D<Real> fvx(member.team_scratch(scr_level), ncells1);
+    ScrArray1D<Real> fvy(member.team_scratch(scr_level), ncells1);
+    ScrArray1D<Real> fvz(member.team_scratch(scr_level), ncells1);
+
+    // Add [(dVx/dz+dVz/dx), (dVy/dz+dVz/dy), 2(dVz/dz)-(2/3)(dVx/dx+dVy/dy+dVz/dz)]
+    par_for_inner(member, is, ie, [&](const int i) {
+      fvx(i) = (w0(m,IVX,k,j,i  ) - w0(m,IVX,k-1,j,i  ))/size.d_view(m).dx3 +
+              ((w0(m,IVZ,k,j,i+1) + w0(m,IVZ,k-1,j,i+1)) -
+               (w0(m,IVZ,k,j,i-1) + w0(m,IVZ,k-1,j,i-1)))/(4.0*size.d_view(m).dx1);
+      fvy(i) = (w0(m,IVY,k,j,i  ) - w0(m,IVY,k-1,j,i  ))/size.d_view(m).dx3 +
+              ((w0(m,IVZ,k,j+1,i) + w0(m,IVZ,k-1,j+1,i)) -
+               (w0(m,IVZ,k,j-1,i) + w0(m,IVZ,k-1,j-1,i)))/(4.0*size.d_view(m).dx2);
+      fvz(i) = (w0(m,IVZ,k,j,i) - w0(m,IVZ,k-1,j,i))*4.0/(3.0*size.d_view(m).dx3) -
+              ((w0(m,IVX,k,j,i+1) + w0(m,IVX,k-1,j,i+1)) -
+               (w0(m,IVX,k,j,i-1) + w0(m,IVX,k-1,j,i-1)))/(6.0*size.d_view(m).dx1) -
+              ((w0(m,IVY,k,j+1,i) + w0(m,IVY,k-1,j+1,i)) -
+               (w0(m,IVY,k,j-1,i) + w0(m,IVY,k-1,j-1,i)))/(6.0*size.d_view(m).dx2);
+    });
+
+    // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
+    par_for_inner(member, is, ie, [&](const int i) {
+      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
+      flx3(m,IVX,k,j,i) -= nud*fvx(i);
+      flx3(m,IVY,k,j,i) -= nud*fvy(i);
+      flx3(m,IVZ,k,j,i) -= nud*fvz(i);
+      if (eos.is_ideal) {
+        flx3(m,IEN,k,j,i) -= 0.5*nud*((w0(m,IVX,k-1,j,i) + w0(m,IVX,k,j,i))*fvx(i) +
+                                      (w0(m,IVY,k-1,j,i) + w0(m,IVY,k,j,i))*fvy(i) +
+                                      (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k,j,i))*fvz(i));
+      }
+    });
+  });
+
+  return;
+}
+
+void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
+  // viscous timestep on MeshBlock(s) in this pack for inhomogeneous isotropic viscosity
+  dtnew = std::numeric_limits<float>::max();
+  if (nu_iso <= 0.0) return;
+  if (alpha != 0.0) return;
+  auto size = pmy_pack->pmb->mb_size;
+  for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
+    Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
+    Real inv_dx2_max = inv_dx2_sum;
+    if (pmy_pack->pmesh->multi_d) {
+      Real inv_dx2 = 1.0/SQR(size.h_view(m).dx2);
+      inv_dx2_sum += inv_dx2;
+      inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
+    }
+    if (pmy_pack->pmesh->three_d) {
+      Real inv_dx2 = 1.0/SQR(size.h_view(m).dx3);
+      inv_dx2_sum += inv_dx2;
+      inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
+    }
+    Real rate = 2.0 * max_nu_iso.h_view(m) * (inv_dx2_sum + inv_dx2_max/3.0);
+    dtnew = std::min(dtnew, 1.0/rate);
+  }
   return;
 }
 
