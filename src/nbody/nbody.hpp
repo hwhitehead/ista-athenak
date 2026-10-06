@@ -118,8 +118,9 @@ class NBody {
     NBodyTaskIDs id;
 
     // physics module booleans
-    bool src_gravity, src_local_iso, src_accretion;   // Hydro toggles
-    bool inc_backreaction, sum_backreaction, inc_pn;  // NBody toggles
+    bool src_gravity, src_accretion;                    // forcing toggles
+    bool src_local_iso, src_blackbody, src_beta_cool;   // thermodynamic toggles
+    bool inc_backreaction, sum_backreaction, inc_pn;    // NBody toggles
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr;

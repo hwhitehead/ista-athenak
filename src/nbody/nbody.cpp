@@ -57,7 +57,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   if (src_local_iso + src_blackbody + src_beta_cool > 1) {
     if (global_variable::my_rank == 0) {
       std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
-                << "Multiple cooling source terms flagged in athinput" << std::endl;
+                << "Multiple cooling source terms flagged in athinput" << std::endl
                 << "Please select only one of src_local_iso, src_blackbody, or src_beta_cool" << std::endl;
     std::exit(EXIT_FAILURE);
     }
@@ -413,10 +413,6 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
-
-  // in 2D, all cells have fixed vertical size
-  const Real two_H = size.h_view(m).dx3;
-  const Real one_over_4H = 0.5 / two_H;
   const Real sqrt_3_over_4 = 0.25 * std::sqrt(3.0);
 
   // privatise nbody data for par_for
@@ -429,6 +425,10 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
   par_for("nbody_blackbody_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
     {
+      // in 2D, all cells have fixed vertical size
+      const Real two_H = size.h_view(mb_id).dx3;
+      const Real one_over_4H = 0.5 / two_H;
+
       // compute cooling rate based on local density and temperature
       const Real tau = prim(mb_id, IDN, k, j, i) * two_H * kappa_es_code_;
       const Real tau_eff = 0.375 * tau + sqrt_3_over_4 + 0.25 / tau;
@@ -462,10 +462,13 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
+  int num_nbody_ = num_nbody;
   const Real kappa_es_code_  = kappa_es_code;
   const Real gas_const_code_ = gas_const_code;
   const Real rad_const_code_ = rad_const_code;
   const Real c_light_code_   = c_light_code;
+  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  Real inv_Mach_sqr_ = inv_Mach_sqr;
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
