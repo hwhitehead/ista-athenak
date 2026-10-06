@@ -416,7 +416,6 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
   const Real sqrt_3_over_4 = 0.25 * std::sqrt(3.0);
 
   // privatise nbody data for par_for
-  auto &nbody_data_ = nbody_data;
   const Real kappa_es_code_  = kappa_es_code;
   const Real gas_const_code_ = gas_const_code;
   const Real rad_const_code_ = rad_const_code;
@@ -458,10 +457,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
   int num_nbody_ = num_nbody;
-  const Real kappa_es_code_  = kappa_es_code;
-  const Real gas_const_code_ = gas_const_code;
-  const Real rad_const_code_ = rad_const_code;
-  const Real c_light_code_   = c_light_code;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   Real inv_Mach_sqr_ = inv_Mach_sqr;
 
@@ -489,10 +484,10 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         sum_v_sqr += v_sqr;
         sum_omega_sqr += omega_sqr;
       }
-      const Real cs_sqr_target = sum_v_sqr * inv_Mach_sqr_;
+      const Real cs_sqr_target = sum_v_sqr * inv_Mach_sqr_ + 1e-8; // add floor value
       const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
       const Real t_cool = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real cs_sqr_next = (cs_sqr_local - cs_sqr_target) * (Kokkos::exp(-beta_dt / t_cool) - 1);
+      const Real cs_sqr_next = (cs_sqr_local - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
 
       // compute local kinetic energy
       const Real rho = prim(mb_id, IDN, k, j, i);
