@@ -66,7 +66,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   }
 
   // set disc state variables
-  Mach = pin->GetOrAddReal("nbody","Mach", 1.0);
+  Mach = pin->GetOrAddReal("nbody", "Mach", 1.0);
   inv_Mach_sqr = 1.0 / SQR(Mach);
 
   // import unit conversions (else all unity, used for PN terms WIP)
@@ -583,6 +583,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       }
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
+      nu_iso_local = 2.5e-5;
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
