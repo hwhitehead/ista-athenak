@@ -580,12 +580,12 @@ void NBody::CalcViscousFluxAlpha() {
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
-      Kokkos::atomic_max(max_nu_iso_.view_device(), nu_iso_local);
+      Kokkos::atomic_max(max_nu_iso_.view_device(mb_id), nu_iso_local);
     }); // end par_for
     
   // enforce update of maximum tracker on host
-  nu_iso_.template modify<DevExeSpace>();
-  nu_iso_.template sync<HostMemSpace>();
+  max_nu_iso_.template modify<DevExeSpace>();
+  max_nu_iso_.template sync<HostMemSpace>();
 
   return;
 }
@@ -766,7 +766,7 @@ void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_
       inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
     }
     Real rate = 2.0 * max_nu_iso.h_view(m) * (inv_dx2_sum + inv_dx2_max/3.0);
-    dt_visc = std::min(dtnew, 1.0/rate);
+    dt_visc = std::min(dt_visc, 1.0/rate);
   }
   return;
 }
