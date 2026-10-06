@@ -583,7 +583,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       }
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
-      nu_iso_local = 1.5e-4;
+      nu_iso_local = 5e-5;
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
