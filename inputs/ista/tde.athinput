@@ -55,7 +55,7 @@ integrator = rk2        # time integration algorithm
 cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1         # cycle limit
 tlim       = 1000.0     # time limit
-ndiag      = 1          # cycles between diagostic output
+ndiag      = 1.6667     # cycles between diagostic output
 
 <hydro>
 eos         = ideal         # EOS type
