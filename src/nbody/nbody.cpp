@@ -527,7 +527,7 @@ void NBody::CalcViscousFluxAlpha() {
   int is = indcs.is - indcs.ng, ie = indcs.ie + indcs.ng;
   int js = indcs.js, je = indcs.je;
   int ks = indcs.ks, ke = indcs.ke;
-  if (pmy_pack->pmesh->two_d) {
+  if (pmy_pack->pmesh->multi_d) {
     js -= indcs.ng; je += indcs.ng;
   }
   if (pmy_pack->pmesh->three_d) {
@@ -605,6 +605,7 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
   auto &nu_iso_ = nu_iso;
+  const Real temp_static_nu_iso = 1e-6;
 
   // fluxes in x1-direction
   int scr_level = 0;
@@ -646,7 +647,8 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie+1, [&](const int i) {
-      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
+      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
+      Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
       flx1(m,IVX,k,j,i) -= nud*fvx(i);
       flx1(m,IVY,k,j,i) -= nud*fvy(i);
       flx1(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -691,7 +693,8 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
+      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
+      Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx2(m,IVX,k,j,i) -= nud*fvx(i);
       flx2(m,IVY,k,j,i) -= nud*fvy(i);
       flx2(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -730,7 +733,8 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
+      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
+      Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx3(m,IVX,k,j,i) -= nud*fvx(i);
       flx3(m,IVY,k,j,i) -= nud*fvy(i);
       flx3(m,IVZ,k,j,i) -= nud*fvz(i);
