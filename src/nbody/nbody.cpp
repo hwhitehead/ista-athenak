@@ -65,8 +65,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     }
   }
 
-  // set disc state variables TODO: export to seperate class?
-  Mach = pin->GetOrAddReal("problem","Mach", 1.0);
+  // set disc state variables
+  Mach = pin->GetOrAddReal("nbody","Mach", 1.0);
   inv_Mach_sqr = 1.0 / SQR(Mach);
 
   // import unit conversions (else all unity, used for PN terms WIP)
@@ -546,8 +546,6 @@ void NBody::CalcViscousFluxAlpha() {
   auto &nu_iso_ = nu_iso;
   auto &max_nu_iso_ = max_nu_iso;
   int num_nbody_ = num_nbody;
-  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
-  const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real alpha_ = alpha;
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
@@ -593,9 +591,6 @@ void NBody::CalcViscousFluxAlpha() {
 // compute viscous fluxes according to inhomogeneous isotropic viscosity
 void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
     DvceFaceFld5D<Real> &flx) {
-
-  // get shorthand to Viscosity instance
-  auto &pvisc = pmy_pack->phydro->pvisc;
 
   // unpack mesh data per par_for
   auto &indcs = pmy_pack->pmesh->mb_indcs;
