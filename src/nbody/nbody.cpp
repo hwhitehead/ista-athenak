@@ -455,11 +455,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
-  // in 2D, all cells have fixed vertical size
-  const Real two_H = size.h_view(m).dx3;
-  const Real one_over_4H = 0.5 / two_H;
-  const Real sqrt_3_over_4 = 0.25 * std::sqrt(3.0);
-
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
   int num_nbody_ = num_nbody;
@@ -473,6 +468,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
     {
+
       // identify cell position
       const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
