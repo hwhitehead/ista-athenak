@@ -484,22 +484,19 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         sum_v_sqr += v_sqr;
         sum_omega_sqr += omega_sqr;
       }
-      const Real cs_sqr_target = sum_v_sqr * inv_Mach_sqr_ + 1e-8; // add floor value
-      const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
-      const Real t_cool = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real cs_sqr_next = (cs_sqr_local - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
-
-      // compute local kinetic energy
       const Real rho = prim(mb_id, IDN, k, j, i);
-      const Real E_kin = 0.5 * rho * (SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVZ, k, j, i)));
+      const Real cs_sqr_target = sum_v_sqr * inv_Mach_sqr_ + 1e-8; // add floor value
+      const Real cs_sqr_last = prim(mb_id, IPR, k, j, i) / rho;
+      const Real t_cool = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
+      const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
 
       // assert local internal energy
-      const Real E_int = cs_sqr_next * rho * inv_gm1;
+      const Real E_int_last = cs_sqr_last * rho * inv_gm1;
+      const Real E_int_next = cs_sqr_next * rho * inv_gm1;
+      const Real dE_int = E_int_next - E_int_last;
 
       // set local energy
-      const Real E_last = cons(mb_id, IEN, k, j, i);
-      const Real dE = (E_kin + E_int) - E_last; 
-      cons(mb_id, IEN, k, j, i) += dE;
+      cons(mb_id, IEN, k, j, i) += dE_int;
     }); // end par_for
     
   return;
