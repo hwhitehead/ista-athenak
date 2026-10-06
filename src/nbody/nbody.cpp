@@ -547,6 +547,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   auto &max_nu_iso_ = max_nu_iso;
   int num_nbody_ = num_nbody;
   const Real alpha_ = alpha;
+  Real inv_Mach_sqr_ = inv_Mach_sqr;
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -559,6 +560,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
 
       // compute Omega_tilde as quadrature sum of orbital frequency about each body
       Real omega_tilde_sqr = 0.0;
+      Real sum_v_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
@@ -566,16 +568,22 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         const Real r = Kokkos::sqrt(r_sqr) + tiny_number;
         const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real v_sqr = nbody_data.d_view(n, M_DATA) * r / soft_r_sqr;
+        sum_v_sqr += v_sqr;
         const Real omega_sqr = nbody_data_.d_view(n, M_DATA) / (r * soft_r_sqr);
         omega_tilde_sqr += omega_sqr;
       }
 
+      // TEMP: model local sound speed as forced isotherm
+      const Real cs_sqr = sum_v_sqr * inv_Mach_sqr_;
       // set local viscosity according to alpha prescription
-      const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
-      const Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
+      // const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+      Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
-      nu_iso_(mb_id, k, j, i) = 1e-6;
+      // DEBUG: stable when set to flat value, consider assignment methodology
+      // DEBUG: add ceiling to viscosity to handle distant regions
+      nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
       Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
