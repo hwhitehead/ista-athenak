@@ -575,7 +575,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
       const Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
-      nu_iso_(mb_id, k, j, i) = nu_iso_local;
+      nu_iso_(mb_id, k, j, i) = 1e-6;
 
       // thread-safe maximum check for tracker
       Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
