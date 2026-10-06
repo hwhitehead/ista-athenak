@@ -41,13 +41,13 @@ max_nmb_per_rank = 4096
 method = user
 
 <refined_region1>
-x1min = -0.4            
-x1max =  0.0
+x1min = 1.53            
+x1max =  1.93
 x2min = -0.2
 x2max =  0.2
 x3min = -0.05
 x3max = 0.05
-level = 2
+level = 3
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
