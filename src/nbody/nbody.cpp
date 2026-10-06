@@ -540,6 +540,7 @@ void NBody::CalcViscousFluxAlpha() {
   Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
   max_nu_iso.template modify<HostMemSpace>();
   max_nu_iso.template sync<DevExeSpace>();
+  const Real tiny_number = std::numeric_limits<double>::max();
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
@@ -564,7 +565,7 @@ void NBody::CalcViscousFluxAlpha() {
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
         const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-        const Real r = Kokkos::sqrt(r_sqr);
+        const Real r = Kokkos::sqrt(r_sqr) + tiny_number;
         const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
         const Real omega_sqr = nbody_data_.d_view(n, M_DATA) / (r * soft_r_sqr);
         omega_tilde_sqr += omega_sqr;
@@ -575,7 +576,8 @@ void NBody::CalcViscousFluxAlpha() {
       const Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
-      nu_iso_(mb_id, k, j, i) = nu_iso_local;
+      // TEMP set as fixed value
+      nu_iso_(mb_id, k, j, i) = 1e-6;
 
       // thread-safe maximum check for tracker
       Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
