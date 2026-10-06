@@ -548,6 +548,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   int num_nbody_ = num_nbody;
   const Real alpha_ = alpha;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
+  bool src_local_iso_ = src_local_iso;
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -574,15 +575,16 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         omega_tilde_sqr += omega_sqr;
       }
 
-      // TEMP: model local sound speed as forced isotherm
-      const Real cs_sqr = sum_v_sqr * inv_Mach_sqr_;
-      // set local viscosity according to alpha prescription
-      // const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+      // calculate local kinematic viscosity
+      const Real cs_sqr;
+      if (src_local_iso_) { // use assumed fixed Mach profile
+        cs_sqr = sum_v_sqr * inv_Mach_sqr_;
+      } else { // use local hydro state
+        cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+      }
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
-      // DEBUG: stable when set to flat value, consider assignment methodology
-      // DEBUG: add ceiling to viscosity to handle distant regions
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
