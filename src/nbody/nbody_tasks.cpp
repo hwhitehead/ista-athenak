@@ -64,6 +64,11 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
   const Real dt_sqr = dt_current * dt_current;
   dt_new = dt_sqr / dt_old;
 
+  // check against diffusive timescale
+  if (alpha != 0.0) {
+    dt_new = std::max(dt_new, dt_visc);
+  }
+
   return TaskStatus::complete;
 }
 

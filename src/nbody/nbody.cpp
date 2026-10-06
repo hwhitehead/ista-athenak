@@ -536,6 +536,11 @@ void NBody::CalcViscousFluxAlpha() {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
 
+  // set maximum register to zero
+  Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
+  max_nu_iso.template modify<HostMemSpace>();
+  max_nu_iso.template sync<DevExeSpace>();
+
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
   auto &nu_iso_ = nu_iso;
@@ -544,11 +549,6 @@ void NBody::CalcViscousFluxAlpha() {
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real alpha_ = alpha;
-
-  // set maximum register to zero
-  Kokkos::deep_copy(max_nu_iso_.view_host(), 0.0);
-  max_nu_iso_.template modify<HostMemSpace>();
-  max_nu_iso_.template sync<DevExeSpace>();
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -607,7 +607,7 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
   auto size = pmy_pack->pmb->mb_size;
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
-  auto &nu_iso_ nu_iso;
+  auto &nu_iso_ = nu_iso;
 
   // fluxes in x1-direction
   int scr_level = 0;
@@ -750,7 +750,7 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
 void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
   // viscous timestep on MeshBlock(s) in this pack for inhomogeneous isotropic viscosity
-  dtnew = std::numeric_limits<float>::max();
+  dt_visc = std::numeric_limits<float>::max();
   auto size = pmy_pack->pmb->mb_size;
   for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
     Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
@@ -766,7 +766,7 @@ void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_
       inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
     }
     Real rate = 2.0 * max_nu_iso.h_view(m) * (inv_dx2_sum + inv_dx2_max/3.0);
-    dtnew = std::min(dtnew, 1.0/rate);
+    dt_visc = std::min(dtnew, 1.0/rate);
   }
   return;
 }

@@ -98,6 +98,7 @@ class NBody {
     // Data
     int num_nbody;                // number of discrete bodies to track
     Real dt_new, dt_old;          // stable nbody timestep
+    Real dt_visc;                 // stable timestep for diffusive module
     Real eta_dt;                  // prefactor for stable timestep
     Real G_const;                 // gravitational constant in code units
     DualArray2D<Real> nbody_data; // principle data register shape = (num_nbody, NVAR_DATA)
