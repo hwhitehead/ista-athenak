@@ -528,10 +528,10 @@ void NBody::CalcViscousFluxAlpha() {
   int js = indcs.js, je = indcs.je;
   int ks = indcs.ks, ke = indcs.ke;
   if (pmy_pack->pmesh->two_d) {
-    jl -= indcs.ng; ju += indcs.ng;
+    js -= indcs.ng; je += indcs.ng;
   }
   if (pmy_pack->pmesh->three_d) {
-    kl -= indcs.ng; ku += indcs.ng;
+    ks -= indcs.ng; ke += indcs.ng;
   }
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
@@ -539,15 +539,16 @@ void NBody::CalcViscousFluxAlpha() {
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
   auto &nu_iso_ = nu_iso;
+  auto &max_nu_iso_ = max_nu_iso;
   int num_nbody_ = num_nbody;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real alpha_ = alpha;
 
   // set maximum register to zero
-  Kokkos::deep_copy(nu_iso_.view_host(), 0.0);
-  nu_iso_.template modify<HostMemSpace>();
-  nu_iso_.template sync<DevExeSpace>();
+  Kokkos::deep_copy(max_nu_iso_.view_host(), 0.0);
+  max_nu_iso_.template modify<HostMemSpace>();
+  max_nu_iso_.template sync<DevExeSpace>();
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -576,10 +577,10 @@ void NBody::CalcViscousFluxAlpha() {
       const Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
-      nu_iso_.h_view(mb_id, k, j, i) = nu_iso_local;
+      nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
-      Kokkos::atomic_max(&max_nu_iso.d_view(), nu_iso_local);
+      Kokkos::atomic_max(max_nu_iso_.view_device(), nu_iso_local);
     }); // end par_for
     
   // enforce update of maximum tracker on host
@@ -606,12 +607,12 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
   auto size = pmy_pack->pmb->mb_size;
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
-  Real nu_iso_ = 1e-6; // TEMP: set to low homogeneousvalue
+  auto &nu_iso_ nu_iso;
 
   // fluxes in x1-direction
   int scr_level = 0;
   size_t scr_size = (ScrArray1D<Real>::shmem_size(ncells1)) * 3;
-  auto flx1 = pvisc->flx.x1f;
+  auto flx1 = flx.x1f;
 
   par_for_outer("nbody_visc1", DevExeSpace(), scr_size, scr_level, 0, nmb1, ks, ke, js, je,
   KOKKOS_LAMBDA(TeamMember_t member, const int m, const int k, const int j) {
@@ -662,7 +663,7 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
   if (pmy_pack->pmesh->one_d) {return;}
 
   // fluxes in x2-direction
-  auto flx2 = pvisc->flx.x2f;
+  auto flx2 = flx.x2f;
 
   par_for_outer("nbody_visc2", DevExeSpace(), scr_size, scr_level, 0, nmb1, ks, ke, js, je+1,
   KOKKOS_LAMBDA(TeamMember_t member, const int m, const int k, const int j) {
@@ -707,7 +708,7 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
   if (pmy_pack->pmesh->two_d) {return;}
 
   // fluxes in x3-direction
-  auto flx3 = pvisc->flx.x3f;
+  auto flx3 = flx.x3f;
 
   par_for_outer("nbody_visc3", DevExeSpace(), scr_size, scr_level, 0, nmb1, ks, ke+1, js, je,
   KOKKOS_LAMBDA(TeamMember_t member, const int m, const int k, const int j) {
@@ -750,8 +751,6 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
   // viscous timestep on MeshBlock(s) in this pack for inhomogeneous isotropic viscosity
   dtnew = std::numeric_limits<float>::max();
-  if (nu_iso <= 0.0) return;
-  if (alpha != 0.0) return;
   auto size = pmy_pack->pmb->mb_size;
   for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
     Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
