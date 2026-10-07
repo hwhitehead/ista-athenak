@@ -240,6 +240,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   // general NBody properties 
   auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
+  const Real G_const_  = G_const;
 
   // thermodynamic properties
   const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
@@ -303,7 +304,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu
               sink_rate = nu_iso_homo_ / dr_sqr;
             } else { // rate is inverse of viscous time for inhomo nu
-              sink_rate = nu_iso_(mb_id, k, j, i) / dr_sqr;
+              sink_rate = nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
             sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);    // limit to maximum 90% removal per finetimestep
