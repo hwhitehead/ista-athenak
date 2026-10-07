@@ -206,7 +206,7 @@ Real NBody::CalcTimeStep() {
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
   // point mass src terms
-  if (src_gravity || src_accretion) {
+  if (src_gravity) {
     NBodyPointSrcTerm(beta_dt);
   }
 
@@ -339,6 +339,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         cons(mb_id, IM3, k, j, i) += dpz_grav + dpz_acc;
 
         // TODO: this should be computed using acceleration and fluxes on cell FACES
+        // build phi register in NBody to avoid repeat computation
         if (is_ideal && !src_local_iso_) { // only compute energy change if ideal AND not forced iso
           const Real dE = dpx_grav * prim(mb_id, IVX, k, j, i)
                         + dpy_grav * prim(mb_id, IVY, k, j, i)
