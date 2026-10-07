@@ -66,20 +66,21 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   } else if (num_nbody == 0){
     if (global_variable::my_rank == 0) {
       std::cout << "### FATAL ERROR in ProblemGenerator::UserProblem" << std::endl
-                << "Require num_nbody > 1 to intialise disc" << std::endl;
+                << "Require num_nbody > 0 to host disc" << std::endl;
       std::exit(EXIT_FAILURE);
     }
   }
 
   // set host properties
-  const Real m_host      = pin->GetReal("nbody", "m" + !orbit_primary);
-  const Real x_host      = pin->GetReal("nbody", "x" + !orbit_primary);
-  const Real y_host      = pin->GetReal("nbody", "y" + !orbit_primary);
-  const Real z_host      = pin->GetReal("nbody", "z" + !orbit_primary);
-  const Real vx_host     = pin->GetReal("nbody", "vx" + !orbit_primary);
-  const Real vy_host     = pin->GetReal("nbody", "vy" + !orbit_primary);
-  const Real vz_host     = pin->GetReal("nbody", "vz" + !orbit_primary);
-  const Real r_soft_host = pin->GetReal("nbody", "r_soft" + !orbit_primary);
+  std::string host_index = (orbit_primary) ? "0" : "1";
+  const Real m_host      = pin->GetReal("nbody", "m" + host_index);
+  const Real x_host      = pin->GetReal("nbody", "x" + host_index);
+  const Real y_host      = pin->GetReal("nbody", "y" + host_index);
+  const Real z_host      = pin->GetReal("nbody", "z" + host_index);
+  const Real vx_host     = pin->GetReal("nbody", "vx" + host_index);
+  const Real vy_host     = pin->GetReal("nbody", "vy" + host_index);
+  const Real vz_host     = pin->GetReal("nbody", "vz" + host_index);
+  const Real r_soft_host = pin->GetReal("nbody", "r_soft" + host_index);
 
   // set initial hydrodynamic state
   if (pmbp->phydro != nullptr) 

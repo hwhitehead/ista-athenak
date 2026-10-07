@@ -89,7 +89,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 //! <nbody> block. During runtime, the body masses, positions and velocites are evolved 
 //! according to their mutual gravity and coupling with the gas, connected using source 
 //! terms which allow for gas-body gravity and accretion. The nbody state is evolved on 
-//! the same timestep as the Hydro state, ensuring direct 
+//! the same timestep as the Hydro state, ensuring direct synchronicity
 class NBody {
   public:
     NBody(MeshBlockPack *ppack, ParameterInput *pin);
@@ -103,6 +103,7 @@ class NBody {
     Real G_const;                 // gravitational constant in code units
     DualArray2D<Real> nbody_data; // principle data register shape = (num_nbody, NVAR_DATA)
     bool verbose;                 // boolean flag for command line progress writes
+    Real rho_sink_floor;          // minimum density in sink region 
 
     // Back reaction communicators shape = (num_nbody, NVAR_REG)
     DualArray2D<Real> delta_this_pack;  // DUAL summation for backreaction in this MeshBlockPack
@@ -123,6 +124,7 @@ class NBody {
     bool src_gravity, src_accretion;                    // forcing toggles
     bool src_local_iso, src_blackbody, src_beta_cool;   // thermodynamic toggles
     bool inc_backreaction, sum_backreaction, inc_pn;    // NBody toggles
+    int  sink_mode;                                     // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr;

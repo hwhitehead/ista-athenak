@@ -61,13 +61,15 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
       std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
                 << "Multiple cooling source terms flagged in athinput" << std::endl
                 << "Please select only one of src_local_iso, src_blackbody, or src_beta_cool" << std::endl;
-    std::exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
     }
   }
 
   // set disc state variables
-  Mach = pin->GetOrAddReal("nbody", "Mach", 1.0);
-  inv_Mach_sqr = 1.0 / SQR(Mach);
+  Mach           = pin->GetOrAddReal("nbody", "Mach", 1.0);
+  inv_Mach_sqr   = 1.0 / SQR(Mach);
+  rho_sink_floor = pin->GetOrAddReal("nbody", "rho_sink_floor", 1e-8);
+  sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0);
 
   // import unit conversions (else all unity, used for PN terms WIP)
   // X_SI = X_CODE * unit_X
@@ -101,8 +103,21 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
-  }
+  } 
 
+  // check validity of sink prescription
+  if (global_variable::my_rank == 0) {
+    if ((sink_mode == 1) && (pin->GetOrAddReal("hydro","nu_iso",0.0) == 0)) {
+      std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
+                << "sink_mode = 1 incompatible with nu_iso = 0" << std::endl;
+      std::exit(EXIT_FAILURE);
+    } else if ((sink_mode == 2) && (alpha == 0)) {
+      std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
+                << "sink_mode = 2 incompatible with alpha = 0" << std::endl;
+      std::exit(EXIT_FAILURE);
+    } // end sink_mode check
+  } // end if rank 0
+  
   // principle registers for wider access
   Kokkos::realloc(nbody_data,  num_nbody, NVAR_DATA);    
   Kokkos::realloc(nbody_data1, num_nbody, NVAR_REG);        
@@ -191,7 +206,7 @@ Real NBody::CalcTimeStep() {
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
   // point mass src terms
-  if (src_gravity) {
+  if (src_gravity || src_accretion) {
     NBodyPointSrcTerm(beta_dt);
   }
 
@@ -212,8 +227,6 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
 // source gravity and accretion for each body
 void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
-  // unpack all data pre par_for
-
   // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
@@ -224,15 +237,25 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
-  // NBody properties (bypass implicit this)
-  auto &nbody_data_ = nbody_data;
-  int num_nbody_ = num_nbody;
-  auto &delta_this_pack_ = delta_this_pack;
-  auto G_const_ = G_const;
-  bool is_ideal = pmy_pack->phydro->peos->eos_data.is_ideal;
+  // general NBody properties 
+  auto &nbody_data_    = nbody_data;
+  const int num_nbody_ = num_nbody;
+
+  // thermodynamic properties
+  const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
+  const bool src_local_iso_ = src_local_iso;
+
+  // back reation properties
   bool sum_backreaction_ = sum_backreaction;
-  bool src_local_iso_ = src_local_iso;
-  bool src_accretion_ = src_accretion;
+  auto &delta_this_pack_ = delta_this_pack;
+  
+  // accretion properties
+  const bool src_accretion_  = src_accretion;
+  const Real rho_sink_floor_ = rho_sink_floor;
+  const int sink_mode_       = sink_mode;
+  Real nu_iso_homo_          = 0.0;
+  if (sink_mode_ == 1) nu_iso_homo_ = pmy_pack->phydro->pvisc->nu_iso;
+  auto &nu_iso_inhomo_       = nu_iso; 
 
   par_for("nbody_gravity_src", 
           DevExeSpace(), 
@@ -269,36 +292,42 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         // apply accretion, if in sink radius and flagged
         Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
         if (src_accretion_) {
+          // only accrete down to floor value to avoid blowup
+          const Real drho_floor = rho_sink_floor_ - rho; 
           const Real r_ratio = dr_true / nbody_data_.d_view(n, R_SOFT_DATA);
-          if (r_ratio < 2) { 
+          if ((drho_floor < 0) && (r_ratio < 2)) { 
             // compute mass loss rate
-            Real sink_rate = 100 * Kokkos::exp(-Kokkos::pow(r_ratio, 4.0));
-            sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);
-            // only accrete down to floor value to avoid blowup
-            const Real drho_floor = 1e-6 - rho; // TODO: set at runtime with pin
-            if (drho_floor < 0) { // rho > rho_floor
-              const Real rhodot = - rho * sink_rate;
-              drho_acc = rhodot * beta_dt;
-              // ensure accretion only drives to sink value
-              drho_acc = Kokkos::max(drho_acc, drho_floor);
-              // apply torque free sink
-              const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
-              const Real rhatx = dx * inv_r;
-              const Real rhaty = dy * inv_r;
-              const Real rhatz = dz * inv_r;
-              const Real vx_n = nbody_data_.d_view(n, VX_DATA);
-              const Real vy_n = nbody_data_.d_view(n, VY_DATA);
-              const Real vz_n = nbody_data_.d_view(n, VZ_DATA);
-              const Real dvdotrhat = (prim(mb_id, IVX, k, j, i) - vx_n) * rhatx 
-                                   + (prim(mb_id, IVY, k, j, i) - vy_n) * rhaty 
-                                   + (prim(mb_id, IVZ, k, j, i) - vz_n) * rhatz;
-              const Real vxstar    = dvdotrhat * rhatx + vx_n;
-              const Real vystar    = dvdotrhat * rhaty + vy_n;
-              const Real vzstar    = dvdotrhat * rhatz + vz_n;
-              dpx_acc = drho_acc * vxstar;
-              dpy_acc = drho_acc * vystar;
-              dpz_acc = drho_acc * vzstar;
-            } // end +ve rho_to_flor check
+            Real sink_rate;
+            if (sink_mode_ == 0) { // use flat, hungry sink rate
+              sink_rate = 100;
+            } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu
+              sink_rate = nu_iso_homo_ / dr_sqr;
+            } else { // rate is inverse of viscous time for inhomo nu
+              sink_rate = nu_iso_(mb_id, k, j, i) / dr_sqr;
+            }
+            sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
+            sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);    // limit to maximum 90% removal per finetimestep
+            const Real rhodot = - rho * sink_rate;
+            drho_acc = rhodot * beta_dt;
+            // ensure accretion only drives to sink value
+            drho_acc = Kokkos::max(drho_acc, drho_floor);
+            // apply torque free sink
+            const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
+            const Real rhatx = dx * inv_r;
+            const Real rhaty = dy * inv_r;
+            const Real rhatz = dz * inv_r;
+            const Real vx_n = nbody_data_.d_view(n, VX_DATA);
+            const Real vy_n = nbody_data_.d_view(n, VY_DATA);
+            const Real vz_n = nbody_data_.d_view(n, VZ_DATA);
+            const Real dvdotrhat = (prim(mb_id, IVX, k, j, i) - vx_n) * rhatx 
+                                  + (prim(mb_id, IVY, k, j, i) - vy_n) * rhaty 
+                                  + (prim(mb_id, IVZ, k, j, i) - vz_n) * rhatz;
+            const Real vxstar    = dvdotrhat * rhatx + vx_n;
+            const Real vystar    = dvdotrhat * rhaty + vy_n;
+            const Real vzstar    = dvdotrhat * rhatz + vz_n;
+            dpx_acc = drho_acc * vxstar;
+            dpy_acc = drho_acc * vystar;
+            dpz_acc = drho_acc * vzstar;
           } // end in sink
         } // end src_accretion
 
