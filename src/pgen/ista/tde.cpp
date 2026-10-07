@@ -58,57 +58,39 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
   const Real alpha = pin->GetOrAddReal("problem", "alpha", 0.0);
 
-  // isolate initial binary state (NBody not assured init during pgen)
-  const Real m_prim = pin->GetReal("nbody", "m0");
-  const Real x_prim = pin->GetReal("nbody", "x0");
-  const Real y_prim = pin->GetReal("nbody", "y0");
-  const Real z_prim = pin->GetReal("nbody", "z0");
-  const Real vx_prim = pin->GetReal("nbody", "vx0");
-  const Real vy_prim = pin->GetReal("nbody", "vy0");
-  const Real vz_prim = pin->GetReal("nbody", "vz0");
-  const Real r_soft_prim = pin->GetReal("nbody", "r_soft0");
-
-  const Real m_sec = pin->GetReal("nbody", "m1");
-  const Real x_sec = pin->GetReal("nbody", "x1");
-  const Real y_sec = pin->GetReal("nbody", "y1");
-  const Real z_sec = pin->GetReal("nbody", "z1");
-  const Real vx_sec = pin->GetReal("nbody", "vx1");
-  const Real vy_sec = pin->GetReal("nbody", "vy1");
-  const Real vz_sec = pin->GetReal("nbody", "vz1");
-  const Real r_soft_sec = pin->GetReal("nbody", "r_soft1");
-
-  // specify disc parent using pin
-  const bool orbit_primary = pin->GetOrAddBoolean("problem", "orbit_primary", true);
-  Real m_parent, x_parent, y_parent, z_parent, vx_parent, vy_parent, vz_parent, r_soft_parent;
-  if (orbit_primary) {
-    m_parent = m_prim;
-    x_parent = x_prim;
-    y_parent = y_prim;
-    z_parent = z_prim;
-    vx_parent = vx_prim;
-    vy_parent = vy_prim;
-    vz_parent = vz_prim;
-    r_soft_parent = r_soft_prim;
-  } else {
-    m_parent = m_sec;
-    x_parent = x_sec;
-    y_parent = y_sec;
-    z_parent = z_sec;
-    vx_parent = vx_sec;
-    vy_parent = vy_sec;
-    vz_parent = vz_sec;
-    r_soft_parent = r_soft_sec;
+  // define host, with check for number of bodies
+  bool orbit_primary = pin->GetOrAddBoolean("problem", "orbit_primary", true);
+  if (num_body == 1) {
+    // enforce primary as host
+    orbit_primary = true;
+  } else if (num_nbody == 0){
+    if (global_variable::my_rank == 0) {
+      std::cout << "### FATAL ERROR in ProblemGenerator::UserProblem" << std::endl
+                << "Require num_nbody > 1 to intialise disc" << std::endl;
+    std::exit(EXIT_FAILURE);
   }
 
-  // (2) access prims from mesh block pack
+  // set host properties
+  const Real m_host      = pin->GetReal("nbody", "m" + !orbit_primary);
+  const Real x_host      = pin->GetReal("nbody", "x" + !orbit_primary);
+  const Real y_host      = pin->GetReal("nbody", "y" + !orbit_primary);
+  const Real z_host      = pin->GetReal("nbody", "z" + !orbit_primary);
+  const Real vx_host     = pin->GetReal("nbody", "vx" + !orbit_primary);
+  const Real vy_host     = pin->GetReal("nbody", "vy" + !orbit_primary);
+  const Real vz_host     = pin->GetReal("nbody", "vz" + !orbit_primary);
+  const Real r_soft_host = pin->GetReal("nbody", "r_soft" + !orbit_primary);
+
+  // set initial hydrodynamic state
   if (pmbp->phydro != nullptr) 
   {
 
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
     const Real inv_Mach = 1.0 / Mach;
+    const Real inv_Mach_sqr = SRQ(inv_Mach);
     const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
-    const Real cs_sqr_floor = 1e-8;
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
+    const Real rho_floor_fac = pin->GetOrAddReal("problem", "rho_floor_fac", 1e-8);
+    const Real cs_sqr_floor = pin->GetOrAddReal("problem", "cs_sqr_floor", 1e-8);
 
     // (3) loop over cells
     par_for("pgen_tde", 
@@ -119,8 +101,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
             is, ie,                      // Loop 4: i = x index
     
     KOKKOS_LAMBDA(int m, int k, int j, int i) { 
-    // Lambda function for every (m,k,j,i) combination:
 
+      // update coordinates for MeshBlock m
       Real &x1min = size.d_view(m).x1min;                   // xmin
       Real &x1max = size.d_view(m).x1max;                   // xmax
       int nx1     = indcs.nx1;                              // nx
@@ -136,22 +118,23 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       int nx3     = indcs.nx3;                              // nz
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
-      // determine distance from primary
-      const Real r_sqr = SQR(x1v - x_parent) + SQR(x2v - y_parent) + SQR(x3v - z_parent);
-      const Real r = Kokkos::sqrt(r_sqr);
-      const Real soft_r_sqr = SQR(r_soft_parent) + r_sqr;
+      // determine distance from host in cylindrical and spherical polars 
+      const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
+      const Real z = x3v - z_host;
+      // const Real r_sqr = R_sqr + SQR(x3v - z_parent);
+      const Real R = Kokkos::sqrt(R_sqr);
+      const Real soft_R_sqr = SQR(r_soft_host) + R_sqr;
 
-      // set density using inverse cavity kernel
-      const Real delta_floor = 1e-6;
-      //const Real cavity_func = (1.0 - delta_floor) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 12.0)); 
-      const Real cavity_func = 1.0; // TEMP run without cavity for low-res runs
-      //const Real disc_func = 1.0 - Kokkos::exp(-Kokkos::pow((r_minidisc / (r - r_minidisc)),2.0));
-      const Real disc_func = 1.0 / Kokkos::cosh(Kokkos::pow(r/r_minidisc,4.0));
-      const Real rho = rho0 * (disc_func * cavity_func + delta_floor);
+      // set density using radial and vertical profile
+      // disc is ALWAYS in the x-y plane, orbit is rotate
+      const Real radial_profile = 1.0 / Kokkos::cosh(Kokkos::pow(r/r_minidisc,4.0));
+      const Real H_sqr = R_sqr * inv_Mach_sqr;
+      const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
+      const Real rho = rho0 * (radial_profile * vertical_profile + rho_floor_fac);
 
-      // set velocity in disc (everything Keplerian about primary, including cavity)
+      // set velocity in disc (everything Keplerian about host)
       // velocity profile should match softened potential
-      const Real v_phi_sqr = m_parent * r / soft_r_sqr;
+      const Real v_phi_sqr = m_host * R / soft_R_sqr;
       Real v_phi = Kokkos::sqrt(v_phi_sqr);
       if (prograde) {
         v_phi = v_phi;
@@ -162,10 +145,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vx = vx_parent - v_phi * Kokkos::sin(phi);
       const Real vy = vy_parent + v_phi * Kokkos::cos(phi);
       const Real vz = vz_parent;
-      // ^ todo: generalise this to 3D
 
       // set pressure
-      const Real cs_sqr_local = SQR(v_phi / Mach) + cs_sqr_floor;
+      const Real cs_sqr_local = SQR(v_phi) * inv_Mach_sqr + cs_sqr_floor;
       const Real P = cs_sqr_local * rho;
       
       // ===== Set primitive variables =====

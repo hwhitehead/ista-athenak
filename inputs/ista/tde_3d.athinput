@@ -20,9 +20,9 @@ x2max     =  1.0       # maximum value of X2
 ix2_bc    = diode     # inner-X2 boundary flag
 ox2_bc    = diode     # outer-X2 boundary flag
 
-nx3       = 1           # Number of zones in X3-direction (root level, dx=0.1)
-x3min     = -0.05       # minimum value of X3
-x3max     =  0.05       # maximum value of X3
+nx3       = 64           # Number of zones in X3-direction (root level, dx=0.1)
+x3min     = -0.25       # minimum value of X3
+x3max     =  0.25       # maximum value of X3
 ix3_bc    = outflow     # inner-X3 boundary flag
 ox3_bc    = outflow     # outer-X3 boundary flag
 
