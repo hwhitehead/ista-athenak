@@ -583,7 +583,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       }
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
-      nu_iso_local = 5e-5;
+      // nu_iso_local = 5e-5;
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
@@ -595,6 +595,11 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   // enforce update of maximum tracker on host
   max_nu_iso.template modify<DevExeSpace>();
   max_nu_iso.template sync<HostMemSpace>();
+
+  // TEMP: verbose viscosity report
+  for (int i = 0; i < pmy_pack->nmb_thispack; i++) {
+    std::cout << "nu_iso_max (MeshBlock " << i << ") = " << max_nu_iso.h_view(i) << std::endl;
+  }
 
   return;
 }
@@ -655,7 +660,10 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie+1, [&](const int i) {
-      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
+      Real nu1 = 0.5 * (nu_iso_(m,k,j,i) + nu_iso_(m,k,j,i-1));
+      Real denf = 0.5 * (w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
+      Real nud = nu1 * denf;
+      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j,i-1) * nu_iso_(m,k,j,i-1));
       //Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
       flx1(m,IVX,k,j,i) -= nud*fvx(i);
       flx1(m,IVY,k,j,i) -= nud*fvy(i);
@@ -701,7 +709,10 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
+      Real nu1 = 0.5 * (nu_iso_(m,k,j,i) + nu_iso_(m,k,j-1,i));
+      Real denf = 0.5 * (w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
+      Real nud = nu1 * denf;
+      //Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k,j-1,i) * nu_iso_(m,k,j-1,i));
       //Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx2(m,IVX,k,j,i) -= nud*fvx(i);
       flx2(m,IVY,k,j,i) -= nud*fvy(i);
@@ -741,7 +752,10 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
+      Real nu1 = 0.5 * (nu_iso_(m,k,j,i) + nu_iso_(m,k-1,j,i));
+      Real denf = 0.5 * (w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
+      Real nud = nu1 * denf;
+      // Real nud = 0.5 * (w0(m,IDN,k,j,i) * nu_iso_(m,k,j,i) + w0(m,IDN,k-1,j,i) * nu_iso_(m,k-1,j,i));
       //Real nud = 0.5*temp_static_nu_iso*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx3(m,IVX,k,j,i) -= nud*fvx(i);
       flx3(m,IVY,k,j,i) -= nud*fvy(i);
@@ -774,8 +788,9 @@ void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_
       inv_dx2_sum += inv_dx2;
       inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
     }
+    // use maximum reported viscosity in this MeshBlock to compute rate
     Real rate = 2.0 * max_nu_iso.h_view(m) * (inv_dx2_sum + inv_dx2_max/3.0);
-    dt_visc = std::min(dt_visc, 1.0/rate);
+    dt_visc = pmy_pack->pmesh->cfl_no * std::min(dt_visc, 1.0/rate);
   }
   return;
 }
