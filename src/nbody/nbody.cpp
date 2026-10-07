@@ -583,10 +583,6 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       }
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
-      // nu_iso_local = 5e-5;
-      // Kokkos::printf("alpha_ = %f\n", alpha_);
-      // Kokkos::printf("cs_sqr = %f\n", cs_sqr);
-      // Kokkos::printf("omega_tilde_sqr = %f\n", omega_tilde_sqr);
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
@@ -598,11 +594,6 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   // enforce update of maximum tracker on host
   max_nu_iso.template modify<DevExeSpace>();
   max_nu_iso.template sync<HostMemSpace>();
-
-  // TEMP: verbose viscosity report
-  for (int i = 0; i < pmy_pack->nmb_thispack; i++) {
-    std::cout << "nu_iso_max (MeshBlock " << i << ") = " << max_nu_iso.h_view(i) << std::endl;
-  }
 
   return;
 }
