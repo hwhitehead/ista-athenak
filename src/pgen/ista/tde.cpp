@@ -60,14 +60,15 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // define host, with check for number of bodies
   bool orbit_primary = pin->GetOrAddBoolean("problem", "orbit_primary", true);
-  if (num_body == 1) {
+  if (num_nbody == 1) {
     // enforce primary as host
     orbit_primary = true;
   } else if (num_nbody == 0){
     if (global_variable::my_rank == 0) {
       std::cout << "### FATAL ERROR in ProblemGenerator::UserProblem" << std::endl
                 << "Require num_nbody > 1 to intialise disc" << std::endl;
-    std::exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
+    }
   }
 
   // set host properties
@@ -86,7 +87,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
     auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
     const Real inv_Mach = 1.0 / Mach;
-    const Real inv_Mach_sqr = SRQ(inv_Mach);
+    const Real inv_Mach_sqr = SQR(inv_Mach);
     const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
     const Real rho_floor_fac = pin->GetOrAddReal("problem", "rho_floor_fac", 1e-8);
@@ -127,7 +128,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set density using radial and vertical profile
       // disc is ALWAYS in the x-y plane, orbit is rotate
-      const Real radial_profile = 1.0 / Kokkos::cosh(Kokkos::pow(r/r_minidisc,4.0));
+      const Real radial_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_minidisc,4.0));
       const Real H_sqr = R_sqr * inv_Mach_sqr;
       const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
       const Real rho = rho0 * (radial_profile * vertical_profile + rho_floor_fac);
@@ -141,10 +142,10 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       } else {
         v_phi *= -1.0;
       }
-      const Real phi = Kokkos::atan2(x2v - y_parent, x1v - x_parent); // RH argument from +x axis
-      const Real vx = vx_parent - v_phi * Kokkos::sin(phi);
-      const Real vy = vy_parent + v_phi * Kokkos::cos(phi);
-      const Real vz = vz_parent;
+      const Real phi = Kokkos::atan2(x2v - y_host, x1v - x_host); // RH argument from +x axis
+      const Real vx = vx_host - v_phi * Kokkos::sin(phi);
+      const Real vy = vy_host + v_phi * Kokkos::cos(phi);
+      const Real vz = vz_host;
 
       // set pressure
       const Real cs_sqr_local = SQR(v_phi) * inv_Mach_sqr + cs_sqr_floor;
