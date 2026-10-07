@@ -539,7 +539,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
   max_nu_iso.template modify<HostMemSpace>();
   max_nu_iso.template sync<DevExeSpace>();
-  const Real tiny_number = std::numeric_limits<double>::max();
+  const Real tiny_number = std::numeric_limits<double>::min();
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
@@ -584,9 +584,9 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
       }
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
       // nu_iso_local = 5e-5;
-      Kokkos::printf("alpha_ = %f\n", alpha_);
-      Kokkos::printf("cs_sqr = %f\n", cs_sqr);
-      Kokkos::printf("omega_tilde_sqr = %f\n", omega_tilde_sqr);
+      // Kokkos::printf("alpha_ = %f\n", alpha_);
+      // Kokkos::printf("cs_sqr = %f\n", cs_sqr);
+      // Kokkos::printf("omega_tilde_sqr = %f\n", omega_tilde_sqr);
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
