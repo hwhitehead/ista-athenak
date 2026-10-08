@@ -299,11 +299,11 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           if ((drho_floor < 0) && (r_ratio < 2)) { 
             // compute mass loss rate
             Real sink_rate;
-            if (sink_mode_ == 0) { // use flat, hungry sink rate
+            if (sink_mode_ == 0) {        // use flat, hungry sink rate
               sink_rate = 100;
             } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu
               sink_rate = nu_iso_homo_ / dr_sqr;
-            } else { // rate is inverse of viscous time for inhomo nu
+            } else {                      // rate is inverse of viscous time for inhomo nu
               sink_rate = nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
