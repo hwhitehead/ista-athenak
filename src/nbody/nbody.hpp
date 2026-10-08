@@ -38,10 +38,10 @@ struct NBodyTaskIDs {
 enum NBodyDataIndices {M_DATA = 0, 
                         X_DATA = 1, Y_DATA = 2, Z_DATA = 3,
                         VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6, MDOT_DATA = 7,
-                        AX_GRAV_DATA = 7, AY_GRAV_DATA = 8, AZ_GRAV_DATA = 9,
-                        AX_ACC_DATA = 10, AY_ACC_DATA = 11, AZ_ACC_DATA = 12,
-                        R_SOFT_DATA = 13, R_AMR_DATA = 14, N_AMR_DATA = 15,
-                        NVAR_DATA = 16};
+                        AX_GRAV_DATA = 8, AY_GRAV_DATA = 9, AZ_GRAV_DATA = 10,
+                        AX_ACC_DATA = 11, AY_ACC_DATA = 12, AZ_ACC_DATA = 13,
+                        R_SOFT_DATA = 14, R_AMR_DATA = 15, N_AMR_DATA = 16,
+                        NVAR_DATA = 17};
 
 // indices for history output writing
 enum NBodyHistIndices {M_HIST = 0, 
