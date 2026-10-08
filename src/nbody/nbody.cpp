@@ -626,6 +626,13 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   max_nu_iso.template modify<DevExeSpace>();
   max_nu_iso.template sync<HostMemSpace>();
 
+  // temp verbose check for visc blowup
+  Real max_nu_global = dt_visc = std::numeric_limits<float>::min();
+  for (int mb_id = 0; mb_id < pmy_pack->nmb_thispack; mb_id++) {
+    max_nu_global = std::max(max_nu_global, max_nu_iso.h_view(mb_id));
+  }
+  std::cout << "max_nu_global = " << max_nu_global << std::endl;
+
   return;
 }
 
