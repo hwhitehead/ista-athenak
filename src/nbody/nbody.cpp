@@ -305,7 +305,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = 100;
             } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu
               sink_rate = nu_iso_homo_ / dr_sqr;
-            } else if (sink_mode == 2) {  // rate is inverse of viscous time for inhomo nu
+            } else if (sink_mode_ == 2) {  // rate is inverse of viscous time for inhomo nu
               sink_rate = nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
             } else { // rate is inverse of viscous time for idealised nu
               // ideal viscosity nu = alpha * M^-2 * sqrt{Gmr}          
