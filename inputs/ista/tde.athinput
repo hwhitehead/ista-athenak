@@ -73,7 +73,7 @@ r_minidisc          = 0.025 # defval 0.1
 r_cavity            = 0.01
 rho0                = 1.0
 rho_floor_fac       = 1e-8
-orbit_primary       = 0
+orbit_primary       = 1
 
 <nbody>
 num_nbody           = 2
