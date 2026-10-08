@@ -88,6 +88,7 @@ inc_backreaction    = 0
 verbose             = 0
 Mach                = 10.0
 alpha               = 0.1
+sink_mode           = 2
 
 m0 = 1.0
 x0 = -0.17272727272727273
