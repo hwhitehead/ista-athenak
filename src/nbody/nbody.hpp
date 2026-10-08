@@ -37,7 +37,7 @@ struct NBodyTaskIDs {
 // contains data read by source terms for gravity, accretion forcing
 enum NBodyDataIndices {M_DATA = 0, 
                         X_DATA = 1, Y_DATA = 2, Z_DATA = 3,
-                        VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6,
+                        VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6, MDOT_DATA = 7,
                         AX_GRAV_DATA = 7, AY_GRAV_DATA = 8, AZ_GRAV_DATA = 9,
                         AX_ACC_DATA = 10, AY_ACC_DATA = 11, AZ_ACC_DATA = 12,
                         R_SOFT_DATA = 13, R_AMR_DATA = 14, N_AMR_DATA = 15,
@@ -46,10 +46,10 @@ enum NBodyDataIndices {M_DATA = 0,
 // indices for history output writing
 enum NBodyHistIndices {M_HIST = 0, 
                         X_HIST = 1, Y_HIST = 2, Z_HIST = 3,
-                        VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6,
-                        AX_GRAV_HIST = 7, AY_GRAV_HIST = 8, AZ_GRAV_HIST = 9,
-                        AX_ACC_HIST = 10, AY_ACC_HIST = 11, AZ_ACC_HIST = 12,
-                        NVAR_HIST = 13};
+                        VX_HIST = 4, VY_HIST = 5, VZ_HIST = 6, MDOT_HIST = 7,
+                        AX_GRAV_HIST = 8, AY_GRAV_HIST = 9, AZ_GRAV_HIST = 10,
+                        AX_ACC_HIST = 11, AY_ACC_HIST = 12, AZ_ACC_HIST = 13,
+                        NVAR_HIST = 14};
 
 // indices for backreaction registers
 // after gather, register populated with derivates, not deltas (hence double definitions)

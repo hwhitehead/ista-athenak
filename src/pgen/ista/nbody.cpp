@@ -183,19 +183,21 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   pdata->nhist = num_nbody * NVAR_HIST; 
   for (int n = 0; n < num_nbody; ++n) {
     int hist_offset = n * NVAR_HIST;
-    pdata->label[M_HIST + hist_offset] = "m" + std::to_string(n); 
-    pdata->label[X_HIST + hist_offset] = "x" + std::to_string(n);
-    pdata->label[Y_HIST + hist_offset] = "y" + std::to_string(n);
-    pdata->label[Z_HIST + hist_offset] = "z" + std::to_string(n);
-    pdata->label[VX_HIST + hist_offset] = "vx" + std::to_string(n);
-    pdata->label[VY_HIST + hist_offset] = "vy" + std::to_string(n);
-    pdata->label[VZ_HIST + hist_offset] = "vz" + std::to_string(n);
-    pdata->label[AX_GRAV_HIST + hist_offset] = "ax_grav" + std::to_string(n);
-    pdata->label[AY_GRAV_HIST + hist_offset] = "ay_grav" + std::to_string(n);
-    pdata->label[AZ_GRAV_HIST + hist_offset] = "az_grav" + std::to_string(n);
-    pdata->label[AX_ACC_HIST + hist_offset] = "ax_acc" + std::to_string(n);
-    pdata->label[AY_ACC_HIST + hist_offset] = "ay_acc" + std::to_string(n);
-    pdata->label[AZ_ACC_HIST + hist_offset] = "az_acc" + std::to_string(n);
+    std::string n_str = std::to_string(n);
+    pdata->label[M_HIST + hist_offset]       = "m" + n_str;
+    pdata->label[X_HIST + hist_offset]       = "x" + n_str;
+    pdata->label[Y_HIST + hist_offset]       = "y" + n_str;
+    pdata->label[Z_HIST + hist_offset]       = "z" + n_str;
+    pdata->label[VX_HIST + hist_offset]      = "vx" + n_str;
+    pdata->label[VY_HIST + hist_offset]      = "vy" + n_str;
+    pdata->label[VZ_HIST + hist_offset]      = "vz" + n_str;
+    pdata->label[MDOT_HIST + hist_offset]    = "mdot" + n_str;
+    pdata->label[AX_GRAV_HIST + hist_offset] = "ax_grav" + n_str;
+    pdata->label[AY_GRAV_HIST + hist_offset] = "ay_grav" + n_str;
+    pdata->label[AZ_GRAV_HIST + hist_offset] = "az_grav" + n_str;
+    pdata->label[AX_ACC_HIST + hist_offset]  = "ax_acc" + n_str;
+    pdata->label[AY_ACC_HIST + hist_offset]  = "ay_acc" + n_str;
+    pdata->label[AZ_ACC_HIST + hist_offset]  = "az_acc" + n_str;
   } // end body loop
 
   // stash values

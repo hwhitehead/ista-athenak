@@ -293,6 +293,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   // Copy only performed on last stage on integrator
   if ((stage == (pdrive->nexp_stages))) { 
     for (int n = 0; n < num_nbody; n++) {
+      nbody_data.h_view(n, MDOT_DATA)    = delta_all_meshes(n, MDOT_BACK);
       nbody_data.h_view(n, AX_GRAV_DATA) = delta_all_meshes(n, AX_GRAV_BACK);
       nbody_data.h_view(n, AY_GRAV_DATA) = delta_all_meshes(n, AY_GRAV_BACK);
       nbody_data.h_view(n, AZ_GRAV_DATA) = delta_all_meshes(n, AZ_GRAV_BACK);
