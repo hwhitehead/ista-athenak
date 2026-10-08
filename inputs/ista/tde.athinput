@@ -41,8 +41,8 @@ max_nmb_per_rank = 4096
 method = user
 
 <refined_region1>
-x1min = 1.53            
-x1max =  1.93
+x1min = -0.4           
+x1max =  -0.0
 x2min = -0.2
 x2max =  0.2
 x3min = -0.05
@@ -63,13 +63,13 @@ reconstruct = ppm4          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.01       # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
-nu_iso = 5e-5           # must be non-zero to use alpha prescription
+nu_iso = 1e-4           # must be non-zero to use alpha prescription
 dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
 prograde            = 1
-r_minidisc          = 0.025 # defval 0.1
+r_minidisc          = 0.1 # defval 0.025
 r_cavity            = 0.01
 rho0                = 1.0
 rho_floor_fac       = 1e-8
@@ -88,7 +88,7 @@ inc_backreaction    = 0
 verbose             = 0
 Mach                = 10.0
 alpha               = 0.0
-sink_mode           = 1
+sink_mode           = 3
 
 m0 = 1.0
 x0 = -0.17272727272727273
