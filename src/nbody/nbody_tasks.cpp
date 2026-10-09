@@ -337,7 +337,7 @@ TaskStatus NBody::Send(Driver *pdrive, int stage) {
   Kokkos::realloc(nbody_comm_buffer,  num_nbody, NVAR_DATA); // <- wasteful, offload
   Kokkos::deep_copy(nbody_comm_buffer, nbody_data.view_host());
   #if MPI_PARALLEL_ENABLED 
-    MPI_Bcast(nbody_comm_buffer.view_host(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(nbody_comm_buffer.data(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
   #endif
   Kokkos::deep_copy(nbody_data.view_host(), nbody_comm_buffer);
 
