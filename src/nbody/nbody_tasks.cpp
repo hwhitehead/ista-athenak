@@ -332,9 +332,14 @@ TaskStatus NBody::Send(Driver *pdrive, int stage) {
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   // Step 2: Send-recv updated nbody_data state to all ranks
+  // TEMP build scratch array, if feasible offload to hpp
+  HostArray2D<Real> nbody_comm_buffer;
+  Kokkos::realloc(nbody_comm_buffer,  num_nbody, NVAR_DATA); // <- wasteful, offload
+  Kokkos::deep_copy(nbody_comm_buffer, nbody_data.view_host());
   #if MPI_PARALLEL_ENABLED 
-    MPI_Bcast(nbody_data.view_host(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(nbody_comm_buffer.view_host(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
   #endif
+  Kokkos::deep_copy(nbody_data.view_host(), nbody_comm_buffer);
 
   // Step 3: Copy nbody_data state from this MeshBlockPack to all others
   for (int mbpid = 0; mbpid < pmy_pack->pmesh->nmb_packs_thisrank; mbpid++) {
