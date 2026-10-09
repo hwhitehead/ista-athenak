@@ -293,8 +293,8 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
   // Step 1: Perform integration only on root process, in principle MeshBlockPack
-  if (global_variable::my_rank != 0) return TaskStatus::complete;
-  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  // TEMP: run on all if (global_variable::my_rank != 0) return TaskStatus::complete;
+  // if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   // load integration weights from general time integrator
   Real &gam0 = pdrive->gam0[stage-1];
@@ -302,8 +302,8 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
   Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
 
   // Step 1: only perform integration on ONE mb_pack on ONE rank
-  if (global_variable::my_rank != 0) return TaskStatus::complete;
-  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  // if (global_variable::my_rank != 0) return TaskStatus::complete;
+  // if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   // Step 2: bump nbody register to next fine timestep
   for (int n = 0; n < num_nbody; n++) {
@@ -327,6 +327,9 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 //! state on the host ONLY. Communicate this updated state to all NBody instances and 
 //! force update on device in prep for next (fine) time step.
 TaskStatus NBody::Send(Driver *pdrive, int stage) {
+
+  // TEMP
+  return TaskStatus::complete;
 
   // Step 1: Only perform send-rcev on principle MeshBlockPack
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
