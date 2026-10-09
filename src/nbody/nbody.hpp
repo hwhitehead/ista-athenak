@@ -113,6 +113,9 @@ class NBody {
     // Registers used for time evolution shape = (num_nbody, NVAR_REG)
     HostArray2D<Real> nbody_data1;  // nbody state at intermediate time step
     HostArray2D<Real> nbody_flux;   // time derivative of current nbody state
+    
+    // MPI communication buffer shape = (num_nbody, NVAR_DATA)
+    HostArray2D<Real> nbody_comm;   // buffer for MPI communication in NBody::Send
 
     // WIP: DUAL register for non body specific quantities shape = (NVAR_GEN)
     DualArray2D<Real> general_data; 

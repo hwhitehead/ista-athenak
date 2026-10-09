@@ -39,11 +39,11 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   TaskID none(0);
 
   // fine timestep execution
-  // id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
-  // id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
-  // id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
-  // id.send     = tl["stagen"]->AddTask(&NBody::Send, this, id.rkupdt);
-  // id.newdt    = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.send);
+  id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
+  id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
+  id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
+  id.send     = tl["stagen"]->AddTask(&NBody::Send, this, id.rkupdt);
+  id.newdt    = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.send);
 
   return;
 }
@@ -79,8 +79,8 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   
   // only run this task on the principle meshblock pack (rank0, mbpid=0)
-  // if (global_variable::my_rank != 0) return TaskStatus::complete;
-  // if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   if (stage == 1) {
     // copy by element (no deep_copy with length mistmatch)
@@ -153,8 +153,8 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     #endif
   } // end if backreaction
   
-  // Step 3: Skip following computations if not root processes
-  // if (global_variable::my_rank != 0) return TaskStatus::complete;
+  // Step 3: Skip following computations if not root processes, which controls integration
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
   
   // Step 4: Set nbody flux to zero for entire register
   Kokkos::deep_copy(nbody_flux, 0.0);
@@ -289,23 +289,21 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
 //! \fn  TaskStatus NBody::RKUpdate
 //! \brief Performs explicit update of the nbody state (nbody_data) for each stage of the
 //! integration (set by the Hydro integrator), using weighted average and partial time step 
-//! updates of the pairwise gravity and hydro forces.
+//! updates of the pairwise gravity and hydro forces. Evolution only takes place on root 
+//! process, in principle MeshBlockPack; the evolved state is then globally communicated
+//! in NBody::Send
 TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 
   // Step 1: Perform integration only on root process, in principle MeshBlockPack
-  // TEMP: run on all if (global_variable::my_rank != 0) return TaskStatus::complete;
-  // if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
-  // load integration weights from general time integrator
+  // Step 2: load integration weights from general time integrator
   Real &gam0 = pdrive->gam0[stage-1];
   Real &gam1 = pdrive->gam1[stage-1];
   Real beta_dt = (pdrive->beta[stage-1])*(pmy_pack->pmesh->dt);
 
-  // Step 1: only perform integration on ONE mb_pack on ONE rank
-  // if (global_variable::my_rank != 0) return TaskStatus::complete;
-  // if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
-
-  // Step 2: bump nbody register to next fine timestep
+  // Step 3: bump nbody register to next fine timestep
   for (int n = 0; n < num_nbody; n++) {
       for (int i = 0; i < NVAR_REG; i++) { // skip iteration over "static" indices beyond NVAR_REG
           nbody_data.h_view(n, i) = gam0 * nbody_data.h_view(n, i) + gam1 * nbody_data1(n, i) + beta_dt * nbody_flux(n, i);
@@ -328,21 +326,15 @@ TaskStatus NBody::RKUpdate(Driver *pdrive, int stage) {
 //! force update on device in prep for next (fine) time step.
 TaskStatus NBody::Send(Driver *pdrive, int stage) {
 
-  // TEMP
-  return TaskStatus::complete;
-
-  // Step 1: Only perform send-rcev on principle MeshBlockPack
+  // Step 1: Only perform send-rcev on principle MeshBlockPack in each rank
   if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
-  // Step 2: Send-recv updated nbody_data state to all ranks
-  // TEMP build scratch array, if feasible offload to hpp
-  HostArray2D<Real> nbody_comm_buffer;
-  Kokkos::realloc(nbody_comm_buffer,  num_nbody, NVAR_DATA); // <- wasteful, offload
-  Kokkos::deep_copy(nbody_comm_buffer, nbody_data.view_host());
+  // Step 2: Send-recv updated nbody_data state to all ranks, via host-only nbody_comm buffer
+  Kokkos::deep_copy(nbody_comm, nbody_data.view_host());
   #if MPI_PARALLEL_ENABLED 
-    MPI_Bcast(nbody_comm_buffer.data(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(nbody_comm.data(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
   #endif
-  Kokkos::deep_copy(nbody_data.view_host(), nbody_comm_buffer);
+  Kokkos::deep_copy(nbody_data.view_host(), nbody_comm);
 
   // Step 3: Copy nbody_data state from this MeshBlockPack to all others
   for (int mbpid = 0; mbpid < pmy_pack->pmesh->nmb_packs_thisrank; mbpid++) {

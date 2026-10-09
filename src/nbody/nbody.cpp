@@ -35,6 +35,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   nbody_data("nbody_data",1,1),
   nbody_data1("nbody_data1",1,1),
   nbody_flux("nbody_flux",1,1),
+  nbody_comm("nbody_comm",1,1),
   delta_this_pack("delta_nbody_data",1,1),
   delta_this_mesh("delta_this_mesh",1,1),
   delta_all_meshes("delta_all_meshes",1,1),
@@ -119,9 +120,10 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   } // end if rank 0
   
   // principle registers for wider access
-  Kokkos::realloc(nbody_data,  num_nbody, NVAR_DATA);    
-  Kokkos::realloc(nbody_data1, num_nbody, NVAR_REG);        
-  Kokkos::realloc(nbody_flux,  num_nbody, NVAR_REG);        
+  Kokkos::realloc(nbody_data,       num_nbody, NVAR_DATA);    
+  Kokkos::realloc(nbody_comm,       num_nbody, NVAR_DATA); 
+  Kokkos::realloc(nbody_data1,      num_nbody, NVAR_REG);        
+  Kokkos::realloc(nbody_flux,       num_nbody, NVAR_REG);        
   Kokkos::realloc(delta_this_pack,  num_nbody, NVAR_BACK);   
   Kokkos::realloc(delta_this_mesh,  num_nbody, NVAR_BACK);  
   Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
@@ -131,16 +133,16 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     std::string nbody_header = "nbody";
     std::string str_n = std::to_string(n);
     // mass, position and velocity data MUST be passed
-    nbody_data.h_view(n, M_DATA) = pin->GetReal(nbody_header, "m" + str_n);
-    nbody_data.h_view(n, X_DATA) = pin->GetReal(nbody_header, "x" + str_n);
-    nbody_data.h_view(n, Y_DATA) = pin->GetReal(nbody_header, "y" + str_n);
-    nbody_data.h_view(n, Z_DATA) = pin->GetReal(nbody_header, "z" + str_n);
-    nbody_data.h_view(n, VX_DATA) = pin->GetReal(nbody_header, "vx" + str_n);
-    nbody_data.h_view(n, VY_DATA) = pin->GetReal(nbody_header, "vy" + str_n);
-    nbody_data.h_view(n, VZ_DATA) = pin->GetReal(nbody_header, "vz" + str_n);
+    nbody_data.h_view(n, M_DATA)      = pin->GetReal(nbody_header, "m" + str_n);
+    nbody_data.h_view(n, X_DATA)      = pin->GetReal(nbody_header, "x" + str_n);
+    nbody_data.h_view(n, Y_DATA)      = pin->GetReal(nbody_header, "y" + str_n);
+    nbody_data.h_view(n, Z_DATA)      = pin->GetReal(nbody_header, "z" + str_n);
+    nbody_data.h_view(n, VX_DATA)     = pin->GetReal(nbody_header, "vx" + str_n);
+    nbody_data.h_view(n, VY_DATA)     = pin->GetReal(nbody_header, "vy" + str_n);
+    nbody_data.h_view(n, VZ_DATA)     = pin->GetReal(nbody_header, "vz" + str_n);
     nbody_data.h_view(n, R_SOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
-    nbody_data.h_view(n, R_AMR_DATA) = pin->GetOrAddReal(nbody_header, "r_amr" + str_n, 0.0);
-    nbody_data.h_view(n, T_AMR_DATA) = pin->GetOrAddReal(nbody_header, "t_amr" + str_n, 0.0); 
+    nbody_data.h_view(n, R_AMR_DATA)  = pin->GetOrAddReal(nbody_header, "r_amr" + str_n, 0.0);
+    nbody_data.h_view(n, T_AMR_DATA)  = pin->GetOrAddReal(nbody_header, "t_amr" + str_n, 0.0); 
     // all other reads optional, add overwrite
   } // end n
 
