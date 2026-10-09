@@ -81,14 +81,15 @@ eta_dt              = 0.1
 hist_nbody          = 1
 src_gravity         = 1
 src_accretion       = 1
-src_local_iso       = 1
-src_beta_cool       = 0
+src_local_iso       = 0
+src_beta_cool       = 1
 sum_backreaction    = 0
 inc_backreaction    = 0
 verbose             = 0
 Mach                = 10.0
 alpha               = 0.0
 sink_mode           = 0
+cs_sqr_floor        = 1e-6
 
 m0 = 1.0
 x0 = -0.17272727272727273

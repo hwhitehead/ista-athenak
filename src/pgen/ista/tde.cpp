@@ -129,7 +129,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real soft_R_sqr = SQR(r_soft_host) + R_sqr;
 
       // set density using radial and vertical profile
-      // disc is ALWAYS in the x-y plane, orbit is rotate
+      // disc is ALWAYS in the x-y plane, orbit is rotated
       const Real radial_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_minidisc,4.0));
       const Real H_sqr = R_sqr * inv_Mach_sqr;
       const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D

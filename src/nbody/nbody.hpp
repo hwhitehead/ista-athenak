@@ -130,7 +130,7 @@ class NBody {
     int  sink_mode;                                     // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
 
     // disc state variables (for sound speed compute)
-    Real Mach, inv_Mach_sqr;
+    Real Mach, inv_Mach_sqr, cs_sqr_floor;
 
     // physical units (for post-newtonian terms)
     Real unit_L, unit_M, unit_T;  // set by user in athinput

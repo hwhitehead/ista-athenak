@@ -70,6 +70,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   Mach           = pin->GetOrAddReal("nbody", "Mach", 1.0);
   inv_Mach_sqr   = 1.0 / SQR(Mach);
   rho_sink_floor = pin->GetOrAddReal("nbody", "rho_sink_floor", 1e-8);
+  cs_sqr_floor   = pin->GetOrAddReal("nbody", "cs_sqr_floor", 1e-6);
   sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0);
 
   // import unit conversions (else all unity, used for PN terms WIP)
@@ -513,6 +514,8 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   int num_nbody_ = num_nbody;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   Real inv_Mach_sqr_ = inv_Mach_sqr;
+  Real cs_sqr_floor_ = cs_sqr_floor;
+  Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -539,10 +542,12 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         sum_omega_sqr += omega_sqr;
       }
       const Real rho = prim(mb_id, IDN, k, j, i);
-      const Real cs_sqr_target = sum_v_sqr * inv_Mach_sqr_ + 1e-8; // add floor value
+      const Real cs_sqr_ideal = sum_v_sqr * inv_Mach_sqr_;
+      const Real cs_sqr_target = Kokkos::max(cs_sqr_ideal, cs_sqr_floor_);
       const Real cs_sqr_last = prim(mb_id, IPR, k, j, i) / rho;
-      const Real t_cool = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
+      const Real t_dyn = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
+      const Real t_therm = inv_alpha * t_dyn;
+      const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_therm) + cs_sqr_target;
 
       // assert local internal energy
       const Real E_int_last = cs_sqr_last * rho * inv_gm1;
