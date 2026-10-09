@@ -1,0 +1,32 @@
+# Torus parameters only; append this fragment to a normal hydro athinput.
+# Profiles use hydro/gamma; ambient gas uses hydro/dfloor and hydro/pfloor.
+# The mesh selects 2D (nx3=1) or 3D (nx3>1); set meshblock/nx3 accordingly.
+# GM sets the INITIAL profile only. The pgen adds no gravitational force.
+
+<problem>
+num_tori = 1
+
+<problem_torus1>
+GM = 1
+r_in = 20
+r_p = 22                    # Pressure maximum; r_out and thickness are derived
+ell_exponent = 0.2           # ell(R) = sqrt(GM*r_p)*(R/r_p)^ell_exponent
+density_p = 1               # Sigma(r_p) in 2D; midplane rho(r_p) in 3D
+x_center = 0
+y_center = 0
+z_center = 0                # Must be zero in 2D
+tilt_deg = 0                # Must be zero in 2D
+node_deg = 0                # Azimuth of the disk normal
+
+# To create a second torus, set num_tori=2 and uncomment the block below.
+# <problem_torus2>
+# GM = 1
+# r_in = 26
+# r_p = 28
+# ell_exponent = 0.2
+# density_p = 1
+# x_center = 0
+# y_center = 0
+# z_center = 0
+# tilt_deg = 0
+# node_deg = 0

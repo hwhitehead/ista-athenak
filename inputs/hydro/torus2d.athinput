@@ -1,0 +1,48 @@
+# Minimal runnable 2D hydro example; uses the pgen's single-torus defaults.
+# Append torus_parameters.athinput to customize those defaults:
+# cat inputs/hydro/torus2d.athinput inputs/hydro/torus_parameters.athinput > athinput
+# build/src/athena -i athinput
+# Gravity is absent, so the initialized torus expands during evolution.
+
+<job>
+basename = torus2d
+
+<mesh>
+nghost = 3
+nx1 = 256
+nx2 = 256
+nx3 = 1
+x1min = -40
+x1max = 40
+x2min = -40
+x2max = 40
+x3min = -0.5
+x3max = 0.5
+ix1_bc = outflow
+ox1_bc = outflow
+ix2_bc = outflow
+ox2_bc = outflow
+
+<meshblock>
+nx1 = 32
+nx2 = 32
+nx3 = 1
+
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.3
+tlim = 10
+
+<hydro>
+eos = ideal
+gamma = 1.6666666666666667
+reconstruct = plm
+rsolver = hllc
+dfloor = 1.e-8
+pfloor = 1.e-12
+
+<output1>
+file_type = bin
+variable = hydro_w
+dt = 10

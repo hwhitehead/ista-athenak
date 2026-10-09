@@ -68,28 +68,28 @@ dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
-prograde            = 0
-r_minidisc          = 0.05 # defval 0.025
-r_cavity            = 0.01
-rho0                = 1.0
-rho_floor_fac       = 1e-8
-orbit_primary       = 1
+prograde            = 0             # rotation direction of disc 
+r_minidisc          = 0.05          # outer radius of initial disc
+r_cavity            = 0.01          # DEPRECATED radius of disc cavity
+rho0                = 1.0           # homogeneous density of disc
+rho_floor_fac       = 1e-8          # floor value applied to non-disc void
+orbit_primary       = 1             # boolean: specify host for disc
 
 <nbody>
-num_nbody           = 2
-eta_dt              = 0.1
-hist_nbody          = 1
-src_gravity         = 1
-src_accretion       = 1
-src_local_iso       = 0
-src_beta_cool       = 1
-sum_backreaction    = 1
-inc_backreaction    = 0
-verbose             = 0
-Mach                = 10.0
-alpha               = 0.0
-sink_mode           = 3
-cs_sqr_floor        = 1e-6
+num_nbody           = 2             # number of gravitating bodies in domain
+eta_dt              = 0.1           # prefactor for nbody timestep integration
+hist_nbody          = 1             # boolean: write nbody state to .hst
+src_gravity         = 1             # boolean: include gravity src for hydro
+src_accretion       = 1             # boolean: include accretion src for hydro
+src_local_iso       = 0             # boolean: enforce local isotherm from fixed Mach number
+src_beta_cool       = 1             # boolean: relax to local isotherma on thermal timescale
+sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
+inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
+verbose             = 0             # boolean: write progress checks to stdout
+Mach                = 10.0          # Mach number of disc for pgen and cooling
+alpha               = 0.0           # viscosity scaling parameter
+sink_mode           = 3             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
+cs_sqr_floor        = 1e-6          # floor for sound speed used in cooling
 
 m0 = 1.0
 x0 = -0.17272727272727273
