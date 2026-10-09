@@ -39,11 +39,11 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   TaskID none(0);
 
   // fine timestep execution
-  id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
-  id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
-  id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
-  id.send     = tl["stagen"]->AddTask(&NBody::Send, this, id.rkupdt);
-  id.newdt    = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.send);
+  // id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
+  // id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
+  // id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
+  // id.send     = tl["stagen"]->AddTask(&NBody::Send, this, id.rkupdt);
+  // id.newdt    = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.send);
 
   return;
 }
@@ -79,8 +79,8 @@ TaskStatus NBody::NewTimeStep(Driver *pdrive, int stage) {
 TaskStatus NBody::InitRK(Driver *pdrive, int stage) {
   
   // only run this task on the principle meshblock pack (rank0, mbpid=0)
-  if (global_variable::my_rank != 0) return TaskStatus::complete;
-  if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
+  // if (global_variable::my_rank != 0) return TaskStatus::complete;
+  // if (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) return TaskStatus::complete;
 
   if (stage == 1) {
     // copy by element (no deep_copy with length mistmatch)
@@ -154,7 +154,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
   } // end if backreaction
   
   // Step 3: Skip following computations if not root processes
-  if (global_variable::my_rank != 0) return TaskStatus::complete;
+  // if (global_variable::my_rank != 0) return TaskStatus::complete;
   
   // Step 4: Set nbody flux to zero for entire register
   Kokkos::deep_copy(nbody_flux, 0.0);
