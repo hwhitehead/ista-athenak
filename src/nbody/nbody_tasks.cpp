@@ -174,7 +174,7 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     nbody_flux(n, VYDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, AY_GRAV_BACK) + delta_all_meshes(n, AY_ACC_BACK) : 0.0;
     nbody_flux(n, VZDOT_REG) = (inc_backreaction) ? delta_all_meshes(n, AZ_GRAV_BACK) + delta_all_meshes(n, AZ_ACC_BACK) : 0.0;
 
-    // all later indices of nbody_flux left as ZERO
+    // all later indices of nbody_flux left as ZERO (non-evolving registers)
 
     // Step 5b: add acceleraton by mutual nbody gravity
     for (int m = 0; m < num_nbody; m++) {

@@ -93,6 +93,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
     const Real rho_floor_fac = pin->GetOrAddReal("problem", "rho_floor_fac", 1e-8);
     const Real cs_sqr_floor = pin->GetOrAddReal("problem", "cs_sqr_floor", 1e-8);
+    const Real G_const = pin->GetOrAddReal("nbody", "G_const", 1.0);
 
     // (3) loop over cells
     par_for("pgen_tde", 
@@ -136,7 +137,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set velocity in disc (everything Keplerian about host)
       // velocity profile should match softened potential
-      const Real v_phi_sqr = m_host * R / soft_R_sqr;
+      const Real v_phi_sqr = G_const * m_host * R / soft_R_sqr;
       Real v_phi = Kokkos::sqrt(v_phi_sqr);
       if (prograde) {
         v_phi = v_phi;

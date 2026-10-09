@@ -40,7 +40,7 @@ enum NBodyDataIndices {M_DATA = 0,
                         VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6, MDOT_DATA = 7,
                         AX_GRAV_DATA = 8, AY_GRAV_DATA = 9, AZ_GRAV_DATA = 10,
                         AX_ACC_DATA = 11, AY_ACC_DATA = 12, AZ_ACC_DATA = 13,
-                        R_SOFT_DATA = 14, R_AMR_DATA = 15, N_AMR_DATA = 16,
+                        R_SOFT_DATA = 14, R_AMR_DATA = 15, T_AMR_DATA = 16,
                         NVAR_DATA = 17};
 
 // indices for history output writing

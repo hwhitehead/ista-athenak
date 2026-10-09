@@ -140,7 +140,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     nbody_data.h_view(n, VZ_DATA) = pin->GetReal(nbody_header, "vz" + str_n);
     nbody_data.h_view(n, R_SOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
     nbody_data.h_view(n, R_AMR_DATA) = pin->GetOrAddReal(nbody_header, "r_amr" + str_n, 0.0);
-    nbody_data.h_view(n, N_AMR_DATA) = pin->GetOrAddReal(nbody_header, "n_amr" + str_n, 0.0); // currently unusable
+    nbody_data.h_view(n, T_AMR_DATA) = pin->GetOrAddReal(nbody_header, "t_amr" + str_n, 0.0); 
     // all other reads optional, add overwrite
   } // end n
 
@@ -890,6 +890,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   auto &size = pmbp->pmb->mb_size;
   auto &multi_d = pmbp->pmesh->multi_d;
   auto &three_d = pmbp->pmesh->three_d;
+  Real time = pmbp->pmesh->time;
 
   // loop over MeshBlocks in this MeshBlockPack
   // MeshBlock count small, perfom on host
@@ -908,6 +909,9 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
 
     // cycle over bodies
     for (int n = 0; n < pmbp->pnbody->num_nbody; n++) {
+      // if refinement not live for body n, skip
+      if (time < pmbp->pnbody->nbody_data.h_view(n, T_AMR_DATA)) continue;
+      
       // if refinement radius for body is zero, skip
       const Real rad = pmbp->pnbody->nbody_data.h_view(n, R_AMR_DATA);
       if (rad == 0.0) continue;
