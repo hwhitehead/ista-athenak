@@ -146,9 +146,9 @@ TaskStatus NBody::Fluxes(Driver *pdrive, int stage) {
     Kokkos::deep_copy(delta_all_meshes, delta_this_mesh); // copy into comm buffer
     #if MPI_PARALLEL_ENABLED 
     if (global_variable::my_rank == 0) {
-      MPI_Reduce(MPI_IN_PLACE, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, delta_all_meshes.data(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
     } else {
-      MPI_Reduce(delta_all_meshes, delta_all_meshes, NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(delta_all_meshes.data(), delta_all_meshes.data(), NVAR_BACK, MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
     }
     #endif
   } // end if backreaction
@@ -333,7 +333,7 @@ TaskStatus NBody::Send(Driver *pdrive, int stage) {
 
   // Step 2: Send-recv updated nbody_data state to all ranks
   #if MPI_PARALLEL_ENABLED 
-    MPI_Bcast(nbody_data.view_host(), NVAR_DATA, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nbody_data.data(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
   #endif
 
   // Step 3: Copy nbody_data state from this MeshBlockPack to all others
