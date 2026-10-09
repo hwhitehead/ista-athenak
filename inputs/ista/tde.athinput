@@ -41,8 +41,8 @@ max_nmb_per_rank = 4096
 method = user
 
 <refined_region1>
-x1min = -0.4           
-x1max =  -0.0
+x1min = 1.5           
+x1max =  1.9
 x2min = -0.2
 x2max =  0.2
 x3min = -0.05
@@ -100,7 +100,7 @@ vy0 = -0.021873931962990353
 vz0 = 0.0
 r_soft0 = 0.005
 r_amr0 = 0.1
-t_amr0 = 0.0
+t_amr0 = 2.0
 
 m1 =  0.1
 x1 = 1.727272727272727
@@ -111,7 +111,7 @@ vy1 = 0.2187393196299035
 vz1 = 0.0
 r_soft1 = 0.005
 r_amr1 = 0.1
-t_amr1 = 2.7
+t_amr1 = 0.0
 
 <output1>
 file_type  = hst         # history data dump
