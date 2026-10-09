@@ -87,8 +87,8 @@ sum_backreaction    = 1             # boolean: collect mdot, acceleration from h
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
 Mach                = 10.0          # Mach number of disc for pgen and cooling
-alpha               = 0.1           # viscosity scaling parameter
-sink_mode           = 2             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
+alpha               = 0.0           # viscosity scaling parameter
+sink_mode           = 3             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
 cs_sqr_floor        = 1e-6          # floor for sound speed used in cooling
 
 m0 = 1.0
