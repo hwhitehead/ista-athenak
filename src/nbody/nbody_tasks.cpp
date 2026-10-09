@@ -333,7 +333,7 @@ TaskStatus NBody::Send(Driver *pdrive, int stage) {
 
   // Step 2: Send-recv updated nbody_data state to all ranks
   #if MPI_PARALLEL_ENABLED 
-    MPI_Bcast(&nbody_data.host_view(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nbody_data.view_host(), NVAR_DATA, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
   #endif
 
   // Step 3: Copy nbody_data state from this MeshBlockPack to all others
