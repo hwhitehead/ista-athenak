@@ -310,10 +310,14 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = nu_iso_homo_ / dr_sqr;
             } else if (sink_mode_ == 2) {  // rate is inverse of viscous time for inhomo nu
               sink_rate = nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
-            } else { // rate is inverse of viscous time for idealised nu
+            } else if (sink_mode == 3) { // rate is inverse of viscous time for idealised nu
               // ideal viscosity nu = alpha * M^-2 * sqrt{Gmr}          
               const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
               sink_rate = nu_ideal / dr_sqr;
+            } else { // rate is inverse of viscous time with adaptive local temp
+              const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+              const Real nu_local = alpha_ * cs_sqr_local * Kokkos::sqrt(G_const * nbody_data.d_view(n, M_DATA)) * Kokkos::pow(dr_true, -1.5);
+              sink_rate = nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
             sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);    // limit to maximum 90% removal per finetimestep

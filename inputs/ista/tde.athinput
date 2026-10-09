@@ -61,9 +61,9 @@ ndiag      = 1.6667     # cycles between diagostic output
 eos         = ideal         # EOS type
 reconstruct = ppm4          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
-gamma       = 1.01       # gamma = C_p/C_v (ideal only)
+gamma       = 1.666667      # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
-nu_iso = 5e-5           # must be non-zero to use alpha prescription
+nu_iso = 5e-5               # must be non-zero to use alpha prescription
 dfloor = 1e-10
 pfloor = 1e-12
 
@@ -87,8 +87,8 @@ sum_backreaction    = 1             # boolean: collect mdot, acceleration from h
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
 Mach                = 10.0          # Mach number of disc for pgen and cooling
-alpha               = 0.0           # viscosity scaling parameter
-sink_mode           = 3             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
+alpha               = 0.1           # viscosity scaling parameter
+sink_mode           = 2             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
 cs_sqr_floor        = 1e-6          # floor for sound speed used in cooling
 
 m0 = 1.0
@@ -114,10 +114,10 @@ r_amr1 = 0.1
 t_amr1 = 2.7
 
 <output1>
-file_type  = hst        # history data dump
+file_type  = hst         # history data dump
 dt         = 0.001       # time increment between outputs
 
 <output2>
 file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
 variable   = hydro_w    # variables to be output
-dt         = 0.0125        # time increment between outputs
+dt         = 0.0125     # time increment between outputs
