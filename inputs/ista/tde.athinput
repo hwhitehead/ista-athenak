@@ -54,14 +54,14 @@ evolution  = dynamic    # dynamic/kinematic/static
 integrator = rk2        # time integration algorithm
 cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1         # cycle limit
-tlim       = 1000.0     # time limit
+tlim       = 5.0        # time limit
 ndiag      = 1.6667     # cycles between diagostic output
 
 <hydro>
 eos         = ideal         # EOS type
 reconstruct = ppm4          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
-gamma       = 1.01          # gamma = C_p/C_v (ideal only)
+gamma       = 1.4          # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
 nu_iso = 1e-4               # must be non-zero to use alpha prescription
 dfloor = 1e-10
@@ -80,15 +80,15 @@ num_nbody           = 2             # number of gravitating bodies in domain
 eta_dt              = 0.1           # prefactor for nbody timestep integration
 hist_nbody          = 1             # boolean: write nbody state to .hst
 src_gravity         = 1             # boolean: include gravity src for hydro
-src_accretion       = 0             # boolean: include accretion src for hydro
-src_local_iso       = 1             # boolean: enforce local isotherm from fixed Mach number
-src_beta_cool       = 0             # boolean: relax to local isotherma on thermal timescale
+src_accretion       = 1             # boolean: include accretion src for hydro
+src_local_iso       = 0             # boolean: enforce local isotherm from fixed Mach number
+src_beta_cool       = 1             # boolean: relax to local isotherma on thermal timescale
 sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
 Mach                = 10.0          # Mach number of disc for pgen and cooling
 alpha               = 0.0           # viscosity scaling parameter
-sink_mode           = 0             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
+sink_mode           = 3             # fixed or viscous time from (flat, inhomogenous, ideal) viscosity
 cs_sqr_floor        = 1e-6          # floor for sound speed used in cooling
 
 m0 = 1.0
