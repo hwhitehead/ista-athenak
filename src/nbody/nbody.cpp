@@ -316,7 +316,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = nu_ideal / dr_sqr;
             } else { // rate is inverse of viscous time with adaptive local temp
               const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
-              const Real nu_local = alpha_ * cs_sqr_local * Kokkos::sqrt(G_const * nbody_data.d_view(n, M_DATA)) * Kokkos::pow(dr_true, -1.5);
+              const Real nu_local = alpha_ * cs_sqr_local * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA)) * Kokkos::pow(dr_true, -1.5);
               sink_rate = nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
