@@ -310,7 +310,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = nu_iso_homo_ / dr_sqr;
             } else if (sink_mode_ == 2) {  // rate is inverse of viscous time for inhomo nu
               sink_rate = nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
-            } else if (sink_mode == 3) { // rate is inverse of viscous time for idealised nu
+            } else if (sink_mode_ == 3) { // rate is inverse of viscous time for idealised nu
               // ideal viscosity nu = alpha * M^-2 * sqrt{Gmr}          
               const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
               sink_rate = nu_ideal / dr_sqr;
