@@ -131,7 +131,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // set density using radial and vertical profile
       // disc is ALWAYS in the x-y plane, orbit is rotated
       const Real outer_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_minidisc,4.0));
-      const Real inner_profile = rho_floor_fac + (1 - rho_floor_fac) * Kokkos::exp(-Kokkos::pow((r_cavity / r), 4.0));
+      const Real inner_profile = rho_floor_fac + (1 - rho_floor_fac) * Kokkos::exp(-Kokkos::pow((r_cavity / R), 4.0));
       const Real H_sqr = R_sqr * inv_Mach_sqr;
       const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
       Real rho = rho0 * inner_profile * outer_profile * vertical_profile;
