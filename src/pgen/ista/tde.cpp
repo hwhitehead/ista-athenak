@@ -139,9 +139,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // velocity profile should match softened potential
       const Real v_phi_sqr = G_const * m_host * R / soft_R_sqr;
       Real v_phi = Kokkos::sqrt(v_phi_sqr);
-      if (prograde) {
-        v_phi = v_phi;
-      } else {
+      if (!prograde) {
         v_phi *= -1.0;
       }
       const Real phi = Kokkos::atan2(x2v - y_host, x1v - x_host); // RH argument from +x axis
@@ -150,7 +148,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vz = vz_host;
 
       // set pressure
-      const Real cs_sqr_local = SQR(v_phi) * inv_Mach_sqr + cs_sqr_floor;
+      Real cs_sqr_local = SQR(v_phi) * inv_Mach_sqr;
+      cs_sqr_local = Kokkos::max(cs_sqr_local, cs_sqr_floor);
       const Real P = cs_sqr_local * rho;
       
       // ===== Set primitive variables =====

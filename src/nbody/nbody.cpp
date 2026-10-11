@@ -414,6 +414,7 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
   int num_nbody_ = num_nbody;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  const Real cs_sqr_floor_ = cs_sqr_floor;
 
   par_for("nbody_forced_iso_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -435,7 +436,8 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
         const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
         sum_v_sqr += v_sqr;
       }
-      const Real cs_sqr_next = sum_v_sqr * inv_Mach_sqr_;
+      Real cs_sqr_next = sum_v_sqr * inv_Mach_sqr_;
+      cs_sqr_next = Kokkos::max(cs_sqr_next, cs_sqr_floor_);
 
       // compute next kinetic energy (using updated conservative state)
       const Real rho_cons = cons(mb_id, IDN, k, j, i);
