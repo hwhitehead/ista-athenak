@@ -432,24 +432,22 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
         const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         const Real r = Kokkos::sqrt(r_sqr);
         const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        //const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
-        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * Kokkos::pow(soft_r_sqr, -0.5);
+        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
         sum_v_sqr += v_sqr;
       }
-      const Real cs_sqr_local = sum_v_sqr * inv_Mach_sqr_;
+      const Real cs_sqr_next = sum_v_sqr * inv_Mach_sqr_;
 
-      // compute local kinetic energy
-      const Real rho = prim(mb_id, IDN, k, j, i);
-      const Real E_kin = 0.5 * rho * (SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVY, k, j, i)) + SQR(prim(mb_id, IVZ, k, j, i)));
+      // compute next kinetic energy (using updated conservative state)
+      const Real rho_cons = cons(mb_id, IDN, k, j, i);
+      const Real p_cons_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
+      const Real E_kin_next = 0.5 * p_cons_sqr / rho_cons;
+      
+      // assert next internal energy
+      const Real E_int_next = cs_sqr_next * rho_cons * inv_gm1;
 
-      // assert local internal energy
-      const Real E_int = cs_sqr_local * rho * inv_gm1;
-
-      // set local energy
-      const Real E_last = cons(mb_id, IEN, k, j, i);
-      const Real dE = (E_kin + E_int) - E_last; 
-      cons(mb_id, IEN, k, j, i) += dE;
-      // store energy loss
+      // set energy
+      cons(mb_id, IEN, k, j, i) = E_kin_next + E_int_next;
+      // TODO: store energy loss
       // Kokkos::atomic_add(&general_data_.d_view(DE_GENERAL), dE); // TODO: implement collection of this
     }); // end par_for
     
