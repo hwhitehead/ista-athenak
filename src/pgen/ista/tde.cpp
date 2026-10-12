@@ -139,7 +139,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set velocity in disc (everything Keplerian about host)
       // velocity profile should match softened potential
-      const Real v_phi_sqr = G_const * m_host * R / soft_R_sqr;
+      //const Real v_phi_sqr = G_const * m_host * R / soft_R_sqr;
+      const Real v_phi_sqr = G_const * m_host * SQR(R) * Kokkos::pow(soft_R_sqr, -1.5);
       Real v_phi = Kokkos::sqrt(v_phi_sqr);
       if (!prograde) {
         v_phi *= -1.0;
