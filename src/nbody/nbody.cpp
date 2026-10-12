@@ -369,8 +369,8 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
         if (is_ideal && !src_local_iso_) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
           rho_v_dot_g              += 0.5 * (flx2(mb_id, IDN, k, j, i) * g_yl + flx2(mb_id, IDN, k, j + 1, i) * g_yr);
-          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx2(mb_id, IDN, k + 1, j, i) * g_zr);
-          cons(mb_id,IEN,k,j,i) += rho_v_dot_g * beta_dt;
+          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx3(mb_id, IDN, k + 1, j, i) * g_zr);
+          cons(mb_id,IEN,k,j,i)    += rho_v_dot_g * beta_dt;
         } // end energy update
 
         // compute backreaction 
