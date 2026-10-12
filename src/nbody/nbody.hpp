@@ -104,6 +104,7 @@ class NBody {
     DualArray2D<Real> nbody_data; // principle data register shape = (num_nbody, NVAR_DATA)
     bool verbose;                 // boolean flag for command line progress writes
     Real rho_sink_floor;          // minimum density in sink region 
+    Real beta_mode;               // mode for beta cooling timescale (0 = dyn, 1 = therm)
 
     // Back reaction communicators shape = (num_nbody, NVAR_REG)
     DualArray2D<Real> delta_this_pack;  // DUAL summation for backreaction in this MeshBlockPack

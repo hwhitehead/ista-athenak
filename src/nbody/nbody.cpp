@@ -72,6 +72,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   rho_sink_floor = pin->GetOrAddReal("nbody", "rho_sink_floor", 1e-8);
   cs_sqr_floor   = pin->GetOrAddReal("nbody", "cs_sqr_floor", 1e-6);
   sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0);
+  beta_mode      = pin->GetOrAddInteger("nbody", "beta_mode" 0);
 
   // import unit conversions (else all unity, used for PN terms WIP)
   // X_SI = X_CODE * unit_X
@@ -528,6 +529,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   const Real cs_sqr_floor_ = cs_sqr_floor;
   const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
   const Real G_const_  = G_const;
+  const Real beta_mode_ = beta_mode;
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -567,8 +569,13 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
       // decay to target sound speed on thermal timescale (alpha^-1 t_dyn) 
       const Real t_dyn = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real t_therm = inv_alpha * t_dyn;
-      const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_therm) + cs_sqr_target;
+      Real t_cool;
+      if (beta_mode_ == 0) {
+        t_cool = t_dyn;
+      } else {
+        t_cool = inv_alpha * t_dyn;
+      }
+      const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
 
       // assert local internal energy
       const Real E_int_next = cs_sqr_next * rho_cons * inv_gm1;
