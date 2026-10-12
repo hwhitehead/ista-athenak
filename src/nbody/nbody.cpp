@@ -411,8 +411,8 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
   // NBody properties
   auto &nbody_data_ = nbody_data;
   //auto &general_data_ = general_data; // TODO track energy lost by cooling
-  int num_nbody_ = num_nbody;
-  Real inv_Mach_sqr_ = inv_Mach_sqr;
+  const int num_nbody_ = num_nbody;
+  const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   const Real cs_sqr_floor_ = cs_sqr_floor;
   const Real G_const_  = G_const;
@@ -517,11 +517,12 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
-  int num_nbody_ = num_nbody;
+  const int num_nbody_ = num_nbody;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
-  Real inv_Mach_sqr_ = inv_Mach_sqr;
-  Real cs_sqr_floor_ = cs_sqr_floor;
-  Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
+  const Real inv_Mach_sqr_ = inv_Mach_sqr;
+  const Real cs_sqr_floor_ = cs_sqr_floor;
+  const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
+  const Real G_const_  = G_const;
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -553,7 +554,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
       // decay to target sound speed on thermal timescale (alpha^-1 t_dyn) 
       const Real rho = prim(mb_id, IDN, k, j, i);
-      const Real cs_sqr_ideal = sum_v_sqr * inv_Mach_sqr_;
+      const Real cs_sqr_ideal = abs_phi_sum * inv_Mach_sqr_;
       const Real cs_sqr_target = Kokkos::max(cs_sqr_ideal, cs_sqr_floor_);
       const Real cs_sqr_last = prim(mb_id, IPR, k, j, i) / rho;
       const Real t_dyn = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
