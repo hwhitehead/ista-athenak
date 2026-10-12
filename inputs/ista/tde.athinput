@@ -33,7 +33,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
 refinement = adaptive     # static mesh refinement (SMR)
-num_levels = 4
+num_levels = 3
 refinement_interval = 3
 max_nmb_per_rank = 4096
 
@@ -47,7 +47,7 @@ x2min = -0.2
 x2max =  0.2
 x3min = -0.05
 x3max = 0.05
-level = 3
+level = 2
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -68,7 +68,7 @@ dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
-prograde            = 1             # rotation direction of disc 
+prograde            = 0             # rotation direction of disc 
 r_minidisc          = 0.075         # outer radius of initial disc
 r_cavity            = 0.0           # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
