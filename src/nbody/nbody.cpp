@@ -55,6 +55,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_accretion     = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction  = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
   sum_backreaction  = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
+  precalc_phi       = pin->GetOrAddBoolean("nbody", "precalc_phi", false);
   if (inc_backreaction) sum_backreaction = true; // enforce summation if flagged for live backreaction
   inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
 
@@ -103,8 +104,10 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   int ncells1 = indcs.nx1 + 2 * (indcs.ng);
   int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
   int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
-  Kokkos::realloc(phi, pmy_pack->nmb_thispack, num_nbody, ncells3, ncells2, ncells1);
-
+  if (precalc_phi) {
+    Kokkos::realloc(phi, pmy_pack->nmb_thispack, num_nbody, ncells3, ncells2, ncells1);
+  }
+  
   // determine viscosity usage
   alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
   if (alpha != 0.0) {
