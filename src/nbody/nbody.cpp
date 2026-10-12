@@ -253,9 +253,6 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
   }
   int nmb1 = pmy_pack->nmb_thispack - 1;
 
-  auto &prim = pmy_pack->phydro->w0;
-  auto &cons = pmy_pack->phydro->u0;
-
   // general NBody properties 
   auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
@@ -307,7 +304,6 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
   const bool three_d = pmy_pack->pmesh->three_d;
 
   // general NBody properties 
-  auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
   auto &phi_           = phi;
 
@@ -325,17 +321,6 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
   bool sum_backreaction_ = sum_backreaction;
   auto &delta_this_pack_ = delta_this_pack;
   
-  // accretion properties
-  const bool src_accretion_  = src_accretion;
-  const Real rho_sink_floor_ = rho_sink_floor;
-  const int sink_mode_       = sink_mode;
-  Real nu_iso_homo_          = 0.0;
-  if (sink_mode_ == 1) nu_iso_homo_ = pmy_pack->phydro->pvisc->nu_iso;
-  auto &nu_iso_inhomo_       = nu_iso;
-  Real alpha_ = (alpha != 0.0) ? alpha : 0.1; // use fiducial value if not set 
-  Real inv_Mach_sqr_ = inv_Mach_sqr;
-  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
-
   par_for("nbody_apply_potential", 
           DevExeSpace(), 
           0, nmb1, 
