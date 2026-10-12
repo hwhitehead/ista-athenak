@@ -524,7 +524,8 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
   const int num_nbody_ = num_nbody;
-  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
+  const Real inv_gm1 = 1.0 / gm1;
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real cs_sqr_floor_ = cs_sqr_floor;
   const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
@@ -557,19 +558,22 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         const Real omega_sqr = abs_phi / r_sqr_softened;
         sum_omega_sqr += omega_sqr;
       }
-
-      // decay to target sound speed on thermal timescale (alpha^-1 t_dyn) 
-      const Real rho = prim(mb_id, IDN, k, j, i);
+      // compute "last" sound speed from current conserved state
       const Real cs_sqr_ideal = abs_phi_sum * inv_Mach_sqr_;
       const Real cs_sqr_target = Kokkos::max(cs_sqr_ideal, cs_sqr_floor_);
-      const Real cs_sqr_last = prim(mb_id, IPR, k, j, i) / rho;
+      const Real p_cons_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
+      const Real rho_cons = cons(mb_id, IDN, k, j, i);
+      const Real E_kin_last = 0.5 * p_cons_sqr / rho_cons;
+      const Real E_int_last = cons(mb_id, IEN, k, j, i) - E_kin_last;
+      const Real cs_sqr_last = E_int_last * gm1;
+
+      // decay to target sound speed on thermal timescale (alpha^-1 t_dyn) 
       const Real t_dyn = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
       const Real t_therm = inv_alpha * t_dyn;
       const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_therm) + cs_sqr_target;
 
       // assert local internal energy
-      const Real E_int_last = cs_sqr_last * rho * inv_gm1;
-      const Real E_int_next = cs_sqr_next * rho * inv_gm1;
+      const Real E_int_next = cs_sqr_next * rho_cons * inv_gm1;
       const Real dE_int = E_int_next - E_int_last;
 
       // set local energy
@@ -580,6 +584,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 }
 
 // compute cell diffusivity according to beta cooling
+// TODO: rename this, no flux computed just nu
 void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
 
   // MeshBlock properties
@@ -621,29 +626,21 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute Omega_tilde as quadrature sum of orbital frequency about each body
-      Real omega_tilde_sqr = 0.0;
-      Real sum_v_sqr = 0.0;
+      // compute local orbital frequency as quadrature sum of orbital frequency about each body
+      Real sum_omega_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
+        // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-        const Real r = Kokkos::sqrt(r_sqr) + tiny_number;
-        const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
-        sum_v_sqr += v_sqr;
-        const Real omega_sqr = nbody_data_.d_view(n, M_DATA) / (r * soft_r_sqr);
-        omega_tilde_sqr += omega_sqr;
+        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        // compute orbital frequency and sum
+        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -3.5);
+        sum_omega_sqr += omega_sqr;
       }
 
-      // calculate local kinematic viscosity
-      Real cs_sqr;
-      if (src_local_iso_) { // use assumed fixed Mach profile
-        cs_sqr = sum_v_sqr * inv_Mach_sqr_;
-      } else { // use local hydro state
-        cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
-      }
+      // calculate local sound speed
+      const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
 
       // stash viscosity state in register
