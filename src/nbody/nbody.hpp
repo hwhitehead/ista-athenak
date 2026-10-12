@@ -105,6 +105,7 @@ class NBody {
     bool verbose;                 // boolean flag for command line progress writes
     Real rho_sink_floor;          // minimum density in sink region 
     Real beta_mode;               // mode for beta cooling timescale (0 = dyn, 1 = therm)
+    bool precalc_phi;             // boolean: precompute gravitational potential
 
     // Back reaction communicators shape = (num_nbody, NVAR_REG)
     DualArray2D<Real> delta_this_pack;  // DUAL summation for backreaction in this MeshBlockPack
@@ -117,6 +118,9 @@ class NBody {
     
     // MPI communication buffer shape = (num_nbody, NVAR_DATA)
     HostArray2D<Real> nbody_comm;   // buffer for MPI communication in NBody::Send
+
+    // local gravitational potential 
+    DvceArray5D<Real> phi;          // gravitational potential shape = (nmb, num_nbody, nk+ng, nj+ng, ni+ng)
 
     // WIP: DUAL register for non body specific quantities shape = (NVAR_GEN)
     DualArray2D<Real> general_data; 
@@ -157,9 +161,11 @@ class NBody {
     void EvaluateF(DualArray2D<Real> y, DualArray2D<Real> &f);
     void NBodySrcTerms(const Real beta_dt);         // wrapped to call all source terms
     void NBodyPointSrcTerm(const Real beta_dt);     // per-body source terms (gravity, accretion)
-    void NBodyForcedIsoSrcTerm(const Real beta_dt);       // enforce local isothermality
+    void NBodyForcedIsoSrcTerm(const Real beta_dt); // enforce local isothermality
     void NBodyBlackBodySrcTerm(const Real beta_dt); // cool as black body 
     void NBodyBetaCoolSrcTerm(const Real beta_dt);  // beta cooling
+    void CalcGravitationalPotential(const Real beta_dt);  // pre-compute gravitational potential
+    void ApplyGravitationalPotential(const Real beta_dt); // apply gravity using pre-compute values
 
     // inhomogeneous viscosity handling
     Real alpha; // viscosity coefficient for alpha-disc prescription
