@@ -39,10 +39,10 @@ void NBody::AssembleNBodyTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   TaskID none(0);
 
   // fine timestep execution
-  id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK, this, none);
-  id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes, this, id.initrk);
-  id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate, this, id.flux);
-  id.send     = tl["stagen"]->AddTask(&NBody::Send, this, id.rkupdt);
+  id.initrk   = tl["stagen"]->AddTask(&NBody::InitRK,      this, none);
+  id.flux     = tl["stagen"]->AddTask(&NBody::Fluxes,      this, id.initrk);
+  id.rkupdt   = tl["stagen"]->AddTask(&NBody::RKUpdate,    this, id.flux);
+  id.send     = tl["stagen"]->AddTask(&NBody::Send,        this, id.rkupdt);
   id.newdt    = tl["stagen"]->AddTask(&NBody::NewTimeStep, this, id.send);
 
   return;
