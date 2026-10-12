@@ -411,7 +411,6 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
   int js = indcs.js, je = indcs.je;
   int ks = indcs.ks, ke = indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
-  auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
   // NBody properties
@@ -518,7 +517,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   int js = indcs.js, je = indcs.je;
   int ks = indcs.ks, ke = indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
-  auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
 
   // privatise nbody data for par_for
@@ -581,7 +579,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
     }); // end par_for
     
   return;
-}
+} 
 
 // compute cell diffusivity according to beta cooling
 // TODO: rename this, no flux computed just nu
