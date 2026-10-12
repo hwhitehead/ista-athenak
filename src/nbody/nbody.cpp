@@ -636,7 +636,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
         const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
         // compute orbital frequency and sum
-        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -3.5);
+        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
         sum_omega_sqr += omega_sqr;
       }
 
