@@ -616,6 +616,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   const Real alpha_ = alpha;
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   bool src_local_iso_ = src_local_iso;
+  const Real G_const_  = G_const;
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -641,7 +642,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
 
       // calculate local sound speed
       const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
-      Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(omega_tilde_sqr, -0.5);
+      Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
