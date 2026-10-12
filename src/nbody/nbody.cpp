@@ -519,7 +519,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   int ks = indcs.ks, ke = indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
-  auto &cons = pmy_pack->phydro->u0;
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
@@ -585,7 +584,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
 // compute cell diffusivity according to beta cooling
 // TODO: rename this, no flux computed just nu
-void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
+void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
   // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
@@ -606,7 +605,6 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
   max_nu_iso.template modify<HostMemSpace>();
   max_nu_iso.template sync<DevExeSpace>();
-  const Real tiny_number = std::numeric_limits<double>::min();
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
@@ -614,9 +612,8 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
   auto &max_nu_iso_ = max_nu_iso;
   int num_nbody_ = num_nbody;
   const Real alpha_ = alpha;
-  Real inv_Mach_sqr_ = inv_Mach_sqr;
-  bool src_local_iso_ = src_local_iso;
   const Real G_const_  = G_const;
+  const Real nu_iso_max = 1e-3;
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -643,6 +640,7 @@ void NBody::CalcViscousFluxAlpha(const DvceArray5D<Real> &w0) {
       // calculate local sound speed
       const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
+      nu_iso_local = Kokkos::min(nu_iso_local, nu_iso_max);
 
       // stash viscosity state in register
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
