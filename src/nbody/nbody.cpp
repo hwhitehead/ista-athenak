@@ -96,18 +96,18 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // import verbose flag
   verbose = pin->GetOrAddBoolean("nbody", "verbose", false);
 
-  // allocate register for nbody gravitational potential
+  // allocate per-cell register for nbody gravitational potential
+  // register includes ghosts to allow for on-face evaluation of forcing
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int ncells1 = indcs.nx1 + 2 * (indcs.ng);
   int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
   int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
-  Kokkoss::realloc(phi, pmy_pack->nmb_thispack, num_nbody, ncells3, ncells2, ncells1);
+  Kokkos::realloc(phi, pmy_pack->nmb_thispack, num_nbody, ncells3, ncells2, ncells1);
 
   // determine viscosity usage
   alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
   if (alpha != 0.0) {
-    // allocate array for viscosity coefficient, including ghosts
-    
+    // allocate array for per-cell viscosity coefficient, including ghosts
     Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
@@ -126,7 +126,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     } // end sink_mode check
   } // end if rank 0
   
-  // principle registers for wider access
+  // principle registers for per-body data
   Kokkos::realloc(nbody_data,       num_nbody, NVAR_DATA);    
   Kokkos::realloc(nbody_comm,       num_nbody, NVAR_DATA); 
   Kokkos::realloc(nbody_data1,      num_nbody, NVAR_REG);        
@@ -281,7 +281,7 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr_sqr_soft = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA))
+        const Real dr_sqr_soft = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
 
         // compute and set softened gravitational potential
         const Real phi_local = G_const_ * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr_soft, -0.5);
@@ -311,7 +311,8 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
   const int num_nbody_ = num_nbody;
   auto &phi_           = phi;
 
-  // fluxes
+  // Get Godunov density fluxes from Riemann solver
+  DvceArray5D<Real> flx1, flx2, flx3;
   if (pmy_pack->pmhd != nullptr) {
     flx1 = pmy_pack->pmhd->uflx.x1f;
     flx2 = pmy_pack->pmhd->uflx.x2f;
@@ -386,7 +387,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
           rho_v_dot_g              += 0.5 * (flx2(mb_id, IDN, k, j, i) * g_yl + flx2(mb_id, IDN, k, j + 1, i) * g_yr);
           if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx2(mb_id, IDN, k + 1, j, i) * g_zr);
-          u0(m,IEN,k,j,i) += rho_v_dot_g * beta_dt;
+          cons(mb_id,IEN,k,j,i) += rho_v_dot_g * beta_dt;
         } // end energy update
 
         // compute backreaction 
