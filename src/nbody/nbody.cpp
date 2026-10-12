@@ -613,6 +613,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real alpha_ = alpha;
   const Real G_const_  = G_const;
   const Real nu_iso_max = 1e-3;
+  const Real inv_Mach_sqr_ = inv_Mach_sqr;
 
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -625,6 +626,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
       // compute local orbital frequency as quadrature sum of orbital frequency about each body
       Real sum_omega_sqr = 0.0;
+      Real sum_abs_phi = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
@@ -634,10 +636,14 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         // compute orbital frequency and sum
         const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
         sum_omega_sqr += omega_sqr;
+        // compute potential and sum
+        const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
+        sum_abs_phi += abs_phi;
       }
 
       // calculate local sound speed
-      const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+      //const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+      const Real cs_sqr = sum_abs_phi * inv_Mach_sqr_;
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
       nu_iso_local = Kokkos::min(nu_iso_local, nu_iso_max);
 
