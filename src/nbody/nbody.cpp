@@ -262,6 +262,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   auto &nu_iso_inhomo_       = nu_iso;
   Real alpha_ = (alpha != 0.0) ? alpha : 0.1; // use fiducial value if not set 
   Real inv_Mach_sqr_ = inv_Mach_sqr;
+  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
 
   par_for("nbody_gravity_src", 
           DevExeSpace(), 
@@ -354,10 +355,15 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         // TODO: this should be computed using acceleration and fluxes on cell FACES
         // build phi register in NBody to avoid repeat computation
         if (is_ideal && !src_local_iso_) { // only compute energy change if ideal AND not forced iso
-          const Real dE = dpx_grav * prim(mb_id, IVX, k, j, i)
-                        + dpy_grav * prim(mb_id, IVY, k, j, i)
-                        + dpz_grav * prim(mb_id, IVZ, k, j, i);
-          cons(mb_id, IEN, k, j, i) += dE; 
+          const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
+                            + dpy_grav * prim(mb_id, IVY, k, j, i)
+                            + dpz_grav * prim(mb_id, IVZ, k, j, i);
+          const Real dE_acc = dpx_acc * prim(mb_id, IVX, k, j, i)
+                            + dpy_acc * prim(mb_id, IVY, k, j, i)
+                            + dpz_acc * prim(mb_id, IVZ, k, j, i);
+          const Real cs_sqr = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+          const Real dE_int = cs_sqr * drho_acc * inv_gm1;
+          cons(mb_id, IEN, k, j, i) += dE_grav + dE_acc + dE_int;
         }
 
         // compute backreaction on body 
