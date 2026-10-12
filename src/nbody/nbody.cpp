@@ -519,6 +519,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   int ks = indcs.ks, ke = indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
+  auto &cons = pmy_pack->phydro->u0;
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;

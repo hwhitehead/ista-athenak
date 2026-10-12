@@ -5,7 +5,7 @@ problem   = nbody
 
 <job>
 basename  = nbody       # problem ID: basename of output filenames
-
+ 
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
 nx1       = 512         # Number of zones in X1-direction (root level, dx=0.1)
