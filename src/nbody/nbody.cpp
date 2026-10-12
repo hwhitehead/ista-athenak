@@ -51,6 +51,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_gravity       = pin->GetOrAddBoolean("nbody", "src_gravity", false);
   src_local_iso     = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
   src_blackbody     = pin->GetOrAddBoolean("nbody", "src_blackbody", false);
+  src_beta_cool     = pin->GetOrAddBoolean("nbody", "src_beta_cool", false);
   src_accretion     = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   inc_backreaction  = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
   sum_backreaction  = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
