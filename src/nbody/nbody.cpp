@@ -284,7 +284,7 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
         const Real dr_sqr_soft = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
 
         // compute and set softened gravitational potential
-        const Real phi_local = G_const_ * nbody_data.d_view(n, M_DATA) * Kokkos::pow(dr_sqr_soft, -0.5);
+        const Real phi_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_sqr_soft, -0.5);
         phi_(mb_id, n, k, j, i) = phi_local;
       } // end body loop
     }); // end par_for
@@ -313,15 +313,9 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 
   // Get Godunov density fluxes from Riemann solver
   DvceArray5D<Real> flx1, flx2, flx3;
-  if (pmy_pack->pmhd != nullptr) {
-    flx1 = pmy_pack->pmhd->uflx.x1f;
-    flx2 = pmy_pack->pmhd->uflx.x2f;
-    flx3 = pmy_pack->pmhd->uflx.x3f;
-  } else {
-    flx1 = pmy_pack->phydro->uflx.x1f;
-    flx2 = pmy_pack->phydro->uflx.x2f;
-    flx3 = pmy_pack->phydro->uflx.x3f;
-  }
+  flx1 = pmy_pack->phydro->uflx.x1f;
+  flx2 = pmy_pack->phydro->uflx.x2f;
+  flx3 = pmy_pack->phydro->uflx.x3f;
 
   // thermodynamic properties
   const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
@@ -370,7 +364,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 
         // compute cell centered accelerations
         const Real g_xv = 0.5 * (g_xl + g_xr);
-        const Real g_yz = 0.5 * (g_yl + g_yr);
+        const Real g_yv = 0.5 * (g_yl + g_yr);
         const Real g_zv = 0.5 * (g_zl + g_zr); // zero if !three_d
 
         // update momenta
