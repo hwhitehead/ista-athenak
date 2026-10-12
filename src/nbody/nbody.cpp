@@ -415,6 +415,8 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   const Real cs_sqr_floor_ = cs_sqr_floor;
+  const Real G_const_  = G_const;
+  const Real tiny_number = std::numeric_limits<double>::min(); 
 
   par_for("nbody_forced_iso_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -424,20 +426,19 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local sound speed as quadrature sum of Keplertian orbital velocities about each body
-      Real sum_v_sqr = 0.0;
+      // compute local sound speed as linear sum of gravitational potetial from each body
+      // TODO: if grav accel computation offloaded to register, compute via that register to avoid double comp
+      Real abs_phi_sum = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
+        // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-        const Real r = Kokkos::sqrt(r_sqr);
-        const Real soft_r_sqr = r_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        //const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r / soft_r_sqr;
-        const Real v_sqr = nbody_data_.d_view(n, M_DATA) * r_sqr * Kokkos::pow(soft_r_sqr, -1.5);
-        sum_v_sqr += v_sqr;
+        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
+        abs_phi_sum += abs_phi;
       }
-      Real cs_sqr_next = sum_v_sqr * inv_Mach_sqr_;
+      Real cs_sqr_next = abs_phi_sum * inv_Mach_sqr_;
       cs_sqr_next = Kokkos::max(cs_sqr_next, cs_sqr_floor_);
 
       // compute next kinetic energy (using updated conservative state)

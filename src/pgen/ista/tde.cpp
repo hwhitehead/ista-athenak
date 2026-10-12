@@ -137,9 +137,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       Real rho = rho0 * inner_profile * outer_profile * vertical_profile;
       rho = Kokkos::max(rho, rho0 * rho_floor_fac);
 
-      // set velocity in disc (everything Keplerian about host)
-      // velocity profile should match softened potential
-      //const Real v_phi_sqr = G_const * m_host * R / soft_R_sqr;
+      // set velocity in disc (everything softened-Keplerian about host)
+      // velocity profile is such that g + v^2 / r = 0
       const Real v_phi_sqr = G_const * m_host * SQR(R) * Kokkos::pow(soft_R_sqr, -1.5);
       Real v_phi = Kokkos::sqrt(v_phi_sqr);
       if (!prograde) {
