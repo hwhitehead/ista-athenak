@@ -49,25 +49,15 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // set physics module options using user input
   src_gravity       = pin->GetOrAddBoolean("nbody", "src_gravity", false);
-  src_local_iso     = pin->GetOrAddBoolean("nbody", "src_local_iso", false);
-  src_blackbody     = pin->GetOrAddBoolean("nbody", "src_blackbody", false);
-  src_beta_cool     = pin->GetOrAddBoolean("nbody", "src_beta_cool", false);
   src_accretion     = pin->GetOrAddBoolean("nbody", "src_accretion", false);
+  cooling_mode      = pin->GetOrAddInteger("nbody", "cooling_mode", 0); // typed by NBodyCoolingModes in nbody.hpp
+  precalc_phi       = pin->GetOrAddBoolean("nbody", "precalc_phi", false);
+
+  // set back reaction options
   inc_backreaction  = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
   sum_backreaction  = pin->GetOrAddBoolean("nbody", "sum_backreaction", false);
-  precalc_phi       = pin->GetOrAddBoolean("nbody", "precalc_phi", false);
   if (inc_backreaction) sum_backreaction = true; // enforce summation if flagged for live backreaction
-  inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false);
-
-  // check conflicting physics module options
-  if (src_local_iso + src_blackbody + src_beta_cool > 1) {
-    if (global_variable::my_rank == 0) {
-      std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
-                << "Multiple cooling source terms flagged in athinput" << std::endl
-                << "Please select only one of src_local_iso, src_blackbody, or src_beta_cool" << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-  }
+  inc_pn = pin->GetOrAddBoolean("nbody", "inc_pn", false); // WIP, inactive
 
   // set disc state variables
   Mach           = pin->GetOrAddReal("nbody", "Mach", 1.0);
@@ -75,7 +65,6 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   rho_sink_floor = pin->GetOrAddReal("nbody", "rho_sink_floor", 1e-8);
   cs_sqr_floor   = pin->GetOrAddReal("nbody", "cs_sqr_floor", 1e-6);
   sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0);
-  beta_mode      = pin->GetOrAddInteger("nbody", "beta_mode", 0);
 
   // import unit conversions (else all unity, used for PN terms WIP)
   // X_SI = X_CODE * unit_X
@@ -139,21 +128,27 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   Kokkos::realloc(delta_this_mesh,  num_nbody, NVAR_BACK);  
   Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
   
+  // identify number of AMR levels
+  num_amr_levels = pin->GetOrAddInteger("mesh_refinement", "num_amr_levels", 0);
+  const int def_amr_level = (num_amr_levels >= 1) ? num_amr_levels - 1 : 0;
+
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
-    std::string nbody_header = "nbody";
+    // select nth nbody state 
     std::string str_n = std::to_string(n);
     // mass, position and velocity data MUST be passed
-    nbody_data.h_view(n, M_DATA)      = pin->GetReal(nbody_header, "m" + str_n);
-    nbody_data.h_view(n, X_DATA)      = pin->GetReal(nbody_header, "x" + str_n);
-    nbody_data.h_view(n, Y_DATA)      = pin->GetReal(nbody_header, "y" + str_n);
-    nbody_data.h_view(n, Z_DATA)      = pin->GetReal(nbody_header, "z" + str_n);
-    nbody_data.h_view(n, VX_DATA)     = pin->GetReal(nbody_header, "vx" + str_n);
-    nbody_data.h_view(n, VY_DATA)     = pin->GetReal(nbody_header, "vy" + str_n);
-    nbody_data.h_view(n, VZ_DATA)     = pin->GetReal(nbody_header, "vz" + str_n);
-    nbody_data.h_view(n, R_SOFT_DATA) = pin->GetReal(nbody_header, "r_soft" + str_n);
-    nbody_data.h_view(n, R_AMR_DATA)  = pin->GetOrAddReal(nbody_header, "r_amr" + str_n, 0.0);
-    nbody_data.h_view(n, T_AMR_DATA)  = pin->GetOrAddReal(nbody_header, "t_amr" + str_n, 0.0); 
+    nbody_data.h_view(n, M_DATA)      = pin->GetReal("nbody", "m" + str_n);
+    nbody_data.h_view(n, X_DATA)      = pin->GetReal("nbody", "x" + str_n);
+    nbody_data.h_view(n, Y_DATA)      = pin->GetReal("nbody", "y" + str_n);
+    nbody_data.h_view(n, Z_DATA)      = pin->GetReal("nbody", "z" + str_n);
+    nbody_data.h_view(n, VX_DATA)     = pin->GetReal("nbody", "vx" + str_n);
+    nbody_data.h_view(n, VY_DATA)     = pin->GetReal("nbody", "vy" + str_n);
+    nbody_data.h_view(n, VZ_DATA)     = pin->GetReal("nbody", "vz" + str_n);
+    nbody_data.h_view(n, R_SOFT_DATA) = pin->GetReal("nbody", "r_soft" + str_n);
+    // amr properties default to zero
+    nbody_data.h_view(n, R_AMR_DATA)  = pin->GetOrAddReal("nbody", "r_amr" + str_n, 0.0);
+    nbody_data.h_view(n, T_AMR_DATA)  = pin->GetOrAddReal("nbody", "t_amr" + str_n, 0.0);
+    nbody_data.h_view(n, N_AMR_DATA)  = pin->GetOrAddInteger("nbody", "n_amr" + str_n, def_amr_level); 
     // all other reads optional, add overwrite
   } // end n
 
@@ -222,19 +217,30 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
     CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
     ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
   } else {
-    NBodyPointSrcTerm(beta_dt);
+    NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
   }
 
   // thermodynamic src terms
   if (pmy_pack->phydro->peos->eos_data.is_ideal) {
-    if (src_local_iso) {
-      NBodyForcedIsoSrcTerm(beta_dt);
-    } else if (src_blackbody) {
-      NBodyBlackBodySrcTerm(beta_dt);
-    } else if (src_beta_cool) {
-      NBodyBetaCoolSrcTerm(beta_dt);
-    }
-  }
+    switch (cooling_mode) {
+      case NO_COOLING:      // no cooling term flagged, skip
+        break;
+      case FORCED_ISO:      // instantly fix temperature to fixed Mach number
+        NBodyForcedIsoSrcTerm(beta_dt);
+        break;
+      case BLACK_BODY;      // apply optically thick black body cooling
+        NBodyBlackBodySrcTerm(beta_dt);
+        break;
+      case BETA_COOL_DYN;   // apply beta cooling to fixed Mach number on dynamical timescale
+        NBodyBetaCoolSrcTerm(beta_dt);
+        break;
+      case BETA_COOL_THERM; // apply beta cooling to fixed Mach number on thermal timescale
+        NBodyBetaCoolSrcTerm(beta_dt);
+        break;
+      default:
+        break;
+    } // end cooling switch
+  } // end is_ideal
 
   return;
 }
@@ -691,6 +697,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real cs_sqr_floor_ = cs_sqr_floor;
   const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
+  const Real t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : inv_alpha; // toggle between dynamical/thermal cooling timescale
   const Real G_const_  = G_const;
   const Real beta_mode_ = beta_mode;
 
@@ -705,7 +712,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
       // compute local sound speed via linear sum of gravitational potential from each body
       // compute local orbital time via quadratic sum of orbital frequencies
-      // TODO: if grav accel computation offloaded to register, compute via that register to avoid double comp
       Real abs_phi_sum = 0.0;
       Real sum_omega_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
@@ -732,12 +738,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
       // decay to target sound speed on thermal timescale (alpha^-1 t_dyn) 
       const Real t_dyn = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      Real t_cool;
-      if (beta_mode_ == 0) {
-        t_cool = t_dyn;
-      } else {
-        t_cool = inv_alpha * t_dyn;
-      }
+      const Real t_cool = t_dyn * t_cool_fac;
       const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
 
       // assert local internal energy
@@ -752,7 +753,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 } 
 
 // compute cell diffusivity according to beta cooling
-// TODO: rename this, no flux computed just nu
 void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
   // MeshBlock properties
@@ -1092,8 +1092,8 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   // MeshBlock count small, perfom on host
   for (int mb_id = 0; mb_id < nmb; mb_id++) {
 
-    // by default, mark for derefine
-    bool refine = false;
+    // by default, mark for derefinement (level decrease)
+    int mb_refine_flag = -1;
 
     // extract MeshBlock bounds
     Real &x1min = size.h_view(mb_id).x1min;
@@ -1105,6 +1105,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
 
     // cycle over bodies
     for (int n = 0; n < pmbp->pnbody->num_nbody; n++) {
+      
       // if refinement not live for body n, skip
       if (time < pmbp->pnbody->nbody_data.h_view(n, T_AMR_DATA)) continue;
       
@@ -1112,7 +1113,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
       const Real rad = pmbp->pnbody->nbody_data.h_view(n, R_AMR_DATA);
       if (rad == 0.0) continue;
 
-      // save position 
+      // read body position 
       const Real x1 = pmbp->pnbody->nbody_data.h_view(n, X_DATA);
       const Real x2 = pmbp->pnbody->nbody_data.h_view(n, Y_DATA);
       const Real x3 = pmbp->pnbody->nbody_data.h_view(n, Z_DATA);
@@ -1129,19 +1130,26 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
             (((x3min < (x3+rad)) && (x3min > (x3-rad))) ||
             ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
             ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
-            refine = true;
-          }
-        }
-      }
+            // overlap confirmed, check if at maximal level for this body
+            const int this_mb_refinement = pmbp->pmesh->lloc_eachmb[m+mbs].level - pmbp->pmesh->root_level;
+            const int target_refinement  = pmbp->pnbody->nbody_data.h_view(n, N_AMR_DATA);
+            if (this_mb_refinement < target_refinement) { // mark for level increase
+              mb_refine_flag = 1;
+              break; // if marked for refinement, skip checking other bodies
+            } else if (this_mb_refinement == target_refinement) { // mark for fixed level
+              mb_refine_flag = 0;
+              continue; // continue check, other body may motivate level increase
+            } // refinement flag check
+          } // three_d check
+        } // multi_d check
+      } // x1 check
     } // end n loop
-    if (refine) {
-      refine_flag.h_view(mb_id + mbs) = 1;
-    } else {
-      refine_flag.h_view(mb_id + mbs) = -1;
-    }
+
+    // stash refinement flag
+    refine_flag.h_view(mb_id + mbs) = mb_refine_flag;
   } // end mb_id loop
 
-  // sync host and device  DevExeSpace
+  // update refine_flag on device
   refine_flag.template modify<HostMemSpace>();
   refine_flag.template sync<DevExeSpace>();
 }

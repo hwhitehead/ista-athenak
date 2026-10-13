@@ -40,8 +40,8 @@ enum NBodyDataIndices {M_DATA = 0,
                         VX_DATA = 4, VY_DATA = 5, VZ_DATA = 6, MDOT_DATA = 7,
                         AX_GRAV_DATA = 8, AY_GRAV_DATA = 9, AZ_GRAV_DATA = 10,
                         AX_ACC_DATA = 11, AY_ACC_DATA = 12, AZ_ACC_DATA = 13,
-                        R_SOFT_DATA = 14, R_AMR_DATA = 15, T_AMR_DATA = 16,
-                        NVAR_DATA = 17};
+                        R_SOFT_DATA = 14, R_AMR_DATA = 15, T_AMR_DATA = 16, N_AMR_DATA = 17,
+                        NVAR_DATA = 18};
 
 // indices for history output writing
 enum NBodyHistIndices {M_HIST = 0, 
@@ -77,6 +77,14 @@ enum NBodyRegisterIndices {M_REG = 0, MDOT_REG = 0,
                             VZ_REG = 6, VZDOT_REG = 6,
                             NVAR_REG = 7};
 
+// indices for cooling modes
+enum NBodyCoolingModes {NO_COOLING = -1, 
+                        FORCED_ISO = 0,
+                        BLACK_BODY = 1,
+                        BETA_COOL_DYN = 2,
+                        BETA_COOL_THERM = 3
+                        NVAR_COOL = 4};
+
 namespace nbody {
 
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
@@ -104,8 +112,8 @@ class NBody {
     DualArray2D<Real> nbody_data; // principle data register shape = (num_nbody, NVAR_DATA)
     bool verbose;                 // boolean flag for command line progress writes
     Real rho_sink_floor;          // minimum density in sink region 
-    Real beta_mode;               // mode for beta cooling timescale (0 = dyn, 1 = therm)
     bool precalc_phi;             // boolean: precompute gravitational potential
+    int num_levels;               // total number of refinement levels
 
     // Back reaction communicators shape = (num_nbody, NVAR_REG)
     DualArray2D<Real> delta_this_pack;  // DUAL summation for backreaction in this MeshBlockPack
@@ -130,9 +138,9 @@ class NBody {
 
     // physics module booleans
     bool src_gravity, src_accretion;                    // forcing toggles
-    bool src_local_iso, src_blackbody, src_beta_cool;   // thermodynamic toggles
+    int cooling_mode;                                   // -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
     bool inc_backreaction, sum_backreaction, inc_pn;    // NBody toggles
-    int  sink_mode;                                     // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
+    int sink_mode;                                      // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr, cs_sqr_floor;
