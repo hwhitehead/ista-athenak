@@ -168,6 +168,25 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   nbody_data.template sync<DevExeSpace>();
   delta_this_pack.template sync<DevExeSpace>();
+
+  // if verbose and principle NBody instance, write status to command line
+  // TODO: package this as report func
+  if ((global_variable::my_rank == 0) && (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) && (pmy_pack->pmesh->time == 0)){
+    std::cout << "Reporting NBody initialisation..." << std::endl;
+    
+    std::cout << "n-body settings:"     << std::endl;
+    std::cout << "num_nbody = "         << num_nbody << std::endl;
+    std::cout << "inc_backreaction = "  << inc_backreaction << std::endl;
+
+    std::cout << "hydro settings:"      << std::endl;
+    std::cout << "src_gravity = "       << src_gravity << std::endl;
+    std::cout << "precalc_phi = "       << precalc_phi << std::endl;
+    std::cout << "src_accretion = "     << src_accretion << std::endl;
+    std::cout << "cooling_mode = "      << cooling_mode << std::endl;
+    std::cout << "sink_mode = "         << sink_mode << std::endl;
+    std::cout << "alpha = "             << alpha << std::endl;
+  }
+
 } // end ctor
 
 //----------------------------------------------------------------------------------------
