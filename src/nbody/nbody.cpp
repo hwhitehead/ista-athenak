@@ -228,7 +228,7 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
       case FORCED_ISO:      // instantly fix temperature to fixed Mach number
         NBodyForcedIsoSrcTerm(beta_dt);
         break;
-      case BLACK_BODY;      // apply optically thick black body cooling
+      case BLACK_BODY:      // apply optically thick black body cooling
         NBodyBlackBodySrcTerm(beta_dt);
         break;
       case BETA_COOL_DYN;   // apply beta cooling to fixed Mach number on dynamical timescale
@@ -325,7 +325,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 
   // thermodynamic properties
   const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
-  const bool src_local_iso_ = src_local_iso;
+  const bool evolve_energy  = (cooling_mode != FORCED_ISO);
 
   // back reation properties
   bool sum_backreaction_ = sum_backreaction;
@@ -372,7 +372,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy
-        if (is_ideal && !src_local_iso_) {
+        if (is_ideal && evolve_energy) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
           rho_v_dot_g              += 0.5 * (flx2(mb_id, IDN, k, j, i) * g_yl + flx2(mb_id, IDN, k, j + 1, i) * g_yr);
           if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx3(mb_id, IDN, k + 1, j, i) * g_zr);
@@ -417,7 +417,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
   // thermodynamic properties
   const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
-  const bool src_local_iso_ = src_local_iso;
+  const bool evolve_energy  = (cooling_mode != FORCED_ISO);
 
   // back reation properties
   bool sum_backreaction_ = sum_backreaction;
@@ -524,7 +524,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
         // TODO: this should be computed using acceleration and fluxes on cell FACES
         // build phi register in NBody to avoid repeat computation
-        if (is_ideal && !src_local_iso_) { // only compute energy change if ideal AND not forced iso
+        if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
                             + dpy_grav * prim(mb_id, IVY, k, j, i)
                             + dpz_grav * prim(mb_id, IVZ, k, j, i);
@@ -699,7 +699,6 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10; // use fiducial value if not set 
   const Real t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : inv_alpha; // toggle between dynamical/thermal cooling timescale
   const Real G_const_  = G_const;
-  const Real beta_mode_ = beta_mode;
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -1131,7 +1130,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
             ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
             ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
             // overlap confirmed, check if at maximal level for this body
-            const int this_mb_refinement = pmbp->pmesh->lloc_eachmb[m+mbs].level - pmbp->pmesh->root_level;
+            const int this_mb_refinement = pmbp->pmesh->lloc_eachmb[mb_id+mbs].level - pmbp->pmesh->root_level;
             const int target_refinement  = pmbp->pnbody->nbody_data.h_view(n, N_AMR_DATA);
             if (this_mb_refinement < target_refinement) { // mark for level increase
               mb_refine_flag = 1;
