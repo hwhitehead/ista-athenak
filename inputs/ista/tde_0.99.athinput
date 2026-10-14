@@ -41,8 +41,8 @@ max_nmb_per_rank = 4096
 method = user
 
 <refined_region1>
-x1min = 0.205           
-x1max = 0.195
+x1min = 0.195           
+x1max = 0.205
 x2min = -0.005
 x2max =  0.005
 x3min = -0.05
