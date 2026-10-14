@@ -747,7 +747,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
       }
       // determine target sound speed based on fixed Mach profile
       Real cs_sqr_target = abs_phi_sum * inv_Mach_sqr_;
-      cs_sqr_target = Kokkos::max(cs_sqr_ideal, cs_sqr_floor_);
+      cs_sqr_target = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
 
       // compute current (and next) kinetic energy (using updated intermediate conserved state)
       const Real rho_current   = cons(mb_id, IDN, k, j, i);
@@ -767,7 +767,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
       // assert local internal energy
       const Real E_int_next = cs_sqr_next * rho_current * inv_gm1;
-      const Real dE_int     = E_int_next - E_int_last;
+      const Real dE_int     = E_int_next - E_int_current;
 
       // update total energy (dE_kin = 0)
       cons(mb_id, IEN, k, j, i) += dE_int;
