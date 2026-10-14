@@ -82,7 +82,7 @@ enum NBodyCoolingModes {NO_COOLING = -1,
                         FORCED_ISO = 0,
                         BLACK_BODY = 1,
                         BETA_COOL_DYN = 2,
-                        BETA_COOL_THERM = 3
+                        BETA_COOL_THERM = 3,
                         NVAR_COOL = 4};
 
 namespace nbody {

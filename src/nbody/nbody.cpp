@@ -130,7 +130,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   
   // identify number of AMR levels
   num_amr_levels = pin->GetOrAddInteger("mesh_refinement", "num_amr_levels", 0);
-  const int def_amr_level = (num_amr_levels >= 1) ? num_amr_levels - 1 : 0;
+  const int max_amr_level = (num_amr_levels >= 1) ? num_amr_levels - 1 : 0;
 
   // load initial nbody state from user input
   for (int n = 0; n < num_nbody; n++) {
@@ -148,7 +148,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     // amr properties default to zero
     nbody_data.h_view(n, R_AMR_DATA)  = pin->GetOrAddReal("nbody", "r_amr" + str_n, 0.0);
     nbody_data.h_view(n, T_AMR_DATA)  = pin->GetOrAddReal("nbody", "t_amr" + str_n, 0.0);
-    nbody_data.h_view(n, N_AMR_DATA)  = pin->GetOrAddInteger("nbody", "n_amr" + str_n, def_amr_level); 
+    nbody_data.h_view(n, N_AMR_DATA)  = pin->GetOrAddInteger("nbody", "n_amr" + str_n, max_amr_level); 
     // all other reads optional, add overwrite
   } // end n
 
