@@ -787,40 +787,44 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
     {
-
-      // identify cell position
-      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
-      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
-      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
-
-      // compute local orbital frequency as quadrature sum of orbital frequency about each body
-      Real sum_omega_sqr = 0.0;
-      Real sum_abs_phi = 0.0;
-      for (int n = 0; n < num_nbody_; n++) {
-        // compute true and softened seperation
-        const Real dx = x - nbody_data_.d_view(n, X_DATA);
-        const Real dy = y - nbody_data_.d_view(n, Y_DATA);
-        const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        // compute orbital frequency and sum
-        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
-        sum_omega_sqr += omega_sqr;
-        // compute potential and sum
-        const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
-        sum_abs_phi += abs_phi;
-      }
-
-      // calculate local sound speed
-      //const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
-      const Real cs_sqr = sum_abs_phi * inv_Mach_sqr_;
-      Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
-      nu_iso_local = Kokkos::min(nu_iso_local, nu_iso_max);
-
-      // stash viscosity state in register
-      nu_iso_(mb_id, k, j, i) = nu_iso_local;
-
-      // thread-safe maximum check for tracker
+      // TEMP: enforce low, fixed viscosity for timestep analysis
+      const Real nu_iso_local = 1e-5;
+      nu_iso_(mb_id, k, j, i) = nu_iso_local; 
       Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
+      
+      // // identify cell position
+      // const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      // const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      // const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
+
+      // // compute local orbital frequency as quadrature sum of orbital frequency about each body
+      // Real sum_omega_sqr = 0.0;
+      // Real sum_abs_phi = 0.0;
+      // for (int n = 0; n < num_nbody_; n++) {
+      //   // compute true and softened seperation
+      //   const Real dx = x - nbody_data_.d_view(n, X_DATA);
+      //   const Real dy = y - nbody_data_.d_view(n, Y_DATA);
+      //   const Real dz = z - nbody_data_.d_view(n, Z_DATA);
+      //   const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+      //   // compute orbital frequency and sum
+      //   const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
+      //   sum_omega_sqr += omega_sqr;
+      //   // compute potential and sum
+      //   const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
+      //   sum_abs_phi += abs_phi;
+      // }
+
+      // // calculate local sound speed
+      // //const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+      // const Real cs_sqr = sum_abs_phi * inv_Mach_sqr_;
+      // Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
+      // nu_iso_local = Kokkos::min(nu_iso_local, nu_iso_max);
+
+      // // stash viscosity state in register
+      // nu_iso_(mb_id, k, j, i) = nu_iso_local;
+
+      // // thread-safe maximum check for tracker
+      // Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
     }); // end par_for
     
   // enforce update of maximum tracker on host
