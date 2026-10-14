@@ -9,14 +9,14 @@ basename  = nbody       # problem ID: basename of output filenames
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
 nx1       = 512         # Number of zones in X1-direction (root level, dx=0.1)
-x1min     = -1.0       # minimum value of X1
-x1max     =  3       # maximum value of X1
+x1min     = -1.0        # minimum value of X1
+x1max     = 3           # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
 nx2       = 256         # Number of zones in X2-direction (root level, dx=0.1)
-x2min     = -1.0       # minimum value of X2
-x2max     =  1.0       # maximum value of X2
+x2min     = -1.0        # minimum value of X2
+x2max     =  1.0        # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
 ox2_bc    = outflow     # outer-X2 boundary flag
 
@@ -80,7 +80,7 @@ num_nbody           = 2             # number of gravitating bodies in domain
 eta_dt              = 0.1           # prefactor for nbody timestep integration
 hist_nbody          = 1             # boolean: write nbody state to .hst
 src_gravity         = 1             # boolean: include gravity src for hydro
-src_accretion       = 1             # boolean: include accretion src for hydro
+src_accretion       = 0             # boolean: include accretion src for hydro
 cooling_mode        = 0             # -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
 sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
@@ -92,28 +92,26 @@ cs_sqr_floor        = 1e-8          # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
 
 m0 = 1.0
-x0 = -0.17272727272727273
-y0 = 0.0
+x0 = -0.0947010192597998
+y0 = -0.03922644654796476
 z0 = 0.0
-vx0 = 0.0
-vy0 = -0.021873931962990353
+vx0 = 0.08370791362917598
+vy0 = -0.005223392694599033
 vz0 = 0.0
-r_soft0 = 0.001
+r_soft0 = 0.0025
 r_amr0 = 0.1
 t_amr0 = 0.0
-n_amr0 = 2
 
 m1 =  0.1
-x1 = 1.727272727272727
-y1 = 0.0
+x1 = 0.947010192597998
+y1 = 0.3922644654796476
 z1 = 0.0
-vx1 = 0.0
-vy1 = 0.2187393196299035
+vx1 = -0.8370791362917598
+vy1 = 0.05223392694599033
 vz1 = 0.0
-r_soft1 = 0.001
+r_soft1 = 0.0025
 r_amr1 = 0.1
-t_amr1 = 2.0
-n_amr1 = 1
+t_amr1 = 0.0
 
 <output1>
 file_type  = hst         # history data dump
