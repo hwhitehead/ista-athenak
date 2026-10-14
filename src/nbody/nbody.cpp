@@ -172,7 +172,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // if verbose and principle NBody instance, write status to command line
   // TODO: package this as report func
   if ((global_variable::my_rank == 0) && (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) && (pmy_pack->pmesh->time == 0)){
-    std::cout << "Reporting NBody initialisation..." << std::endl;
+    std::cout << "Reporting NBody init..." << std::endl;
     
     std::cout << "n-body settings:"     << std::endl;
     std::cout << "num_nbody = "         << num_nbody << std::endl;
@@ -745,25 +745,31 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         const Real omega_sqr = abs_phi / r_sqr_softened;
         sum_omega_sqr += omega_sqr;
       }
-      // compute "last" sound speed from current conserved state
-      const Real cs_sqr_ideal = abs_phi_sum * inv_Mach_sqr_;
-      const Real cs_sqr_target = Kokkos::max(cs_sqr_ideal, cs_sqr_floor_);
-      const Real p_cons_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
-      const Real rho_cons = cons(mb_id, IDN, k, j, i);
-      const Real E_kin_last = 0.5 * p_cons_sqr / rho_cons;
-      const Real E_int_last = cons(mb_id, IEN, k, j, i) - E_kin_last;
-      const Real cs_sqr_last = E_int_last * gm1;
+      // determine target sound speed based on fixed Mach profile
+      Real cs_sqr_target = abs_phi_sum * inv_Mach_sqr_;
+      cs_sqr_target = Kokkos::max(cs_sqr_ideal, cs_sqr_floor_);
 
-      // decay to target sound speed on thermal timescale (alpha^-1 t_dyn) 
-      const Real t_dyn = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real t_cool = t_dyn * t_cool_fac;
-      const Real cs_sqr_next = (cs_sqr_last - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
+      // compute current (and next) kinetic energy (using updated intermediate conserved state)
+      const Real rho_current   = cons(mb_id, IDN, k, j, i);
+      const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
+      const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
+      
+      // compute current sound speed via internal energy
+      // TODO: can be nominally streamlined via const rho prefac
+      const Real E_int_current  = cons(mb_id, IEN, k, j, i) - E_kin_current;
+      const Real P_current      = E_int_current * gm1; 
+      const Real cs_sqr_current = P_current / rho_current;
+
+      // decay to target sound speed
+      const Real t_dyn       = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
+      const Real t_cool      = t_dyn * t_cool_fac;
+      const Real cs_sqr_next = (cs_sqr_current - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
 
       // assert local internal energy
-      const Real E_int_next = cs_sqr_next * rho_cons * inv_gm1;
-      const Real dE_int = E_int_next - E_int_last;
+      const Real E_int_next = cs_sqr_next * rho_current * inv_gm1;
+      const Real dE_int     = E_int_next - E_int_last;
 
-      // set local energy
+      // update total energy (dE_kin = 0)
       cons(mb_id, IEN, k, j, i) += dE_int;
     }); // end par_for
     
