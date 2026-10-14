@@ -101,6 +101,7 @@ vz0 = 0.0
 r_soft0 = 0.001
 r_amr0 = 0.1
 t_amr0 = 0.0
+n_amr0 = 2
 
 m1 =  0.1
 x1 = 1.727272727272727
@@ -112,6 +113,7 @@ vz1 = 0.0
 r_soft1 = 0.001
 r_amr1 = 0.1
 t_amr1 = 2.0
+n_amr1 = 1
 
 <output1>
 file_type  = hst         # history data dump
