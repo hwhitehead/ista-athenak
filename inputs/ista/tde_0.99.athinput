@@ -81,7 +81,7 @@ eta_dt              = 0.1           # prefactor for nbody timestep integration
 hist_nbody          = 1             # boolean: write nbody state to .hst
 src_gravity         = 1             # boolean: include gravity src for hydro
 src_accretion       = 0             # boolean: include accretion src for hydro
-cooling_mode        = 2             # -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
+cooling_mode        = -1             # -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
 sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
