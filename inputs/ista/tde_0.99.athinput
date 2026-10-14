@@ -69,7 +69,7 @@ pfloor = 1e-12
 
 <problem>
 prograde            = 0             # rotation direction of disc 
-r_minidisc          = 0.025           # outer radius of initial disc
+r_minidisc          = 0.01          # outer radius of initial disc
 r_cavity            = 0.0           # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
 rho_floor_fac       = 1e-8          # floor value applied to non-disc void
@@ -99,7 +99,7 @@ vx0 = 0.25865255918176666
 vy0 = -0.044690275783704485
 vz0 = 0.0
 r_soft0 = 0.00125
-r_amr0 = 0.1
+r_amr0 = 0.01
 t_amr0 = 0.0
 
 m1 =  0.1
@@ -110,7 +110,7 @@ vx1 = -2.5865255918176664
 vy1 = 0.44690275783704486
 vz1 = 0.0
 r_soft1 = 0.00125
-r_amr1 = 0.1
+r_amr1 = 0.01
 t_amr1 = 0.0
 
 <output1>
