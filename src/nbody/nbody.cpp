@@ -90,11 +90,12 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // allocate per-cell register for nbody gravitational potential
   // register includes ghosts to allow for on-face evaluation of forcing
   auto &indcs = pmy_pack->pmesh->mb_indcs;
-  int ncells1 = indcs.nx1 + 2 * (indcs.ng);
-  int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
-  int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
+  const int ncells1 = indcs.nx1 + 2 * (indcs.ng);
+  const int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
+  const int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
+  const int nmb_max = std::max((pmy_pack->nmb_thispack), (pmy_pack->pmesh->nmb_maxperrank));
   if (precalc_phi) {
-    Kokkos::realloc(phi, pmy_pack->nmb_thispack, num_nbody, ncells3, ncells2, ncells1);
+    Kokkos::realloc(phi, nmb_max, num_nbody, ncells3, ncells2, ncells1);
   }
   
   // determine viscosity usage
@@ -102,8 +103,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
   if (alpha != 0.0) {
     // allocate array for per-cell viscosity coefficient, including ghosts
-    //Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
-    Kokkos::realloc(nu_iso, 1000, ncells3, ncells2, ncells1); 
+    Kokkos::realloc(nu_iso, nmb_max, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
   } 
