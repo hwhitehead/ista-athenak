@@ -172,6 +172,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // if verbose and principle NBody instance, write status to command line
   // TODO: package this as report func
+  // TODO: this is inacitve, find better catch for t=0 init
   if ((global_variable::my_rank == 0) && (pmy_pack != &pmy_pack->pmesh->pmb_pack[0]) && (pmy_pack->pmesh->time == 0)){
     std::cout << "Reporting NBody init..." << std::endl;
     
@@ -829,6 +830,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real nu_iso_max    = 1e-3;
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
+  const Real cs_sqr_floor_ = cs_sqr_floor;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -840,7 +842,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
       // compute local orbital frequency as quadrature sum of orbital frequency about each body
       Real sum_omega_sqr = 0.0;
-      Real sum_abs_phi = 0.0;
+      Real sum_abs_phi   = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
@@ -852,18 +854,19 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         sum_omega_sqr += omega_sqr;
         // compute potential and sum ONLY if using idealised sound speed
         if (visc_mode_ == 1) {
-          const Real abs_phi = omega_sqr * r_sqr_softened; // abs_phi ~ Gm/r
+          const Real abs_phi = omega_sqr * r_sqr_softened; // abs_phi ~ Gm/r = Gm/r^3 * r^2
           sum_abs_phi += abs_phi;
         } // end if visc_mode 
       }
 
       // calculate local sound speed (P/rho), either as true or ideal
       Real cs_sqr;
-      if (visc_mode_ == 1) {
+      if (visc_mode_ == 1) { // ideal, set sound speed by Mach number
         cs_sqr = sum_abs_phi * inv_Mach_sqr_;
-      } else {
+      } else { // true, set sound speed as local
         cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       }
+      cs_sqr = Kokkos::max(cs_sqr, cs_sqr_floor_);
 
       // compute local kinematic viscosity using alpha prescripton
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
