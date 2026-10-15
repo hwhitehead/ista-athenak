@@ -119,7 +119,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
       std::exit(EXIT_FAILURE);
     } // end sink_mode check
     if (visc_mode == 0) && (alpha == 0.0) {
-      std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
+      std::cout << "### FATAL ERROR in NBody::NBody" << std::endl;
                 << "visc_mode = 0 incompatible with alpha = 0" << std::endl;
       std::exit(EXIT_FAILURE);
     } // end visc mode check
@@ -855,7 +855,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
         sum_omega_sqr += omega_sqr;
         // compute potential and sum ONLY if using idealised sound speed
-        if (visc_mode == 1) {
+        if (visc_mode_ == 1) {
           const Real abs_phi = omega_sqr * r_sqr_softened; // abs_phi ~ Gm/r
           sum_abs_phi += abs_phi;
         } // end if visc_mode 
@@ -863,10 +863,10 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
       // calculate local sound speed (P/rho), either as true or ideal
       Real cs_sqr;
-      if (visc_mode == 1) {
+      if (visc_mode_ == 1) {
         cs_sqr = sum_abs_phi * inv_Mach_sqr_;
       } else {
-        cs_sqr = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+        cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
       }
 
       // compute local kinematic viscosity using alpha prescripton
