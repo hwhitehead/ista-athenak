@@ -523,7 +523,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = nu_ideal / dr_sqr;
             } else { // rate is inverse of viscous time with adaptive local temp
               const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
-              const Real omega_local = Kokkoss::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0));
+              const Real omega_local = Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0));
               const Real nu_local = alpha_ * cs_sqr_local / omega_local;
               sink_rate = nu_local / dr_sqr;
             }
@@ -586,7 +586,6 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real dPz_grav = -dpz_grav * cell_volume;
 
           // stash backreaction registers, with care for race conditions
-          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_GRAV_BACK), dPx_grav);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_GRAV_BACK), dPy_grav);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_GRAV_BACK), dPz_grav);
@@ -597,6 +596,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             const Real dPx_acc  = -dpx_acc  * cell_volume;
             const Real dPy_acc  = -dpy_acc  * cell_volume;
             const Real dPz_acc  = -dpz_acc  * cell_volume;
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
             Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_ACC_BACK), dPx_acc);
             Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_ACC_BACK), dPy_acc);
             Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_ACC_BACK), dPz_acc);
