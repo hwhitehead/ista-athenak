@@ -118,7 +118,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
                 << "sink_mode = 2 incompatible with alpha = 0" << std::endl;
       std::exit(EXIT_FAILURE);
     } // end sink_mode check
-    if (visc_mode == 0) && (alpha == 0.0) {
+    if ((visc_mode == 0) && (alpha == 0.0)) {
       std::cout << "### FATAL ERROR in NBody::NBody" << std::endl;
                 << "visc_mode = 0 incompatible with alpha = 0" << std::endl;
       std::exit(EXIT_FAILURE);
