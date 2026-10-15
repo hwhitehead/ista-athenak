@@ -804,15 +804,12 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
   // par_for includes ghosts (dimension sensitive)
-  int is = indcs.is - indcs.ng, ie = indcs.ie + indcs.ng;
-  int js = indcs.js, je = indcs.je;
-  int ks = indcs.ks, ke = indcs.ke;
-  if (pmy_pack->pmesh->multi_d) {
-    js -= indcs.ng; je += indcs.ng;
-  }
-  if (pmy_pack->pmesh->three_d) {
-    ks -= indcs.ng; ke += indcs.ng;
-  }
+  const int is = indcs.is - indcs.ng;
+  const int ie = indcs.ie + indcs.ng;
+  const int js = (multi_d) ? indcs.js, indcs.js - indcs.ng;
+  const int je = (multi_d) ? indcs.je, indcs.je + indcs.ng;
+  const int ks = (three_d) ? indcs.ks, indcs.ks - indcs.ng;
+  const int ke = (three_d) ? indcs.ke, indcs.ke + indcs.ng;
   int nmb1 = pmy_pack->nmb_thispack - 1;
 
   // set maximum register to zero
