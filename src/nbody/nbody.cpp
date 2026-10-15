@@ -105,7 +105,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     // allocate array for per-cell viscosity coefficient, including ghosts
     Kokkos::realloc(nu_iso, nmb_max, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
-    Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
+    Kokkos::realloc(max_nu_iso, nmb_max);
   } 
 
   // check validity of user input
