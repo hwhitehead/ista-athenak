@@ -35,7 +35,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 refinement = adaptive     # static mesh refinement (SMR)
 num_levels = 6
 refinement_interval = 3
-max_nmb_per_rank = 1024
+max_nmb_per_rank = 2048
 
 <amr_criterion0>
 method = user
@@ -86,8 +86,8 @@ sum_backreaction    = 1             # boolean: collect mdot, acceleration from h
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
 Mach                = 50.0          # Mach number of disc for pgen and cooling
-alpha               = 0.1           # viscosity scaling parameter
-sink_mode           = 4             # sink rate mode 0 = all, 1 = flat, 2 = true, 3 = ideal, 4 = ideal, adapt cs
+alpha               = 0.0           # viscosity scaling parameter
+sink_mode           = 3             # sink rate mode 0 = all, 1 = flat, 2 = true, 3 = ideal, 4 = ideal, adapt cs
 cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
 visc_mode           = 0             # visc calc mode 0 = true, 1 = ideal kinematic viscosity
@@ -100,7 +100,7 @@ vx0 = 0.25865255918176666
 vy0 = 0.044690275783704485
 vz0 = 0.0
 r_soft0 = 0.0005
-r_amr0 = 0.0075
+r_amr0 = 0.01
 t_amr0 = 0.0
 
 m1 =  0.1
@@ -111,7 +111,7 @@ vx1 = -2.5865255918176664
 vy1 = -0.44690275783704486
 vz1 = 0.0
 r_soft1 = 0.0005
-r_amr1 = 0.0075
+r_amr1 = 0.01
 t_amr1 = 0.0
 
 <output1>
