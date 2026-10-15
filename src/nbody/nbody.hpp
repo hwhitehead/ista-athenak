@@ -141,6 +141,7 @@ class NBody {
     int cooling_mode;                                   // -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
     bool inc_backreaction, sum_backreaction, inc_pn;    // NBody toggles
     int sink_mode;                                      // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
+    int visc_mode;                                      // viscous routine (0 = use flat, 1 = ideal alpha disc, 2 = true alpha disc)
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr, cs_sqr_floor;

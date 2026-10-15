@@ -98,7 +98,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   }
   
   // determine viscosity usage
-  alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
+  alpha     = pin->GetOrAddReal("nbody", "alpha", 0.0);
+  visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
   if (alpha != 0.0) {
     // allocate array for per-cell viscosity coefficient, including ghosts
     Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
@@ -106,7 +107,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
   } 
 
-  // check validity of sink prescription
+  // check validity of user input
   if (global_variable::my_rank == 0) {
     if ((sink_mode == 1) && (pin->GetOrAddReal("hydro","nu_iso",0.0) == 0)) {
       std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
@@ -117,6 +118,11 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
                 << "sink_mode = 2 incompatible with alpha = 0" << std::endl;
       std::exit(EXIT_FAILURE);
     } // end sink_mode check
+    if (visc_mode == 0) && (alpha == 0.0) {
+      std::cout << "### FATAL ERROR in NBody::NBody" << std::endl
+                << "visc_mode = 0 incompatible with alpha = 0" << std::endl;
+      std::exit(EXIT_FAILURE);
+    } // end visc mode check
   } // end if rank 0
   
   // principle registers for per-body data
@@ -485,6 +491,22 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         const Real dpy_grav = dp_grav_fac * dy;
         const Real dpz_grav = dp_grav_fac * dz;
 
+        // apply gravity updates to cell's conserved quantities
+        cons(mb_id, IM1, k, j, i) += dpx_grav;
+        cons(mb_id, IM2, k, j, i) += dpy_grav;
+        cons(mb_id, IM3, k, j, i) += dpz_grav;
+
+        // TODO: this should be computed using acceleration and fluxes on cell FACES
+        if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
+          // gravity update applied as work done
+          const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
+                             + dpy_grav * prim(mb_id, IVY, k, j, i)
+                             + dpz_grav * prim(mb_id, IVZ, k, j, i);
+          cons(mb_id, IEN, k, j, i) += dE_grav;          
+        } // end energy evo
+
+        // apply acceleration updates AFTER to allow for adiabtic energy evolution
+        
         // apply accretion, if in sink radius and flagged
         Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
         if (src_accretion_) {
@@ -532,28 +554,30 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             dpx_acc = drho_acc * vxstar;
             dpy_acc = drho_acc * vystar;
             dpz_acc = drho_acc * vzstar;
+
+            // before accretion update, compute internal energy
+            const Real rho_current   = cons(mb_id, IDN, k, j, i);
+            const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
+            const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
+            const Real E_int_current = cons(mb_id, IEN, k, j, i) - E_kin_current;
+
+            // apply accretion updates to cell's conserved quantities
+            cons(mb_id, IDN, k, j, i) += drho_acc;
+            cons(mb_id, IM1, k, j, i) += dpx_acc;
+            cons(mb_id, IM2, k, j, i) += dpy_acc;
+            cons(mb_id, IM3, k, j, i) += dpz_acc;
+
+            if (is_ideal && evolve_energy) {
+              // adiabatic update from accretion
+              const Real E_kin_next = 0.5 * (SQR(cons(mb_id, IM1, k, j, i)) 
+                                           + SQR(cons(mb_id, IM2, k, j, i)) 
+                                           + SQR(cons(mb_id, IM3, k, j, i))) 
+                                           / cons(mb_id, IDN, k, j, i); // p^2/2rho
+              const Real E_int_next = E_int_current * (1.0 + drho_acc / rho_current);
+              cons(mb_id, IEN, k, j, i) = E_kin_next + E_int_next;
+            } // end energy evolution
           } // end in sink
-        } // end src_accretion
-
-        // apply updates to cell's conserved quantities
-        cons(mb_id, IDN, k, j, i) += drho_acc;
-        cons(mb_id, IM1, k, j, i) += dpx_grav + dpx_acc;
-        cons(mb_id, IM2, k, j, i) += dpy_grav + dpy_acc;
-        cons(mb_id, IM3, k, j, i) += dpz_grav + dpz_acc;
-
-        // TODO: this should be computed using acceleration and fluxes on cell FACES
-        // build phi register in NBody to avoid repeat computation
-        if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
-          const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
-                            + dpy_grav * prim(mb_id, IVY, k, j, i)
-                            + dpz_grav * prim(mb_id, IVZ, k, j, i);
-          const Real dE_acc = dpx_acc * prim(mb_id, IVX, k, j, i)
-                            + dpy_acc * prim(mb_id, IVY, k, j, i)
-                            + dpz_acc * prim(mb_id, IVZ, k, j, i);
-          const Real cs_sqr = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
-          const Real dE_int = cs_sqr * drho_acc * inv_gm1;
-          cons(mb_id, IEN, k, j, i) += dE_grav + dE_acc + dE_int;
-        }
+        } // end src_accretion 
 
         // compute backreaction on body 
         if (sum_backreaction_) {
@@ -800,16 +824,17 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   max_nu_iso.template sync<DevExeSpace>();
 
   // privatise nbody data for par_for
-  auto &nbody_data_ = nbody_data;
-  auto &nu_iso_ = nu_iso;
-  auto &max_nu_iso_ = max_nu_iso;
-  int num_nbody_ = num_nbody;
-  const Real alpha_ = alpha;
-  const Real G_const_  = G_const;
-  const Real nu_iso_max = 1e-3;
+  auto &nbody_data_        = nbody_data;
+  auto &nu_iso_            = nu_iso;
+  auto &max_nu_iso_        = max_nu_iso;
+  const int num_nbody_     = num_nbody;
+  const Real alpha_        = alpha;
+  const Real G_const_      = G_const;
+  const Real nu_iso_max    = 1e-3;
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
+  const Real visc_mode_    = visc_mode;
 
-  par_for("nbody_calc_visc_flux", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
+  par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
     {
       // identify cell position
@@ -829,14 +854,22 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         // compute orbital frequency and sum
         const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
         sum_omega_sqr += omega_sqr;
-        // compute potential and sum
-        const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
-        sum_abs_phi += abs_phi;
+        // compute potential and sum ONLY if using idealised sound speed
+        if (visc_mode == 1) {
+          const Real abs_phi = omega_sqr * r_sqr_softened; // abs_phi ~ Gm/r
+          sum_abs_phi += abs_phi;
+        } // end if visc_mode 
       }
 
-      // calculate local sound speed
-      //const Real cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
-      const Real cs_sqr = sum_abs_phi * inv_Mach_sqr_;
+      // calculate local sound speed (P/rho), either as true or ideal
+      Real cs_sqr;
+      if (visc_mode == 1) {
+        cs_sqr = sum_abs_phi * inv_Mach_sqr_;
+      } else {
+        cs_sqr = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+      }
+
+      // compute local kinematic viscosity using alpha prescripton
       Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
       nu_iso_local = Kokkos::min(nu_iso_local, nu_iso_max);
 
