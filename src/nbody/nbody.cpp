@@ -528,7 +528,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
-            sink_rate = Kokkos::min(sink_rate, 0.9 / beta_dt);    // limit to maximum 90% removal per finetimestep
+            sink_rate = Kokkos::min(sink_rate, 0.1 / beta_dt);    // limit to maximum 90% removal per finetimestep
             const Real rhodot = - rho * sink_rate;
             drho_acc = rhodot * beta_dt;
             // ensure accretion only drives to sink value
@@ -585,24 +585,24 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real dPy_grav = -dpy_grav * cell_volume;
           const Real dPz_grav = -dpz_grav * cell_volume;
 
-          // accretion backreaction
-          const Real dm_tot   = -drho_acc * cell_volume; 
-          const Real dPx_acc  = -dpx_acc  * cell_volume;
-          const Real dPy_acc  = -dpy_acc  * cell_volume;
-          const Real dPz_acc  = -dpz_acc  * cell_volume;
-
           // stash backreaction registers, with care for race conditions
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_GRAV_BACK), dPx_grav);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_GRAV_BACK), dPy_grav);
           Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_GRAV_BACK), dPz_grav);
-          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_ACC_BACK), dPx_acc);
-          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_ACC_BACK), dPy_acc);
-          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_ACC_BACK), dPz_acc);
-        }
-      }
 
-
+          // accretion backreaction
+          if (src_accretion_) {
+            const Real dm_tot   = -drho_acc * cell_volume; 
+            const Real dPx_acc  = -dpx_acc  * cell_volume;
+            const Real dPy_acc  = -dpy_acc  * cell_volume;
+            const Real dPz_acc  = -dpz_acc  * cell_volume;
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_ACC_BACK), dPx_acc);
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_ACC_BACK), dPy_acc);
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_ACC_BACK), dPz_acc);
+          } // end if acc
+        } // end sum backreaction
+      } // end body loop
     }); // end par_for
     
   return;
