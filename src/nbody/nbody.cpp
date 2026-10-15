@@ -102,7 +102,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
   if (alpha != 0.0) {
     // allocate array for per-cell viscosity coefficient, including ghosts
-    Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
+    //Kokkos::realloc(nu_iso, pmy_pack->nmb_thispack, ncells3, ncells2, ncells1); 
+    Kokkos::realloc(nu_iso, 1000, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, pmy_pack->nmb_thispack);
   } 
