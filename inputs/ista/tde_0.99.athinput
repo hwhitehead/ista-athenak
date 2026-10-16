@@ -68,7 +68,7 @@ dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
-prograde            = 1             # rotation direction of disc 
+prograde            = 0             # rotation direction of disc 
 r_minidisc          = 0.005          # outer radius of initial disc
 r_cavity            = 0.0           # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
@@ -85,7 +85,7 @@ cooling_mode        = 3             # -1 = None, 0 = ForcedIso, 1 = BlackBody, 2
 sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
-Mach                = 50.0          # Mach number of disc for pgen and cooling
+Mach                = 100.0          # Mach number of disc for pgen and cooling
 alpha               = 0.0           # viscosity scaling parameter
 sink_mode           = 3             # sink rate mode 0 = all, 1 = flat, 2 = true, 3 = ideal, 4 = ideal, adapt cs
 cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
