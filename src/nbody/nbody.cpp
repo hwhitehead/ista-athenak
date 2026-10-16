@@ -455,6 +455,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   Real alpha_ = (alpha != 0.0) ? alpha : 0.1; // use fiducial value if not set 
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  const Real max_sink_fac = 0.9; // maximal fractional loss per fine timestep
 
   par_for("nbody_gravity_src", 
           DevExeSpace(), 
@@ -530,7 +531,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               sink_rate = nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
-            sink_rate = Kokkos::min(sink_rate, 0.1 / beta_dt);    // limit to maximum 90% removal per finetimestep
+            sink_rate = Kokkos::min(sink_rate, max_sink_fac / beta_dt);    // limit to maximum % removal per finetimestep
             const Real rhodot = - rho * sink_rate;
             drho_acc = rhodot * beta_dt;
             // ensure accretion only drives to sink value
