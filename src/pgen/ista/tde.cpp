@@ -151,8 +151,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       // velocity profile is such that g + v^2 / r = 0
       //const Real v_phi_sqr = G_const * m_host * SQR(R) * Kokkos::pow(soft_R_sqr, -1.5);
       //Real v_phi = Kokkos::sqrt(v_phi_sqr);
-      const Real g = CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
-      const Real v_phi = Kokkos::sqrt(g * R);
+      const Real g = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
+      Real v_phi = Kokkos::sqrt(g * R);
       if (!prograde) {
         v_phi *= -1.0;
       }

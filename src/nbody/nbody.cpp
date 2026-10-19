@@ -487,7 +487,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         // TEMP: demo spline forced gravity
         const Real g = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA),
                                                   dr_true, nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real dp_grav_fac = -g_fac * beta_dt * rho / r; // INCLUDES EXTRA 1/r fac
+        const Real dp_grav_fac = -g * beta_dt * rho / dr_true; // INCLUDES EXTRA 1/r fac
         const Real dpx_grav = dp_grav_fac * dx;
         const Real dpy_grav = dp_grav_fac * dy;
         const Real dpz_grav = dp_grav_fac * dz;
