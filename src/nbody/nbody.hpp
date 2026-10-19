@@ -90,8 +90,8 @@ namespace nbody {
 
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
-Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h);
-Real CalcSplinePotential(const Real Gm, const Real r, const Real h);
+__device__ Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h);
+__device__ Real CalcSplinePotential(const Real Gm, const Real r, const Real h);
 
 //----------------------------------------------------------------------------------------
 //! \fn  class NBody
