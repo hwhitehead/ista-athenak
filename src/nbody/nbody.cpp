@@ -1211,7 +1211,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   refine_flag.template sync<DevExeSpace>();
 }
 
-__device__ Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h) {
+KOKKOS_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h) {
   
   // check if in the Newtonian far field
   if (r > h) { 
@@ -1233,7 +1233,7 @@ __device__ Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h
   }
 }
 
-__device__ Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
+KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
 
   // check if in the Newtonian far field
   if (r > h) {
