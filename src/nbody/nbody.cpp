@@ -1211,8 +1211,6 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   refine_flag.template sync<DevExeSpace>();
 }
 
-} // end nbody namespace
-
 KOKKOS_INLINE_FUNCTION
 Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h) {
   
@@ -1258,4 +1256,7 @@ Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
     return phi_fac * spline;
   }  
 }
+
+} // end nbody namespace
+
 
