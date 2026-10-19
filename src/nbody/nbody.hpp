@@ -90,8 +90,8 @@ namespace nbody {
 
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
-KOKKOS_INLINE_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h);
-KOKKOS_INLINE_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real h);
+Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h);
+Real CalcSplinePotential(const Real Gm, const Real r, const Real h);
 
 //----------------------------------------------------------------------------------------
 //! \fn  class NBody
