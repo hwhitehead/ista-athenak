@@ -85,12 +85,13 @@ enum NBodyCoolingModes {NO_COOLING = -1,
                         BETA_COOL_THERM = 3,
                         NVAR_COOL = 4};
 
+Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h);
+Real CalcSplinePotential(const Real Gm, const Real r, const Real h);
+
 namespace nbody {
 
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
-Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h);
-Real CalcSplinePotential(const Real Gm, const Real r, const Real h);
 
 //----------------------------------------------------------------------------------------
 //! \fn  class NBody
