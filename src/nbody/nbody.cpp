@@ -483,8 +483,11 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         // compute Newtonian gravitational acceleration
         const Real rho = prim(mb_id, IDN, k, j, i);
         // g_fac = Gm/r^3 where r is softened by r_soft 
-        const Real g_fac = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_soft, -3.0);
-        const Real dp_grav_fac = -g_fac * beta_dt * rho;
+        // const Real g_fac = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_soft, -3.0);
+        // TEMP: demo spline forced gravity
+        const Real g = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA),
+                                                  dr_true, nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real dp_grav_fac = -g_fac * beta_dt * rho / r; // INCLUDES EXTRA 1/r fac
         const Real dpx_grav = dp_grav_fac * dx;
         const Real dpy_grav = dp_grav_fac * dy;
         const Real dpz_grav = dp_grav_fac * dz;
@@ -1206,6 +1209,52 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   // update refine_flag on device
   refine_flag.template modify<HostMemSpace>();
   refine_flag.template sync<DevExeSpace>();
+}
+
+KOKKOS_INLINE_FUNCTION
+Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h) {
+  
+  // check if in the Newtonian far field
+  if (r > h) { 
+    return -Gm / SQR(r);
+  } 
+  
+  // use forcing softened on spline
+  const Real g_fac = -Gm / SQR(h);
+  const Real d = r / h;
+  if (r > 0.5 * h) { // mid field, use softened
+    const Real spline = 0.066667 / SQR(d);
+                      + d * (21.33333 + d * (48 + d * (-38.4 + d * 10.66667)));
+                      // 1/(15d^2) - 64/3 d + 48d^2 - 192/5 d^3 + 32/3 d^4
+    return g_fac * spline;
+  } else { // near field
+    const Real spline = d * (-10.66667 + d * d * (38.4 - 32 * d)); 
+                      // -32/3 d + 192/5 d^3 - 32d^4
+    return g_fac * spline;
+  }
+}
+
+KOKKOS_INLINE_FUNCTION
+Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
+
+  // check if in the Newtonian far field
+  if (r > h) {
+    return -Gm / r;
+  }
+
+  // use potential softened on spline
+  const Real phi_fac = -Gm / h;
+  const Real d = r / h;
+  if (r > 0.5 * h) { // mid field
+    const Real spline = -0.066667 / d + 3.2 
+                        + SQR(d) * (-10.6667 + d * (16 + d * (-9.6 + d * 2.1333)));
+                        // -/(15d) - 16/5 - 32/3 d^2 + 16d^3 - 48/5 d^4 + 32/15 d^5
+    return phi_fac * spline;
+  } else { // near field
+    const Real spline = 2.8 + SQR(d) * (-5.3333 + SQR(d) * (9.6 - 6.4 * d));
+                        // 14/5 - 16/3 d^2 + 48/5 d^4 - 32/5d^4
+    return phi_fac * spline;
+  }  
 }
 
 } // end nbody namespace
