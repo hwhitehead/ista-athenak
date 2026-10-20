@@ -1219,11 +1219,11 @@ KOKKOS_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const R
   } 
   
   // use forcing softened on spline
-  const Real g_fac = -Gm / SQR(h);
+  const Real g_fac = Gm / SQR(h);
   const Real d = r / h;
   if (r > 0.5 * h) { // mid field, use softened
     const Real spline = 0.066667 / SQR(d)
-                      + d * (21.33333 + d * (48 + d * (-38.4 + d * 10.66667)));
+                      + d * (-21.33333 + d * (48 + d * (-38.4 + d * 10.66667)));
                       // 1/(15d^2) - 64/3 d + 48d^2 - 192/5 d^3 + 32/3 d^4
     return g_fac * spline;
   } else { // near field
