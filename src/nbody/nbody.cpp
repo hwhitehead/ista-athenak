@@ -102,8 +102,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   alpha     = pin->GetOrAddReal("nbody", "alpha", 0.0);
   visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
   if (alpha != 0.0) {
-    // allocate array for per-cell viscosity coefficient, including ghosts
-    //std::cout << nmb_max << " " << ncells3 << " " << ncells2 << " " << ncells1 << std::endl;
+    // allocate array for per-cell viscosity coefficient, including ghosts on each side
     Kokkos::realloc(nu_iso, nmb_max, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, nmb_max);
@@ -520,19 +519,19 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             Real sink_rate;
             if (sink_mode_ == 0) {        // use flat, hungry sink rate
               sink_rate = 100;
-            } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu
-              sink_rate = 0.44444 * nu_iso_homo_ / dr_sqr;
+            } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu (tau_nu = 9/4 r^2/nu)
+              sink_rate = 2.25 * nu_iso_homo_ / dr_sqr;
             } else if (sink_mode_ == 2) {  // rate is inverse of viscous time for inhomo nu
-              sink_rate = 0.44444 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
+              sink_rate = 2.25 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
             } else if (sink_mode_ == 3) { // rate is inverse of viscous time for idealised nu
               // ideal viscosity nu = alpha * M^-2 * sqrt{Gmr}          
               const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
-              sink_rate = 0.44444 * nu_ideal / dr_sqr;
+              sink_rate = 2.25 * nu_ideal / dr_sqr;
             } else { // rate is inverse of viscous time with adaptive local temp
               const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
               const Real omega_local = Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0));
               const Real nu_local = alpha_ * cs_sqr_local / omega_local;
-              sink_rate = 0.44444 * nu_local / dr_sqr;
+              sink_rate = 2.25 * nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 16));         // apply sharpened Gaussian profile to sink region
             sink_rate = Kokkos::min(sink_rate, max_sink_fac / beta_dt);   // limit to maximum % removal per finetimestep
@@ -803,23 +802,28 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   return;
 } 
 
-// compute cell diffusivity according to beta cooling
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::CalcViscosity
+//! \brief Compute the kinematic viscosity in each cell (including ghosts) according to a 
+//! constant alpha prescription. Local sound speed informed by the true hydrodynamic value
+//! or the ideal value informed by a fixed Mach number (visc mode = 0, 1). Visocisty values
+//! are stashed in the nu_iso register for use in NBody::AddViscousFlux which runs after.
 void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
   // MeshBlock properties
-  auto &indcs = pmy_pack->pmesh->mb_indcs;
-  auto &size  = pmy_pack->pmb->mb_size;
-  // par_for includes ghosts (dimension sensitive)
-  const int is = indcs.is - indcs.ng;
-  const int ie = indcs.ie + indcs.ng; // THIS IS WRONG
-  const int js = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
-  const int je = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
-  const int ks = (pmy_pack->pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
-  const int ke = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
-  int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto &indcs    = pmy_pack->pmesh->mb_indcs;
+  auto &size     = pmy_pack->pmb->mb_size;
+  // determine par_for limits, including ghosts for active axes
+  const int is   = indcs.is - indcs.ng;
+  const int ie   = indcs.ie + indcs.ng; 
+  const int js   = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
+  const int je   = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
+  const int ks   = (pmy_pack->pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
+  const int ke   = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
+  const int nmb1 = pmy_pack->nmb_thispack - 1;
 
-  // set maximum register to zero
-  Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
+  // populate register tracking maximal viscosity to zero
+  Kokkos::deep_copy(max_nu_iso.view_host(), 1.0);
   max_nu_iso.template modify<HostMemSpace>();
   max_nu_iso.template sync<DevExeSpace>();
 
@@ -834,16 +838,6 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
-
-  // std::cout << "Real domain: " << std::endl;
-  // std::cout << "is = " << is << ", ie = " << ie << std::endl;
-  // std::cout << "js = " << js << ", je = " << je << std::endl;
-  // std::cout << "ks = " << ks << ", ke = " << ke << std::endl;
-
-  // std::cout << "Extended domain: " << std::endl;
-  // std::cout << "is = " << is << ", ie = " << ie << std::endl;
-  // std::cout << "js = " << js << ", je = " << je << std::endl;
-  // std::cout << "ks = " << ks << ", ke = " << ke << std::endl;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -869,7 +863,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         if (visc_mode_ == 1) {
           const Real abs_phi = omega_sqr * r_sqr_softened; // abs_phi ~ Gm/r = Gm/r^3 * r^2
           sum_abs_phi += abs_phi;
-        } // end if visc_mode 
+        } // end if ideal 
       }
 
       // calculate local sound speed (P/rho), either as true or ideal
@@ -878,7 +872,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         cs_sqr = sum_abs_phi * inv_Mach_sqr_;
       } else { // true, set sound speed as local
         cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
-      }
+      } // end visc mode check
       cs_sqr = Kokkos::max(cs_sqr, cs_sqr_floor_);
 
       // compute local kinematic viscosity using alpha prescripton
@@ -889,7 +883,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
-      Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
+      Kokkos::atomic_min(&max_nu_iso_.d_view(mb_id), nu_iso_local);
     }); // end par_for
     
   // enforce update of maximum tracker on host
@@ -897,16 +891,20 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   max_nu_iso.template sync<HostMemSpace>();
 
   // temp verbose check for visc blowup
-  Real max_nu_global = dt_visc = std::numeric_limits<float>::min();
+  Real min_nu_global = dt_visc = std::numeric_limits<float>::max();
   for (int mb_id = 0; mb_id < pmy_pack->nmb_thispack; mb_id++) {
-    max_nu_global = std::max(max_nu_global, max_nu_iso.h_view(mb_id));
+    min_nu_global = std::min(min_nu_global, max_nu_iso.h_view(mb_id));
   }
-  std::cout << "max_nu_global = " << max_nu_global << std::endl;
+  std::cout << "min_nu_global = " << min_nu_global << std::endl;
 
   return;
 }
 
-// compute viscous fluxes according to inhomogeneous isotropic viscosity
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::CalcViscosity
+//! \brief Called after NBody::CalcViscosity has populated the nu_iso array with the 
+//! per-cell kinematic viscosity. Computes the face-fluxes driven by viscosity and updates 
+//! the conserved fluxes
 void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
     DvceFaceFld5D<Real> &flx) {
 
