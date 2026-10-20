@@ -823,7 +823,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const int nmb1 = pmy_pack->nmb_thispack - 1;
 
   // populate register tracking maximal viscosity to zero
-  Kokkos::deep_copy(max_nu_iso.view_host(), 1.0);
+  Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
   max_nu_iso.template modify<HostMemSpace>();
   max_nu_iso.template sync<DevExeSpace>();
 
@@ -883,19 +883,19 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       nu_iso_(mb_id, k, j, i) = nu_iso_local;
 
       // thread-safe maximum check for tracker
-      Kokkos::atomic_min(&max_nu_iso_.d_view(mb_id), nu_iso_local);
+      Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
     }); // end par_for
     
   // enforce update of maximum tracker on host
   max_nu_iso.template modify<DevExeSpace>();
   max_nu_iso.template sync<HostMemSpace>();
 
-  // temp verbose check for visc blowup
-  Real min_nu_global = dt_visc = std::numeric_limits<float>::max();
-  for (int mb_id = 0; mb_id < pmy_pack->nmb_thispack; mb_id++) {
-    min_nu_global = std::min(min_nu_global, max_nu_iso.h_view(mb_id));
-  }
-  std::cout << "min_nu_global = " << min_nu_global << std::endl;
+  // // temp verbose check for visc blowup
+  // Real min_nu_global = dt_visc = std::numeric_limits<float>::max();
+  // for (int mb_id = 0; mb_id < pmy_pack->nmb_thispack; mb_id++) {
+  //   min_nu_global = std::min(min_nu_global, max_nu_iso.h_view(mb_id));
+  // }
+  // std::cout << "min_nu_global = " << min_nu_global << std::endl;
 
   return;
 }

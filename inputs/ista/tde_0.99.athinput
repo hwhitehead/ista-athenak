@@ -90,7 +90,7 @@ alpha               = 0.1           # viscosity scaling parameter
 sink_mode           = 2             # sink rate mode 0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
 cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
-visc_mode           = 0             # visc calc mode 0 = true, 1 = ideal kinematic viscosity
+visc_mode           = 1             # visc calc mode 0 = true, 1 = ideal kinematic viscosity
 
 m0 = 1.0
 x0 = -0.019580558784893905
