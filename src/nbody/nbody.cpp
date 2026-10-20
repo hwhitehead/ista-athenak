@@ -103,6 +103,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
   if (alpha != 0.0) {
     // allocate array for per-cell viscosity coefficient, including ghosts
+    std::cout << nmb_max << " " << ncells3 << " " << ncells2 << " " << ncells1 << std::endl;
     Kokkos::realloc(nu_iso, nmb_max, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, nmb_max);
@@ -833,6 +834,10 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
+
+  std::cout << "is = " << is << ", ie = " << ie << std::endl;
+  std::cout << "js = " << js << ", je = " << je << std::endl;
+  std::cout << "ks = " << ks << ", ke = " << ke << std::endl;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
