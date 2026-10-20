@@ -103,7 +103,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
   if (alpha != 0.0) {
     // allocate array for per-cell viscosity coefficient, including ghosts
-    std::cout << nmb_max << " " << ncells3 << " " << ncells2 << " " << ncells1 << std::endl;
+    //std::cout << nmb_max << " " << ncells3 << " " << ncells2 << " " << ncells1 << std::endl;
     Kokkos::realloc(nu_iso, nmb_max, ncells3, ncells2, ncells1); 
     // allocate register for tracking maximal viscosity
     Kokkos::realloc(max_nu_iso, nmb_max);
@@ -811,11 +811,11 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   auto &size  = pmy_pack->pmb->mb_size;
   // par_for includes ghosts (dimension sensitive)
   const int is = indcs.is - indcs.ng;
-  const int ie = indcs.ie + indcs.ng;
-  const int js = (pmy_pack->pmesh->multi_d) ? indcs.js : indcs.js - indcs.ng;
-  const int je = (pmy_pack->pmesh->multi_d) ? indcs.je : indcs.je + indcs.ng;
-  const int ks = (pmy_pack->pmesh->three_d) ? indcs.ks : indcs.ks - indcs.ng;
-  const int ke = (pmy_pack->pmesh->three_d) ? indcs.ke : indcs.ke + indcs.ng;
+  const int ie = indcs.ie + indcs.ng; // THIS IS WRONG
+  const int js = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
+  const int je = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
+  const int ks = (pmy_pack->pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
+  const int ke = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
 
   // set maximum register to zero
@@ -835,9 +835,15 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real visc_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
 
-  std::cout << "is = " << is << ", ie = " << ie << std::endl;
-  std::cout << "js = " << js << ", je = " << je << std::endl;
-  std::cout << "ks = " << ks << ", ke = " << ke << std::endl;
+  // std::cout << "Real domain: " << std::endl;
+  // std::cout << "is = " << is << ", ie = " << ie << std::endl;
+  // std::cout << "js = " << js << ", je = " << je << std::endl;
+  // std::cout << "ks = " << ks << ", ke = " << ke << std::endl;
+
+  // std::cout << "Extended domain: " << std::endl;
+  // std::cout << "is = " << is << ", ie = " << ie << std::endl;
+  // std::cout << "js = " << js << ", je = " << je << std::endl;
+  // std::cout << "ks = " << ks << ", ke = " << ke << std::endl;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
