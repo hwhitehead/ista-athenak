@@ -520,21 +520,21 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             if (sink_mode_ == 0) {        // use flat, hungry sink rate
               sink_rate = 100;
             } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu
-              sink_rate = nu_iso_homo_ / dr_sqr;
+              sink_rate = 0.44444 * nu_iso_homo_ / dr_sqr;
             } else if (sink_mode_ == 2) {  // rate is inverse of viscous time for inhomo nu
-              sink_rate = nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
+              sink_rate = 0.44444 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
             } else if (sink_mode_ == 3) { // rate is inverse of viscous time for idealised nu
               // ideal viscosity nu = alpha * M^-2 * sqrt{Gmr}          
               const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
-              sink_rate = nu_ideal / dr_sqr;
+              sink_rate = 0.44444 * nu_ideal / dr_sqr;
             } else { // rate is inverse of viscous time with adaptive local temp
               const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
               const Real omega_local = Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0));
               const Real nu_local = alpha_ * cs_sqr_local / omega_local;
-              sink_rate = nu_local / dr_sqr;
+              sink_rate = 0.44444 * nu_local / dr_sqr;
             }
-            sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4.0)); // apply sharpened Gaussian profile to sink region
-            sink_rate = Kokkos::min(sink_rate, max_sink_fac / beta_dt);    // limit to maximum % removal per finetimestep
+            sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 16));         // apply sharpened Gaussian profile to sink region
+            sink_rate = Kokkos::min(sink_rate, max_sink_fac / beta_dt);   // limit to maximum % removal per finetimestep
             const Real rhodot = - rho * sink_rate;
             drho_acc = rhodot * beta_dt;
             // ensure accretion only drives to sink value
