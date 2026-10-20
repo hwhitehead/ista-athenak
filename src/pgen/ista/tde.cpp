@@ -172,7 +172,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       w0_(m, IVX, k, j, i) = vx;               
       w0_(m, IVY, k, j, i) = vy;               
       if (is_3d) w0_(m, IVZ, k, j, i) = vz;             
-      if (is_ideal) w0_(m, IPR, k, j, i) = P;   
+      if (is_ideal) w0_(m, IEN, k, j, i) = P * inv_gm1;   
     }); 
 
     // ===== Convert primitives to conserved variables =====

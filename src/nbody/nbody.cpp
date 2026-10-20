@@ -454,7 +454,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   auto &nu_iso_inhomo_       = nu_iso;
   Real alpha_ = (alpha != 0.0) ? alpha : 0.1; // use fiducial value if not set 
   Real inv_Mach_sqr_ = inv_Mach_sqr;
-  const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
+  const Real inv_gm1 = 1.0 / gm1;
   const Real max_sink_fac = 0.9; // maximal fractional loss per fine timestep
 
   par_for("nbody_gravity_src", 
@@ -528,7 +529,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
               sink_rate = 2.25 * nu_ideal / dr_sqr;
             } else { // rate is inverse of viscous time with adaptive local temp
-              const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+              //const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+              const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
               const Real omega_local = Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0));
               const Real nu_local = alpha_ * cs_sqr_local / omega_local;
               sink_rate = 2.25 * nu_local / dr_sqr;
@@ -712,7 +714,7 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
       // compute cooling rate based on local density and temperature
       const Real tau = prim(mb_id, IDN, k, j, i) * two_H * kappa_es_code_;
       const Real tau_eff = 0.375 * tau + sqrt_3_over_4 + 0.25 / tau;
-      const Real T_mid = prim(mb_id, IPR, k, j, i) / (prim(mb_id, IDN, k, j, i) * gas_const_code_);
+      const Real T_mid = prim(mb_id, IPR, k, j, i) / (prim(mb_id, IDN, k, j, i) * gas_const_code_); // ERROR: IPR contains int. energy
       const Real T_eff = T_mid / tau_eff;
       const Real Q_cool = one_over_4H * rad_const_code_ * c_light_code_ * Kokkos::pow(T_eff, 4); 
 
@@ -780,7 +782,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
       const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
       const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
       
-      // compute current sound speed via internal energy
+      // compute current sound speed via internal energy (updated as intermediate state)
       // TODO: can be nominally streamlined via const rho prefac
       const Real E_int_current  = cons(mb_id, IEN, k, j, i) - E_kin_current;
       const Real P_current      = E_int_current * gm1; 
@@ -838,6 +840,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
+  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -871,7 +874,8 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       if (visc_mode_ == 1) { // ideal, set sound speed by Mach number
         cs_sqr = sum_abs_phi * inv_Mach_sqr_;
       } else { // true, set sound speed as local
-        cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i);
+        //cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i); // DEBUG: this appears to yield too large nu_iso?
+        cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); // TRIAL: see if internal energy works
       } // end visc mode check
       cs_sqr = Kokkos::max(cs_sqr, cs_sqr_floor_);
 
