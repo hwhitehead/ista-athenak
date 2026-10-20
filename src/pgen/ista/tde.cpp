@@ -161,7 +161,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vy = vy_host + v_phi * Kokkos::cos(phi);
       const Real vz = vz_host;
 
-      // set pressure
+      // set pressure TODO: ensure parity with spline formalism for forcing
       const Real abs_phi = m_host * Kokkos::pow(soft_R_sqr, -0.5);
       Real cs_sqr_local = abs_phi * inv_Mach_sqr;
       cs_sqr_local = Kokkos::max(cs_sqr_local, cs_sqr_floor);

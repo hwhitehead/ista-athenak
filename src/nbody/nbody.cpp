@@ -419,7 +419,10 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
   return;
 }
 
-// source gravity and accretion for each body
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::NBodyPointSrcTerm
+//! \brief Includes any source terms that operate on a per-body basis, namely gravity
+//! and accretion. Stash backreaction effects such as mass, momentum changes for bodies.
 void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
   // MeshBlock properties
@@ -525,18 +528,20 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             } else if (sink_mode_ == 2) {  // rate is inverse of viscous time for inhomo nu
               sink_rate = 2.25 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
             } else if (sink_mode_ == 3) { // rate is inverse of viscous time for idealised nu
-              // ideal viscosity nu = alpha * M^-2 * sqrt{Gmr}          
+              // ideal viscosity nu = alpha * cs^2 * Omega^-1
+              //                    = alpha * M^-2 * sqrt{Gmr}          
               const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
               sink_rate = 2.25 * nu_ideal / dr_sqr;
-            } else { // rate is inverse of viscous time with adaptive local temp
-              //const Real cs_sqr_local = prim(mb_id, IPR, k, j, i) / prim(mb_id, IDN, k, j, i);
+            } else {                      // rate is inverse of viscous time with adaptive local temp
+              // true viscosity nu = alpha * cs^2 * Omega^-1
+              //                   = alpha * U * (g - 1) / rho * Omega^-1
               const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
-              const Real omega_local = Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0));
-              const Real nu_local = alpha_ * cs_sqr_local / omega_local;
+              const Real inv_omega_local = Kokkos::sqrt(Kokkos::pow(dr_true, 3) / (G_const_ * nbody_data_.d_view(n, M_DATA)));
+              const Real nu_local = alpha_ * cs_sqr_local * inv_omega_local;
               sink_rate = 2.25 * nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 16));         // apply sharpened Gaussian profile to sink region
-            sink_rate = Kokkos::min(sink_rate, max_sink_fac / beta_dt);   // limit to maximum % removal per finetimestep
+            sink_rate  = Kokkos::min(sink_rate, max_sink_fac / beta_dt); // limit to maximum % removal per finetimestep
             const Real rhodot = - rho * sink_rate;
             drho_acc = rhodot * beta_dt;
             // ensure accretion only drives to sink value
@@ -616,7 +621,11 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   return;
 }
 
-// update cell energy to match local isotherm
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::NBodyForcedIsoSrcTerm
+//! \brief Instantaneously force all cells to have a temperature appropriate for a disc
+//! with fixed Mach number, as set in the <nbody> athinput block. Acts on the updated 
+//! conserved fluid state to ensure that temperature for next timestep is accurate.
 void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
 
   // unpack all data pre par_for
@@ -679,7 +688,10 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
   return;
 }
 
-// update cell energy according to black body cooling
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::NBodyBlackBodySrcTerm
+//! \brief Remove thermal energy from each cell according to black body cooling. Only 
+//! valid for 2D simulations, requires physical units to be set in <nbody> athinput block.
 void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
 
   // function only valid for 2D systems, skip if 3D
@@ -703,6 +715,7 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
   const Real gas_const_code_ = gas_const_code;
   const Real rad_const_code_ = rad_const_code;
   const Real c_light_code_   = c_light_code;
+  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
 
   par_for("nbody_blackbody_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -714,7 +727,7 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
       // compute cooling rate based on local density and temperature
       const Real tau = prim(mb_id, IDN, k, j, i) * two_H * kappa_es_code_;
       const Real tau_eff = 0.375 * tau + sqrt_3_over_4 + 0.25 / tau;
-      const Real T_mid = prim(mb_id, IPR, k, j, i) / (prim(mb_id, IDN, k, j, i) * gas_const_code_); // ERROR: IPR contains int. energy
+      const Real T_mid = prim(mb_id, IEN, k, j, i) * gm1 / (prim(mb_id, IDN, k, j, i) * gas_const_code_);
       const Real T_eff = T_mid / tau_eff;
       const Real Q_cool = one_over_4H * rad_const_code_ * c_light_code_ * Kokkos::pow(T_eff, 4); 
 
@@ -724,7 +737,11 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
   return;
 }
 
-// update cell energy according to beta cooling
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::NBodyBetaCoolSrcTerm
+//! \brief Relax temperature to fixed Mach number profile on either a dynamical or thermal
+//! timescale (for BETA_COOL_DYN or BETA_COOL_THERM respectively). Use updated conservative
+//! state to step to next, accounting for previous effects of other source terms
 void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
   // MeshBlock properties
@@ -840,7 +857,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
-  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
+  const Real gm1           = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -871,11 +888,10 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
       // calculate local sound speed (P/rho), either as true or ideal
       Real cs_sqr;
-      if (visc_mode_ == 1) { // ideal, set sound speed by Mach number
+      if (visc_mode_ == 1) { // ideal visc, set sound speed by Mach number
         cs_sqr = sum_abs_phi * inv_Mach_sqr_;
-      } else { // true, set sound speed as local
-        //cs_sqr = w0(mb_id, IPR, k, j, i) / w0(mb_id, IDN, k, j, i); // DEBUG: this appears to yield too large nu_iso?
-        cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); // TRIAL: see if internal energy works
+      } else { // true visc, set sound speed using primitive state
+        cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
       } // end visc mode check
       cs_sqr = Kokkos::max(cs_sqr, cs_sqr_floor_);
 
