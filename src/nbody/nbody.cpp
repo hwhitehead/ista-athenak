@@ -121,14 +121,14 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
     } // end sink_mode check
   } // end if rank 0
   
-  // principle registers for per-body data
-  Kokkos::realloc(nbody_data,       num_nbody, NVAR_DATA);    
-  Kokkos::realloc(nbody_comm,       num_nbody, NVAR_DATA); 
-  Kokkos::realloc(nbody_data1,      num_nbody, NVAR_REG);        
-  Kokkos::realloc(nbody_flux,       num_nbody, NVAR_REG);        
-  Kokkos::realloc(delta_this_pack,  num_nbody, NVAR_BACK);   
-  Kokkos::realloc(delta_this_mesh,  num_nbody, NVAR_BACK);  
-  Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);
+  // resize principle registers for per-body data                Enumerator for human-readable labelling
+  Kokkos::realloc(nbody_data,       num_nbody, NVAR_DATA);    // NBodyDataIndices
+  Kokkos::realloc(nbody_comm,       num_nbody, NVAR_DATA);    // NBodyDataIndices
+  Kokkos::realloc(nbody_data1,      num_nbody, NVAR_REG);     // NBodyRegisterIndices   
+  Kokkos::realloc(nbody_flux,       num_nbody, NVAR_REG);     // NBodyRegisterIndices
+  Kokkos::realloc(delta_this_pack,  num_nbody, NVAR_BACK);    // NBodyBackIndices
+  Kokkos::realloc(delta_this_mesh,  num_nbody, NVAR_BACK);    // NBodyBackIndices
+  Kokkos::realloc(delta_all_meshes, num_nbody, NVAR_BACK);    // NBodyBackIndices
   
   // identify number of AMR levels
   num_levels = pin->GetOrAddInteger("mesh_refinement", "num_levels", 0);
@@ -486,8 +486,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         // const Real g_fac = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_soft, -3.0);
         // TEMP: demo spline forced gravity
         const Real g = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA),
-                                                  dr_true, nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real dp_grav_fac = -g * beta_dt * rho / dr_true; // INCLUDES EXTRA 1/r fac
+                                              dr_true, nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real dp_grav_fac = g * beta_dt * rho / dr_true; // INCLUDES EXTRA 1/r fac, used to be -ve
         const Real dpx_grav = dp_grav_fac * dx;
         const Real dpy_grav = dp_grav_fac * dy;
         const Real dpz_grav = dp_grav_fac * dz;
@@ -1246,7 +1246,7 @@ KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real
   if (r > 0.5 * h) { // mid field
     const Real spline = -0.066667 / d + 3.2 
                         + SQR(d) * (-10.6667 + d * (16 + d * (-9.6 + d * 2.1333)));
-                        // -/(15d) - 16/5 - 32/3 d^2 + 16d^3 - 48/5 d^4 + 32/15 d^5
+                        // -1/(15d) - 16/5 - 32/3 d^2 + 16d^3 - 48/5 d^4 + 32/15 d^5
     return phi_fac * spline;
   } else { // near field
     const Real spline = 2.8 + SQR(d) * (-5.3333 + SQR(d) * (9.6 - 6.4 * d));
