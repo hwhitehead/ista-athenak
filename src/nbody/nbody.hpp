@@ -88,7 +88,7 @@ enum NBodyCoolingModes {NO_COOLING = -1,
 
 namespace nbody {
 
-using SoftenedGravFnPtr = KOKKOS_FUNCTION Real (*)(const Real Gm, const Real r, const Real h);
+using SoftenedGravFnPtr = Real (*)(const Real Gm, const Real r, const Real h);
 
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
