@@ -538,7 +538,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (src_accretion_) {
           // only accrete down to floor value to avoid blowup
           const Real drho_floor = rho_sink_floor_ - rho; 
-          const Real r_ratio = dr_true / nbody_data_.d_view(n, R_SOFT_DATA);
+          const Real r_ratio = dr / nbody_data_.d_view(n, R_SOFT_DATA);
           if ((drho_floor < 0) && (r_ratio < 2)) { 
             // compute mass loss rate
             Real sink_rate;
@@ -1337,7 +1337,7 @@ KOKKOS_FUNCTION Real CalcPlummerAcceleration(const Real Gm, const Real r, const 
 //! \fn  Real CalcPlummerPotential
 //! \brief Compute the potential due to a gravitating body, according to the a softened
 //! plummer potential. Portable to __host__ and __device__
-KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
+KOKKOS_FUNCTION Real CalcPlummerPotential(const Real Gm, const Real r, const Real h) {
 
   return -Gm * Kokkos::pow(SQR(r) + SQR(h), -0.5);
 }

@@ -94,8 +94,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
     Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
     const Real rho_floor_fac = pin->GetOrAddReal("problem", "rho_floor_fac", 1e-8);
-    const Real cs_sqr_floor = pin->GetOrAddReal("problem", "cs_sqr_floor", 1e-8);
-    const Real G_const = pin->GetOrAddReal("nbody", "G_const", 1.0);
+    const Real cs_sqr_floor  = pin->GetOrAddReal("problem", "cs_sqr_floor", 1e-8);
+    const Real G_const       = pin->GetOrAddReal("nbody", "G_const", 1.0);
+    const int soft_mode      = pin->GetOrAddInteger("nbody", "soft_mode", 0); 
 
     // (3) loop over cells
     par_for("pgen_tde", 
@@ -149,10 +150,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set velocity in disc (everything softened-Keplerian about host)
       // velocity profile is such that g + v^2 / r = 0
-      //const Real v_phi_sqr = G_const * m_host * SQR(R) * Kokkos::pow(soft_R_sqr, -1.5);
-      //Real v_phi = Kokkos::sqrt(v_phi_sqr);
-      const Real g = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
-      Real v_phi = Kokkos::sqrt(-g * R);
+      Real g_soft;
+      if (soft_mode == 0) {
+        g_soft = nbody::CalcPlummerAcceleration(G_const * m_host, R, r_soft_host);
+      } else {
+        g_soft = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
+      }
+      Real v_phi = Kokkos::sqrt(-g_soft * R);
       if (!prograde) {
         v_phi *= -1.0;
       }
