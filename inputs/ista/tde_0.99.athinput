@@ -92,6 +92,7 @@ cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
 visc_mode           = 0             # visc calc mode 0 = true, 1 = ideal kinematic viscosity
 soft_mode           = 0             # gravitational softening mode 0 = plummer, 1 = spline
+torq_mode           = 0             # angular momentum removal in sink 0 = torque free, 1 = free fall (WIP)
 
 m0 = 1.0
 x0 = -0.019580558784893905

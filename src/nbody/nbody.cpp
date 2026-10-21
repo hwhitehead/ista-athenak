@@ -69,15 +69,6 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0); // 0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
   soft_mode      = pin->GetOrAddInteger("nbody", "soft_mode", 0); // 0 = plummer, 1 = spline
 
-  // assign softened gravity functions
-  if (soft_mode == 0) {
-    grav_accel_func     = CalcPlummerAcceleration;
-    grav_potential_func = CalcPlummerPotential;
-  } else {
-    grav_accel_func     = CalcSplineAcceleration;
-    grav_potential_func = CalcSplinePotential;
-  }
-
   // import unit conversions (else all unity, used for PN terms WIP)
   // X_SI = X_CODE * unit_X
   G_const = pin->GetOrAddReal("nbody", "G_const", 1.0);
@@ -461,10 +452,10 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   auto &cons = pmy_pack->phydro->u0;
 
   // general NBody properties 
-  auto &nbody_data_    = nbody_data;
-  const int num_nbody_ = num_nbody;
-  const Real G_const_  = G_const;
-  auto &grav_accel_func_ = grav_accel_func;
+  auto &nbody_data_     = nbody_data;
+  const int num_nbody_  = num_nbody;
+  const Real G_const_   = G_const;
+  const Real soft_mode_ = soft_mode;
 
   // thermodynamic properties
   const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
@@ -511,7 +502,12 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
         // compute softened Newtonian gravitational acceleration
         const Real rho = prim(mb_id, IDN, k, j, i);
-        const Real g_soft = grav_accel_func_(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        Real g_soft;
+        if (soft_mode_ == 0) {
+          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        } else {
+          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        }
         const Real dp_grav_fac = g_soft * beta_dt * rho / dr;
         const Real dpx_grav = dp_grav_fac * dx;
         const Real dpy_grav = dp_grav_fac * dy;

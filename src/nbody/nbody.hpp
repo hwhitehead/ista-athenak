@@ -88,8 +88,6 @@ enum NBodyCoolingModes {NO_COOLING = -1,
 
 namespace nbody {
 
-using SoftenedGravFnPtr = Real (*)(const Real Gm, const Real r, const Real h);
-
 void NBodyHistory(HistoryData *pdata, Mesh *pm);
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp);
 KOKKOS_FUNCTION Real CalcPlummerAcceleration(const Real Gm, const Real r, const Real h);
@@ -150,10 +148,6 @@ class NBody {
     int sink_mode;                                      // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
     int visc_mode;                                      // viscous routine (0 = use flat, 1 = ideal alpha disc, 2 = true alpha disc)
     int soft_mode;                                      // softening routine (0 = plummer, 1 = spline)
-    
-    // pointer to softening function
-    SoftenedGravFnPtr grav_accel_func     = nullptr; 
-    SoftenedGravFnPtr grav_potential_func = nullptr; 
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr, cs_sqr_floor;
