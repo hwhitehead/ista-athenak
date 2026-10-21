@@ -64,7 +64,19 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   inv_Mach_sqr   = 1.0 / SQR(Mach);
   rho_sink_floor = pin->GetOrAddReal("nbody", "rho_sink_floor", 1e-8);
   cs_sqr_floor   = pin->GetOrAddReal("nbody", "cs_sqr_floor", 1e-6);
-  sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0);
+  
+  // set sink properties
+  sink_mode      = pin->GetOrAddInteger("nbody", "sink_mode", 0); // 0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
+  soft_mode      = pin->GetOrAddInteger("nbody", "soft_mode", 0); // 0 = plummer, 1 = spline
+
+  // assign softened gravity functions
+  if (soft_mode == 0) {
+    grav_accel_func     = CalcPlummerAcceleration;
+    grav_potential_func = CalcPlummerPotential;
+  } else {
+    grav_accel_func     = CalcSplineAcceleration;
+    grav_potential_func = CalcSplinePotential;
+  }
 
   // import unit conversions (else all unity, used for PN terms WIP)
   // X_SI = X_CODE * unit_X
@@ -194,11 +206,14 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
 //----------------------------------------------------------------------------------------
 //! \fn  void NBody::~NBody
-//! \brief Destructor, frees any memory allocated during construction
+//! \brief Destructor, frees any memory allocated during construction. Currently empty
 NBody::~NBody() {
 }
 
-// return max timestep for stable evolution from nbody state
+//----------------------------------------------------------------------------------------
+//! \fn  Real NBody::NBodySrcTerms
+//! \brief Compute the maximum timestep for stable NBody evolution given the current 
+//! nbody_data state. Collected with other timesteps in Mesh::NewTimeStep 
 Real NBody::CalcTimeStep() {
 
   Real hm4_max = std::numeric_limits<float>::min();
@@ -233,6 +248,10 @@ Real NBody::CalcTimeStep() {
   return std::pow(hm4_max, -0.25);
 }
 
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::NBodySrcTerms
+//! \brief Wrapper to invoke source terms associated with the NBody class, including
+//! runtime booleans to activate specific physical processes
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
   if (precalc_phi) {
@@ -267,7 +286,10 @@ void NBody::NBodySrcTerms(const Real beta_dt) {
   return;
 }
 
-// pre-compute per-cell values for gravitational potential
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::CalcGravitationalPotential
+//! \brief Populate an array of gravitational potentials on a per-cell basis to be used 
+//! for calculating momentum/energy updates in NBody::ApplyGravitationalPotential
 void NBody::CalcGravitationalPotential(const Real beta_dt) {
 
   // MeshBlock properties
@@ -321,7 +343,10 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
   return;
 }
 
-// apply gravity according to precomputed potential
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::ApplyGravitationalPotential
+//! \brief Following pre-computation of the by-cell gravitational potential, compute 
+//! gravitational accelerations and apply momentum/energy updates to all cells.
 void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 
   // MeshBlock properties
@@ -439,6 +464,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
   const Real G_const_  = G_const;
+  auto &grav_accel_func_ = grav_accel_func;
 
   // thermodynamic properties
   const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
@@ -477,21 +503,16 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
         // compute body-cell seperation
-        const Real dx = x - nbody_data_.d_view(n, X_DATA);
-        const Real dy = y - nbody_data_.d_view(n, Y_DATA);
-        const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr_sqr = dx * dx + dy * dy + dz * dz;
-        const Real dr_true = Kokkos::sqrt(dr_sqr);
-        const Real dr_soft = Kokkos::sqrt(dr_sqr + SQR(nbody_data_.d_view(n, R_SOFT_DATA)));
+        const Real dx     = x - nbody_data_.d_view(n, X_DATA);
+        const Real dy     = y - nbody_data_.d_view(n, Y_DATA);
+        const Real dz     = z - nbody_data_.d_view(n, Z_DATA);
+        const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+        const Real dr     = Kokkos::sqrt(dr_sqr) + FLT_MIN;
 
-        // compute Newtonian gravitational acceleration
+        // compute softened Newtonian gravitational acceleration
         const Real rho = prim(mb_id, IDN, k, j, i);
-        // g_fac = Gm/r^3 where r is softened by r_soft 
-        // const Real g_fac = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_soft, -3.0);
-        // TEMP: demo spline forced gravity
-        const Real g = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA),
-                                              dr_true, nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real dp_grav_fac = g * beta_dt * rho / dr_true; // INCLUDES EXTRA 1/r fac, used to be -ve
+        const Real g_soft = grav_accel_func_(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real dp_grav_fac = g_soft * beta_dt * rho / dr;
         const Real dpx_grav = dp_grav_fac * dx;
         const Real dpy_grav = dp_grav_fac * dy;
         const Real dpz_grav = dp_grav_fac * dz;
@@ -503,7 +524,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
         // TODO: this should be computed using acceleration and fluxes on cell FACES
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
-          // gravity update applied as work done
+          // gravity update applied as work done W = rho v dot g -> dW = dp dot v 
           const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
                              + dpy_grav * prim(mb_id, IVY, k, j, i)
                              + dpz_grav * prim(mb_id, IVZ, k, j, i);
@@ -1091,6 +1112,10 @@ void NBody::AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos,
   return;
 }
 
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::NewViscousTimeStep
+//! \brief Computes the maximum timestep for stable viscous forward integration, based on
+//! the nu_iso array populated by NBody::CalcViscosity
 void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
   // viscous timestep on MeshBlock(s) in this pack for inhomogeneous isotropic viscosity
   dt_visc = std::numeric_limits<float>::max();
@@ -1115,7 +1140,10 @@ void NBody::NewViscousTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_
   return;
 }
 
-// write NBody data to hst output TODO: internalise as standard output
+//----------------------------------------------------------------------------------------
+//! \fn  void NBodyHistory
+//! \brief Packages information on the current nbody_data state to write as history output
+//! Defined as non-member function to allow assignment pre-NBody construction in pgen.
 void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   // max number of history variables must be < NHISTORY_VARIABLES < NREDUCTION_VARIABLES
   // set in outputs.hpp and athena.hpp respectively 
@@ -1160,7 +1188,11 @@ void NBodyHistory(HistoryData *pdata, Mesh *pm) {
   return;
 }
 
-// apply AMR to region about each body with non-zero refinement radius
+//----------------------------------------------------------------------------------------
+//! \fn  void NBodyTrackRefinementCondition
+//! \brief Determine the refinement flags for all MeshBlocks in pack, based on proximity
+//! to bodies within the domain, and their respective radii/levels. Defined as non-member
+//! function to allow for assignment pre-NBody construction in pgen.
 void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   
   // do not attempt write if no NBody instance
@@ -1240,6 +1272,10 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
   refine_flag.template sync<DevExeSpace>();
 }
 
+//----------------------------------------------------------------------------------------
+//! \fn  Real CalcSplineAcceleration
+//! \brief Compute the acceleration due to a gravitating body, according to the a softened
+//! potential on a cubic spline. Portable to __host__ and __device__
 KOKKOS_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h) {
   
   // check if in the Newtonian far field
@@ -1262,6 +1298,10 @@ KOKKOS_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const R
   }
 }
 
+//----------------------------------------------------------------------------------------
+//! \fn  Real CalcSplinePotential
+//! \brief Compute the potential due to a gravitating body, according to the a softened
+//! potential on a cubic spline. Portable to __host__ and __device__
 KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
 
   // check if in the Newtonian far field
@@ -1282,6 +1322,24 @@ KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real
                         // 14/5 - 16/3 d^2 + 48/5 d^4 - 32/5d^4
     return phi_fac * spline;
   }  
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn  Real CalcPlummerAcceleration
+//! \brief Compute the acceleration due to a gravitating body, according to the a softened
+//! plummer potential. Portable to __host__ and __device__
+KOKKOS_FUNCTION Real CalcPlummerAcceleration(const Real Gm, const Real r, const Real h) {
+  
+  return -Gm * r * Kokkos::pow(SQR(r) + SQR(h), -1.5);
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn  Real CalcPlummerPotential
+//! \brief Compute the potential due to a gravitating body, according to the a softened
+//! plummer potential. Portable to __host__ and __device__
+KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
+
+  return -Gm * Kokkos::pow(SQR(r) + SQR(h), -0.5);
 }
 
 } // end nbody namespace
