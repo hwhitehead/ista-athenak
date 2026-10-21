@@ -459,7 +459,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
   const Real inv_gm1 = 1.0 / gm1;
-  const Real max_sink_fac = 0.9; // maximal fractional loss per fine timestep
+  const Real max_sink_fac = 0.5; // maximal fractional loss per fine timestep
 
   par_for("nbody_gravity_src", 
           DevExeSpace(), 
@@ -536,8 +536,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               // true viscosity nu = alpha * cs^2 * Omega^-1
               //                   = alpha * U * (g - 1) / rho * Omega^-1
               const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
-              const Real inv_omega_local = Kokkos::sqrt(Kokkos::pow(dr_true, 3) / (G_const_ * nbody_data_.d_view(n, M_DATA)));
-              const Real nu_local = alpha_ * cs_sqr_local * inv_omega_local;
+              const Real omega_sqr_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0);
+              const Real nu_local = alpha_ * cs_sqr_local * Kokkos::pow(omega_sqr_local, -0.5);
               sink_rate = 2.25 * nu_local / dr_sqr;
             }
             sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 16));         // apply sharpened Gaussian profile to sink region
@@ -875,13 +875,13 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         // compute orbital frequency and sum
-        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -1.5);
+        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr, -1.5);
         sum_omega_sqr += omega_sqr;
         // compute potential and sum ONLY if using idealised sound speed
         if (visc_mode_ == 1) {
-          const Real abs_phi = omega_sqr * r_sqr_softened; // abs_phi ~ Gm/r = Gm/r^3 * r^2
+          const Real abs_phi = omega_sqr * r_sqr; // abs_phi ~ Gm/r = Gm/r^3 * r^2
           sum_abs_phi += abs_phi;
         } // end if ideal 
       }
