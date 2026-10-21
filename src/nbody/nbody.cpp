@@ -551,13 +551,13 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             } else if (sink_mode_ == 3) { // rate is inverse of viscous time for idealised nu
               // ideal viscosity nu = alpha * cs^2 * Omega^-1
               //                    = alpha * M^-2 * sqrt{Gmr}          
-              const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr_true);
+              const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr);
               sink_rate = 2.25 * nu_ideal / dr_sqr;
             } else {                      // rate is inverse of viscous time with adaptive local temp
               // true viscosity nu = alpha * cs^2 * Omega^-1
               //                   = alpha * U * (g - 1) / rho * Omega^-1
               const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
-              const Real omega_sqr_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_true, -3.0);
+              const Real omega_sqr_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
               const Real nu_local = alpha_ * cs_sqr_local * Kokkos::pow(omega_sqr_local, -0.5);
               sink_rate = 2.25 * nu_local / dr_sqr;
             }
@@ -568,7 +568,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             // ensure accretion only drives to sink value
             drho_acc = Kokkos::max(drho_acc, drho_floor);
             // apply torque free sink
-            const Real inv_r = 1.0 / (dr_true + 1e-12); // small softening
+            const Real inv_r = 1.0 / dr; // small softening
             const Real rhatx = dx * inv_r;
             const Real rhaty = dy * inv_r;
             const Real rhatz = dz * inv_r;
