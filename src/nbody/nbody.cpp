@@ -807,8 +807,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz));
-        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
         // compute softened gravitational acceleration
         Real g_soft;
         if (soft_mode_ == 0) {
@@ -895,7 +894,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz));
+        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
         // compute softened gravitational acceleration
         Real g_soft;
         if (soft_mode_ == 0) {
