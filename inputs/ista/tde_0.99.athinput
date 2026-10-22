@@ -70,7 +70,7 @@ pfloor = 1e-12
 <problem>
 prograde            = 1             # rotation direction of disc 
 r_minidisc          = 0.005         # outer radius of initial disc
-r_cavity            = 0.001         # inner radius of initial disc
+r_cavity            = 0.0005         # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
 rho_floor_fac       = 1e-8          # floor value applied to non-disc void
 orbit_primary       = 0             # boolean: specify host for disc
