@@ -783,7 +783,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   const Real inv_gm1        = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   const Real inv_Mach_sqr_  = inv_Mach_sqr;
   const Real cs_sqr_floor_  = cs_sqr_floor;
-  const Real alpha_         = (alpha != 0.0) ? 1.0 / alpha : 10;                      // use fiducial value of alpha = 0.1 if not set 
+  const Real alpha_         = (alpha != 0.0) ? alpha : 0.1;                   // use fiducial value of alpha = 0.1 if not set 
   const Real inv_t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : alpha_; // toggle between dynamical/thermal cooling timescale
   const Real G_const_       = G_const;
   const int soft_mode_      = soft_mode;
