@@ -86,6 +86,7 @@ inc_backreaction    = 0             # boolean: apply mdot, acceleration during l
 verbose             = 0             # boolean: write progress checks to stdout
 Mach                = 100.0         # Mach number of disc for pgen and cooling
 alpha               = 0.1           # viscosity scaling parameter
+nu_max              = 1e-3          # ceiling for viscosity computed with constant alpha
 cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
 cooling_mode        = 2             # thermodynamics -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm

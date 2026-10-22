@@ -765,27 +765,29 @@ void NBody::NBodyBlackBodySrcTerm(const Real beta_dt) {
 void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
 
   // MeshBlock properties
-  auto &indcs = pmy_pack->pmesh->mb_indcs;
-  auto &size  = pmy_pack->pmb->mb_size;
-  int is = indcs.is, ie = indcs.ie;
-  int js = indcs.js, je = indcs.je;
-  int ks = indcs.ks, ke = indcs.ke;
-  int nmb1 = pmy_pack->nmb_thispack - 1;
-  auto &cons = pmy_pack->phydro->u0;
-  auto &prim = pmy_pack->phydro->w0;
+  auto &indcs    = pmy_pack->pmesh->mb_indcs;
+  auto &size     = pmy_pack->pmb->mb_size;
+  const int is   = indcs.is;
+  const int ie   = indcs.ie;
+  const int js   = indcs.js;
+  const int je   = indcs.je;
+  const int ks   = indcs.ks;
+  const int ke   = indcs.ke;
+  const int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto &cons     = pmy_pack->phydro->u0;
+  auto &prim     = pmy_pack->phydro->w0;
 
   // privatise nbody data for par_for
-  auto &nbody_data_ = nbody_data;
-  const int num_nbody_ = num_nbody;
-  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
-  const Real inv_gm1 = 1.0 / gm1;
-  const Real inv_Mach_sqr_ = inv_Mach_sqr;
-  const Real cs_sqr_floor_ = cs_sqr_floor;
-  const Real alpha_ = (alpha != 0.0) ? 1.0 / alpha : 10;                      // use fiducial value of alpha = 0.1 if not set 
+  auto &nbody_data_         = nbody_data;
+  const int num_nbody_      = num_nbody;
+  const Real inv_gm1        = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
+  const Real inv_Mach_sqr_  = inv_Mach_sqr;
+  const Real cs_sqr_floor_  = cs_sqr_floor;
+  const Real alpha_         = (alpha != 0.0) ? 1.0 / alpha : 10;                      // use fiducial value of alpha = 0.1 if not set 
   const Real inv_t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : alpha_; // toggle between dynamical/thermal cooling timescale
-  const Real G_const_  = G_const;
-  const int soft_mode_ = soft_mode;
-  const int inv_2pi = 1.0 / (2 * M_PI);
+  const Real G_const_       = G_const;
+  const int soft_mode_      = soft_mode;
+  const int inv_2pi         = 1.0 / (2 * M_PI);
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -857,7 +859,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const int ke   = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
   const int nmb1 = pmy_pack->nmb_thispack - 1;
 
-  // populate register tracking maximal viscosity to zero
+  // set register tracking maximal viscosity to zero
   Kokkos::deep_copy(max_nu_iso.view_host(), 0.0);
   max_nu_iso.template modify<HostMemSpace>();
   max_nu_iso.template sync<DevExeSpace>();
@@ -872,6 +874,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real nu_max_       = nu_max;
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
+  const Real soft_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
   const Real gm1           = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
 
@@ -910,7 +913,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
       // calculate local sound speed (equiv P/rho), either as true or ideal
       Real cs_sqr;
-      if (visc_mode == 0) { // adapt c_s to local primitive state
+      if (visc_mode_ == 0) { // adapt c_s to local primitive state
         cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
       } else { // use ideal c_s set by Mach number
         cs_sqr = sum_v_phi_sqr * inv_Mach_sqr_;
