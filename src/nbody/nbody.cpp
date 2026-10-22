@@ -104,6 +104,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // determine viscosity usage
   alpha     = pin->GetOrAddReal("nbody", "alpha", 0.0);
   visc_mode = pin->GetOrAddInteger("nbody", "visc_mode", 0);
+  nu_max    = pin->GetOrAddReal("nbody", "nu_max", 1e-3);
   if (alpha != 0.0) {
     // allocate array for per-cell viscosity coefficient, including ghosts on each side
     Kokkos::realloc(nu_iso, nmb_max, ncells3, ncells2, ncells1); 
@@ -868,7 +869,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const int num_nbody_     = num_nbody;
   const Real alpha_        = alpha;
   const Real G_const_      = G_const;
-  const Real nu_iso_max    = 1e-3;
+  const Real nu_max_       = nu_max;
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
   const Real cs_sqr_floor_ = cs_sqr_floor;
@@ -882,55 +883,54 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local orbital frequency as quadrature sum of orbital frequency about each body
+      // compute local c_s via quadratic sum of orbital velocity from each body
+      // compute local omega via quadratic sum of orbital frequencies
+      Real sum_v_phi_sqr = 0.0;
       Real sum_omega_sqr = 0.0;
-      Real sum_abs_phi   = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real r_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-        // compute orbital frequency and sum
-        const Real omega_sqr = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr, -1.5);
+        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz));
+        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        // compute softened gravitational acceleration
+        Real g_soft;
+        if (soft_mode_ == 0) {
+          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        } else {
+          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        }
+        // compute orbital velocity and period
+        const Real v_phi_sqr = -g_soft * dr;
+        const Real omega_sqr = -g_soft / dr;
+        sum_v_phi_sqr += v_phi_sqr;
         sum_omega_sqr += omega_sqr;
-        // compute potential and sum ONLY if using idealised sound speed
-        if (visc_mode_ == 1) {
-          const Real abs_phi = omega_sqr * r_sqr; // abs_phi ~ Gm/r = Gm/r^3 * r^2
-          sum_abs_phi += abs_phi;
-        } // end if ideal 
       }
 
-      // calculate local sound speed (P/rho), either as true or ideal
+      // calculate local sound speed (equiv P/rho), either as true or ideal
       Real cs_sqr;
-      if (visc_mode_ == 1) { // ideal visc, set sound speed by Mach number
-        cs_sqr = sum_abs_phi * inv_Mach_sqr_;
-      } else { // true visc, set sound speed using primitive state
+      if (visc_mode == 0) { // adapt c_s to local primitive state
         cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
-      } // end visc mode check
+      } else { // use ideal c_s set by Mach number
+        cs_sqr = sum_v_phi_sqr * inv_Mach_sqr_;
+      }
       cs_sqr = Kokkos::max(cs_sqr, cs_sqr_floor_);
 
       // compute local kinematic viscosity using alpha prescripton
-      Real nu_iso_local = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
-      nu_iso_local = Kokkos::min(nu_iso_local, nu_iso_max);
+      Real nu = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
+      nu = Kokkos::min(nu, nu_max_);
 
       // stash viscosity state in register
-      nu_iso_(mb_id, k, j, i) = nu_iso_local;
+      nu_iso_(mb_id, k, j, i) = nu;
 
       // thread-safe maximum check for tracker
-      Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu_iso_local);
+      Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu);
     }); // end par_for
     
   // enforce update of maximum tracker on host
   max_nu_iso.template modify<DevExeSpace>();
   max_nu_iso.template sync<HostMemSpace>();
-
-  // // temp verbose check for visc blowup
-  // Real min_nu_global = dt_visc = std::numeric_limits<float>::max();
-  // for (int mb_id = 0; mb_id < pmy_pack->nmb_thispack; mb_id++) {
-  //   min_nu_global = std::min(min_nu_global, max_nu_iso.h_view(mb_id));
-  // }
-  // std::cout << "min_nu_global = " << min_nu_global << std::endl;
 
   return;
 }

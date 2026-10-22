@@ -183,7 +183,8 @@ class NBody {
     void ApplyGravitationalPotential(const Real beta_dt); // apply gravity using pre-compute values
 
     // inhomogeneous viscosity handling
-    Real alpha; // viscosity coefficient for alpha-disc prescription
+    Real alpha;  // viscosity coefficient for alpha-disc prescription
+    Real nu_max; // imposed ceiling for local kinematic viscosity
     void CalcViscosity(const DvceArray5D<Real> &w0); // compute by-cell viscosity according to alpha prescription
     void AddViscousFlux(const DvceArray5D<Real> &w0, const EOS_Data &eos, DvceFaceFld5D<Real> &flx);
     void NewViscousTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
