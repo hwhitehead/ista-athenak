@@ -771,6 +771,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   int ks = indcs.ks, ke = indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &cons = pmy_pack->phydro->u0;
+  auto &prim = pmy_pack->phydro->w0;
 
   // privatise nbody data for par_for
   auto &nbody_data_ = nbody_data;
@@ -779,10 +780,11 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   const Real inv_gm1 = 1.0 / gm1;
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real cs_sqr_floor_ = cs_sqr_floor;
-  const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10;                  // use fiducial value of alpha = 0.1 if not set 
-  const Real t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : inv_alpha; // toggle between dynamical/thermal cooling timescale
+  const Real alpha_ = (alpha != 0.0) ? 1.0 / alpha : 10;                      // use fiducial value of alpha = 0.1 if not set 
+  const Real inv_t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : alpha_; // toggle between dynamical/thermal cooling timescale
   const Real G_const_  = G_const;
   const int soft_mode_ = soft_mode;
+  const int inv_2pi = 1.0 / (2 * M_PI);
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -818,14 +820,14 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         sum_omega_sqr += omega_sqr;
       }
       // determine target internal energy based on fixed Mach profile
-      Real cs_sqr_target = sum_v_phi_sqr * inv_Mach_sqr_;
-      cs_sqr_target      = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
+      Real cs_sqr_target  = sum_v_phi_sqr * inv_Mach_sqr_;
+      cs_sqr_target       = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
       const Real U_target = cs_sqr_target * prim(mb_id, IDN, k, j, i) * inv_gm1;
 
       // decay to target internal energy on dynamic or thermal time (set by t_cool_fac)
-      const Real t_dyn  = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real t_cool = t_dyn * t_cool_fac;
-      const Real dU     = (prim(mb_id, IEN, k, j, i) - U_target) * (Kokkos::exp(-beta_dt / t_cool) - 1);
+      const Real inv_t_dyn  = inv_2pi * Kokkos::sqrt(sum_omega_sqr);
+      const Real inv_t_cool = inv_t_dyn * inv_t_cool_fac;
+      const Real dU         = (prim(mb_id, IEN, k, j, i) - U_target) * (Kokkos::exp(-beta_dt * inv_t_cool) - 1.0);
 
       // update total energy (dE_kin = 0)
       cons(mb_id, IEN, k, j, i) += dU;
