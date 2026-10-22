@@ -671,9 +671,8 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local sound speed via quadratic sum of orbital velocity from each body
-      // compute local orbital time via quadratic sum of orbital frequencies
-      Real sum_v_phi_sqr = 0.0;
+      // compute local sound speed via linear sum of gravitational potentials
+      Real sum_phi = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
@@ -681,18 +680,14 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
         const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
         // compute softened gravitational acceleration
-        Real g_soft;
         if (soft_mode_ == 0) {
-          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcPlummerPotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         } else {
-          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi = CalcSplinePotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         }
-        // compute orbital velocity and period
-        const Real v_phi_sqr = -g_soft * dr;
-        sum_v_phi_sqr += v_phi_sqr;
       }
       // determine target internal energy based on fixed Mach profile
-      Real cs_sqr_target  = sum_v_phi_sqr * inv_Mach_sqr_;
+      Real cs_sqr_target  = -sum_phi * inv_Mach_sqr_;
       cs_sqr_target       = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
 
       // compute next kinetic and internal energy using intermediate cons values
@@ -798,9 +793,9 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local sound speed via quadratic sum of orbital velocity from each body
-      // compute local orbital time via quadratic sum of orbital frequencies
-      Real sum_v_phi_sqr = 0.0;
+      // compute local sound speed via linear sum of softened potential from each body
+      // compute local orbital time via quadratic sum of true orbital frequencies
+      Real sum_phi = 0.0;
       Real sum_omega_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
@@ -808,21 +803,17 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
         const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
-        // compute softened gravitational acceleration
-        Real g_soft;
+        // compute softened gravitational potential
         if (soft_mode_ == 0) {
-          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcPlummerPotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         } else {
-          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcSplinePotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         }
-        // compute orbital velocity and period
-        const Real v_phi_sqr = -g_soft * dr;
-        const Real omega_sqr = -g_soft / dr;
-        sum_v_phi_sqr += v_phi_sqr;
-        sum_omega_sqr += omega_sqr;
+        // compute true orbital frequency
+        sum_omega_sqr += G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
       }
       // determine target internal energy based on fixed Mach profile
-      Real cs_sqr_target  = sum_v_phi_sqr * inv_Mach_sqr_;
+      Real cs_sqr_target  = -sum_phi * inv_Mach_sqr_;
       cs_sqr_target       = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
       const Real U_target = cs_sqr_target * prim(mb_id, IDN, k, j, i) * inv_gm1;
 
@@ -885,9 +876,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local c_s via quadratic sum of orbital velocity from each body
-      // compute local omega via quadratic sum of orbital frequencies
-      Real sum_v_phi_sqr = 0.0;
+      // compute local omega via quadratic sum of true orbital frequencies
       Real sum_omega_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
@@ -895,28 +884,12 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
         const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
-        // compute softened gravitational acceleration
-        Real g_soft;
-        if (soft_mode_ == 0) {
-          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
-        } else {
-          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
-        }
-        // compute orbital velocity and period
-        const Real v_phi_sqr = -g_soft * dr;
-        const Real omega_sqr = -g_soft / dr;
-        sum_v_phi_sqr += v_phi_sqr;
-        sum_omega_sqr += omega_sqr;
+        // compute orbital frequency
+        sum_omega_sqr += G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
       }
 
-      // calculate local sound speed (equiv P/rho), either as true or ideal
-      Real cs_sqr;
-      if (visc_mode_ == 0) { // adapt c_s to local primitive state
-        cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
-      } else { // use ideal c_s set by Mach number
-        cs_sqr = sum_v_phi_sqr * inv_Mach_sqr_;
-      }
-      cs_sqr = Kokkos::max(cs_sqr, cs_sqr_floor_);
+      // calculate local sound speed from primitive state
+      const Real cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
 
       // compute local kinematic viscosity using alpha prescripton
       Real nu = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
