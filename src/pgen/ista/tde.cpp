@@ -128,8 +128,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
       const Real z = x3v - z_host;
       // const Real r_sqr = R_sqr + SQR(x3v - z_parent);
-      const Real R = Kokkos::sqrt(R_sqr);
-      const Real soft_R_sqr = SQR(r_soft_host) + R_sqr;
+      const Real R = Kokkos::sqrt(R_sqr) + FLT_MIN;
 
       // set density using radial and vertical profile
       // disc is ALWAYS in the x-y plane, orbit is rotated
