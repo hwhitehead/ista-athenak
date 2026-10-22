@@ -168,17 +168,23 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       const Real vy = vy_host + v_phi * Kokkos::cos(phi);
       const Real vz = vz_host;
 
-      // set pressure 
-      Real cs_sqr_local = SQR(v_phi) * inv_Mach_sqr;
+      // set pressure using fixed Mach number prescription
+      Real phi_grav;
+      if (soft_mode == 0) {
+        phi_grav = nbody::CalcPlummerPotential(G_const * m_host, R, r_soft_host);
+      } else {
+        phi_grav = nbody::CalcSplinePotential(G_const * m_host, R, r_soft_host);
+      }
+      Real cs_sqr_local = -phi_grav * inv_Mach_sqr;
       cs_sqr_local = Kokkos::max(cs_sqr_local, cs_sqr_floor);
-      const Real P = cs_sqr_local * rho;
+      const Real U = cs_sqr_local * rho * inv_gm1;
       
       // ===== Set primitive variables =====
       w0_(m, IDN, k, j, i) = rho;              
       w0_(m, IVX, k, j, i) = vx;               
       w0_(m, IVY, k, j, i) = vy;               
       if (is_3d) w0_(m, IVZ, k, j, i) = vz;             
-      if (is_ideal) w0_(m, IEN, k, j, i) = P * inv_gm1;   
+      if (is_ideal) w0_(m, IEN, k, j, i) = U;   
     }); 
 
     // ===== Convert primitives to conserved variables =====
