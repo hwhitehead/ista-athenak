@@ -782,6 +782,7 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
   const Real inv_alpha = (alpha != 0.0) ? 1.0 / alpha : 10;                  // use fiducial value of alpha = 0.1 if not set 
   const Real t_cool_fac = (cooling_mode == BETA_COOL_DYN) ? 1.0 : inv_alpha; // toggle between dynamical/thermal cooling timescale
   const Real G_const_  = G_const;
+  const int soft_mode_ = soft_mode;
 
   par_for("nbody_beta_cool_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
@@ -792,49 +793,42 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local sound speed via linear sum of gravitational potential from each body
+      // compute local sound speed via quadratic sum of orbital velocity from each body
       // compute local orbital time via quadratic sum of orbital frequencies
-      Real abs_phi_sum = 0.0;
+      Real sum_v_phi_sqr = 0.0;
       Real sum_omega_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
+        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz));
         const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        // compute absolute gravitational potential and sum 
-        const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
-        abs_phi_sum += abs_phi;
-        // compute orbital frequency and sum
-        const Real omega_sqr = abs_phi / r_sqr_softened;
+        // compute softened gravitational acceleration
+        Real g_soft;
+        if (soft_mode_ == 0) {
+          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        } else {
+          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        }
+        // compute orbital velocity and period
+        const Real v_phi_sqr = -g_soft * dr;
+        const Real omega_sqr = -g_soft / dr;
+        sum_v_phi_sqr += v_phi_sqr;
         sum_omega_sqr += omega_sqr;
       }
-      // determine target sound speed based on fixed Mach profile
-      Real cs_sqr_target = abs_phi_sum * inv_Mach_sqr_;
-      cs_sqr_target = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
+      // determine target internal energy based on fixed Mach profile
+      Real cs_sqr_target = sum_v_phi_sqr * inv_Mach_sqr_;
+      cs_sqr_target      = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
+      const Real U_target = cs_sqr_target * prim(mb_id, IDN, k, j, i) * inv_gm1;
 
-      // compute current (and next) kinetic energy (using updated intermediate conserved state)
-      const Real rho_current   = cons(mb_id, IDN, k, j, i);
-      const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
-      const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
-      
-      // compute current sound speed via internal energy (updated as intermediate state)
-      // TODO: can be nominally streamlined via const rho prefac
-      const Real E_int_current  = cons(mb_id, IEN, k, j, i) - E_kin_current;
-      const Real P_current      = E_int_current * gm1; 
-      const Real cs_sqr_current = P_current / rho_current;
-
-      // decay to target sound speed
-      const Real t_dyn       = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
-      const Real t_cool      = t_dyn * t_cool_fac;
-      const Real cs_sqr_next = (cs_sqr_current - cs_sqr_target) * Kokkos::exp(-beta_dt / t_cool) + cs_sqr_target;
-
-      // assert local internal energy
-      const Real E_int_next = cs_sqr_next * rho_current * inv_gm1;
-      const Real dE_int     = E_int_next - E_int_current;
+      // decay to target internal energy on dynamic or thermal time (set by t_cool_fac)
+      const Real t_dyn  = 2 * M_PI * Kokkos::pow(sum_omega_sqr, -0.5);
+      const Real t_cool = t_dyn * t_cool_fac;
+      const Real dU     = (prim(mb_id, IEN, k, j, i) - U_target) * (Kokkos::exp(-beta_dt / t_cool) - 1);
 
       // update total energy (dE_kin = 0)
-      cons(mb_id, IEN, k, j, i) += dE_int;
+      cons(mb_id, IEN, k, j, i) += dU;
     }); // end par_for
     
   return;
