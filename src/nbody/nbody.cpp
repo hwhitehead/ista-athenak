@@ -599,9 +599,9 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               // compute current specific internal energy
               const Real epsilon        = prim(mb_id, IEN, k, j, i) / prim(mb_id, IDN, k, j, i);
               const Real vstar_sqr      = SQR(vxstar) + SQR(vystar) + SQR(vzstar);
-              const Real vdagger_sqr    = SQR(prim(mb_id, IVX, k, j, i) - vx_n) 
-                                        + SQR(prim(mb_id, IVY, k, j, i) - vy_n) 
-                                        + SQR(prim(mb_id, IVZ, k, j, i) - vz_n);
+              const Real vdagger_sqr    = SQR(prim(mb_id, IVX, k, j, i) - vxstar) 
+                                        + SQR(prim(mb_id, IVY, k, j, i) - vystar) 
+                                        + SQR(prim(mb_id, IVZ, k, j, i) - vzstar);
               const Real dE_acc         = drho_acc * (epsilon + 0.5 * vstar_sqr - 0.5 * vdagger_sqr);
               cons(mb_id, IEN, k, j, i) += dE_acc;
             } // end energy evolution
