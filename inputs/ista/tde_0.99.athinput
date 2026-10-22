@@ -68,7 +68,7 @@ dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
-prograde            = 1             # rotation direction of disc 
+prograde            = 0             # rotation direction of disc 
 r_minidisc          = 0.005          # outer radius of initial disc
 r_cavity            = 0.0           # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
