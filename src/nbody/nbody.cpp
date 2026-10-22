@@ -510,9 +510,9 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         }
         const Real dp_grav_fac = g_soft * beta_dt * rho / dr;
-        const Real dpx_grav = dp_grav_fac * dx;
-        const Real dpy_grav = dp_grav_fac * dy;
-        const Real dpz_grav = dp_grav_fac * dz;
+        const Real dpx_grav    = dp_grav_fac * dx;
+        const Real dpy_grav    = dp_grav_fac * dy;
+        const Real dpz_grav    = dp_grav_fac * dz;
 
         // apply gravity updates to cell's conserved quantities
         cons(mb_id, IM1, k, j, i) += dpx_grav;
