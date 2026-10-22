@@ -582,12 +582,6 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             dpy_acc = drho_acc * vystar;
             dpz_acc = drho_acc * vzstar;
 
-            // before accretion update, compute internal energy
-            // const Real rho_current   = cons(mb_id, IDN, k, j, i);
-            // const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
-            // const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
-            // const Real E_int_current = cons(mb_id, IEN, k, j, i) - E_kin_current;
-
             // apply accretion updates to cell's conserved quantities
             cons(mb_id, IDN, k, j, i) += drho_acc;
             cons(mb_id, IM1, k, j, i) += dpx_acc;
@@ -666,6 +660,7 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
   const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real inv_gm1 = 1.0 / (pmy_pack->phydro->peos->eos_data.gamma - 1.0);
   const Real cs_sqr_floor_ = cs_sqr_floor;
+  const Real soft_mode_ = soft_mode;
   const Real G_const_  = G_const;
 
   par_for("nbody_forced_iso_src", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
@@ -676,33 +671,38 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
       const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // compute local sound speed via linear sum of gravitational potential from each body
-      // TODO: if grav accel computation offloaded to register, compute via that register to avoid double comp
-      Real abs_phi_sum = 0.0;
+      // compute local sound speed via quadratic sum of orbital velocity from each body
+      // compute local orbital time via quadratic sum of orbital frequencies
+      Real sum_v_phi_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real r_sqr_softened = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real abs_phi = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(r_sqr_softened, -0.5);
-        abs_phi_sum += abs_phi;
+        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
+        // compute softened gravitational acceleration
+        Real g_soft;
+        if (soft_mode_ == 0) {
+          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        } else {
+          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+        }
+        // compute orbital velocity and period
+        const Real v_phi_sqr = -g_soft * dr;
+        sum_v_phi_sqr += v_phi_sqr;
       }
-      Real cs_sqr_next = abs_phi_sum * inv_Mach_sqr_;
-      cs_sqr_next = Kokkos::max(cs_sqr_next, cs_sqr_floor_);
+      // determine target internal energy based on fixed Mach profile
+      Real cs_sqr_target  = sum_v_phi_sqr * inv_Mach_sqr_;
+      cs_sqr_target       = Kokkos::max(cs_sqr_target, cs_sqr_floor_);
 
-      // compute next kinetic energy (using updated conservative state)
-      const Real rho_cons = cons(mb_id, IDN, k, j, i);
+      // compute next kinetic and internal energy using intermediate cons values
+      const Real rho_cons   = cons(mb_id, IDN, k, j, i);
       const Real p_cons_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
-      const Real E_kin_next = 0.5 * p_cons_sqr / rho_cons;
-      
-      // assert next internal energy
-      const Real E_int_next = cs_sqr_next * rho_cons * inv_gm1;
+      const Real K_next     = 0.5 * p_cons_sqr / rho_cons;
+      const Real U_next     = cs_sqr_target * cons(mb_id, IDN, k, j, i) * inv_gm1;
 
       // set energy
-      cons(mb_id, IEN, k, j, i) = E_kin_next + E_int_next;
-      // TODO: store energy loss
-      // Kokkos::atomic_add(&general_data_.d_view(DE_GENERAL), dE); // TODO: implement collection of this
+      cons(mb_id, IEN, k, j, i) = U_next + K_next;
     }); // end par_for
     
   return;
