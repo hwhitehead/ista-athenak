@@ -80,7 +80,7 @@ num_nbody           = 2             # number of gravitating bodies in domain
 eta_dt              = 0.1           # prefactor for nbody timestep integration
 hist_nbody          = 1             # boolean: write nbody state to .hst
 src_gravity         = 1             # boolean: include gravity src for hydro
-src_accretion       = 0             # boolean: include accretion src for hydro
+src_accretion       = 1             # boolean: include accretion src for hydro
 sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
@@ -102,7 +102,7 @@ z0 = 0.0
 vx0 = 0.25865255918176666
 vy0 = 0.044690275783704485
 vz0 = 0.0
-r_soft0 = 0.001
+r_soft0 = 0.0005
 r_amr0 = 0.01
 t_amr0 = 0.03
 
@@ -113,7 +113,7 @@ z1 = 0.0
 vx1 = -2.5865255918176664
 vy1 = -0.44690275783704486
 vz1 = 0.0
-r_soft1 = 0.001
+r_soft1 = 0.0005
 r_amr1 = 0.01
 t_amr1 = 0.0
 
