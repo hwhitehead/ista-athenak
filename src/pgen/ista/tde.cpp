@@ -140,7 +140,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         radial_profile = 1.0;
       } else {
         // constant alpha -> surface density propto r^-0.5
-        radial_profile = Kokkos::pow(R / r_minidisc, -0.5);
+        if (R < r_soft_host) { // set as flat within sink
+          radial_profile = Kokkos::pow(r_soft_host / r_minidisc, -0.5);
+        } else {
+          radial_profile = Kokkos::pow(R / r_minidisc, -0.5);
+        }
       }
       const Real inner_profile = rho_floor_fac + (1.0 - rho_floor_fac) * Kokkos::exp(-Kokkos::pow((r_cavity / R), 4.0));
       const Real H_sqr = R_sqr * inv_Mach_sqr;
