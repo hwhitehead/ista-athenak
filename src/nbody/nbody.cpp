@@ -582,10 +582,10 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             dpz_acc = drho_acc * vzstar;
 
             // before accretion update, compute internal energy
-            const Real rho_current   = cons(mb_id, IDN, k, j, i);
-            const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
-            const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
-            const Real E_int_current = cons(mb_id, IEN, k, j, i) - E_kin_current;
+            // const Real rho_current   = cons(mb_id, IDN, k, j, i);
+            // const Real p_current_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
+            // const Real E_kin_current = 0.5 * p_current_sqr / rho_current;
+            // const Real E_int_current = cons(mb_id, IEN, k, j, i) - E_kin_current;
 
             // apply accretion updates to cell's conserved quantities
             cons(mb_id, IDN, k, j, i) += drho_acc;
@@ -593,14 +593,16 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             cons(mb_id, IM2, k, j, i) += dpy_acc;
             cons(mb_id, IM3, k, j, i) += dpz_acc;
 
+            // adiabatic update from accretion
             if (is_ideal && evolve_energy) {
-              // adiabatic update from accretion
-              const Real E_kin_next = 0.5 * (SQR(cons(mb_id, IM1, k, j, i)) 
-                                           + SQR(cons(mb_id, IM2, k, j, i)) 
-                                           + SQR(cons(mb_id, IM3, k, j, i))) 
-                                           / cons(mb_id, IDN, k, j, i); // p^2/2rho
-              const Real E_int_next = E_int_current * (1.0 + drho_acc / rho_current);
-              cons(mb_id, IEN, k, j, i) = E_kin_next + E_int_next;
+              // compute current specific internal energy
+              const Real epsilon        = prim(mb_id, IEN, k, j, i) / prim(mb_id, IDN, k, j, i);
+              const Real vstar_sqr      = SQR(vxstar) + SQR(vystar) + SQR(vzstar);
+              const Real vdagger_sqr    = SQR(prim(mb_id, IVX, k, j, i) - vx_n) 
+                                        + SQR(prim(mb_id, IVY, k, j, i) - vy_n) 
+                                        + SQR(prim(mb_id, IVZ, k, j, i) - vz_n);
+              const Real dE_acc         = drho_acc * (epsilon + 0.5 * vstar_sqr - 0.5 * vdagger_sqr);
+              cons(mb_id, IEN, k, j, i) += dE_acc;
             } // end energy evolution
           } // end in sink
         } // end src_accretion 
