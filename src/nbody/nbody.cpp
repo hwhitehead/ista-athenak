@@ -500,16 +500,21 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         const Real dz     = z - nbody_data_.d_view(n, Z_DATA);
         const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
         const Real dr     = Kokkos::sqrt(dr_sqr) + FLT_MIN;
+        const Real inv_dr = 1.0 / dr;
+        const Real r_soft = nbody_data_.d_view(n, R_SOFT_DATA);
+        const Real m_n    = nbody_data_.d_view(n, M_DATA);
 
         // compute softened Newtonian gravitational acceleration
         const Real rho = prim(mb_id, IDN, k, j, i);
         Real g_soft;
         if (soft_mode_ == 0) {
-          g_soft = CalcPlummerAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          g_soft = CalcPlummerAcceleration(G_const_ * m_n, dr, r_soft);
         } else {
-          g_soft = CalcSplineAcceleration(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          g_soft = CalcSplineAcceleration(G_const_ * m_n, dr, r_soft);
         }
-        const Real dp_grav_fac = g_soft * beta_dt * rho / dr;
+        
+        // compute momentum updates from gravity acceleration
+        const Real dp_grav_fac = g_soft * beta_dt * rho * inv_dr;
         const Real dpx_grav    = dp_grav_fac * dx;
         const Real dpy_grav    = dp_grav_fac * dy;
         const Real dpz_grav    = dp_grav_fac * dz;
@@ -535,10 +540,10 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (src_accretion_) {
           // only accrete down to floor value to avoid blowup
           const Real drho_floor = rho_sink_floor_ - rho; 
-          const Real r_ratio = dr / nbody_data_.d_view(n, R_SOFT_DATA);
-          if ((drho_floor < 0) && (r_ratio < 2)) { 
+          const Real r_ratio = dr / r_soft;
+          if ((drho_floor < 0) && (r_ratio < 2)) { // only accrete around sink and above floor
             // compute mass loss rate
-            Real sink_rate;
+            Real sink_rate; // defined such that rhodot = -rho * sink_rate
             if (sink_mode_ == 0) {        // use flat, hungry sink rate
               sink_rate = 100;
             } else if (sink_mode_ == 1) { // rate is inverse of viscous time for flat nu (tau_nu = 9/4 r^2/nu)
@@ -558,14 +563,13 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               const Real nu_local = alpha_ * cs_sqr_local * Kokkos::pow(omega_sqr_local, -0.5);
               sink_rate = 2.25 * nu_local / dr_sqr;
             }
-            sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 16));         // apply sharpened Gaussian profile to sink region
+            sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4));          // apply sharpened Gaussian profile to sink region
             sink_rate  = Kokkos::min(sink_rate, max_sink_fac / beta_dt); // limit to maximum % removal per finetimestep
             const Real rhodot = - rho * sink_rate;
             drho_acc = rhodot * beta_dt;
             // ensure accretion only drives to sink value
             drho_acc = Kokkos::max(drho_acc, drho_floor);
             // apply torque free sink
-            const Real inv_r = 1.0 / dr; // small softening
             const Real rhatx = dx * inv_r;
             const Real rhaty = dy * inv_r;
             const Real rhatz = dz * inv_r;
@@ -590,7 +594,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
             // adiabatic update from accretion
             if (is_ideal && evolve_energy) {
-              // compute current specific internal energy
+              // compute current specific internal energy and kinetic energy updates
               const Real epsilon        = prim(mb_id, IEN, k, j, i) / prim(mb_id, IDN, k, j, i);
               const Real vstar_sqr      = SQR(vxstar) + SQR(vystar) + SQR(vzstar);
               const Real vdagger_sqr    = SQR(prim(mb_id, IVX, k, j, i) - vxstar) 
@@ -799,18 +803,20 @@ void NBody::NBodyBetaCoolSrcTerm(const Real beta_dt) {
       Real sum_omega_sqr = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
-        const Real dx = x - nbody_data_.d_view(n, X_DATA);
-        const Real dy = y - nbody_data_.d_view(n, Y_DATA);
-        const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
+        const Real dx  = x - nbody_data_.d_view(n, X_DATA);
+        const Real dy  = y - nbody_data_.d_view(n, Y_DATA);
+        const Real dz  = z - nbody_data_.d_view(n, Z_DATA);
+        const Real dr  = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
+        const Real m_n = nbody_data_.d_view(n, M_DATA);
+        const Real r_s = nbody_data_.d_view(n, R_SOFT_DATA);
         // compute softened gravitational potential
         if (soft_mode_ == 0) {
-          sum_phi += CalcPlummerPotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcPlummerPotential(G_const_ * m_n, dr, r_s);
         } else {
-          sum_phi += CalcSplinePotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcSplinePotential(G_const_ * m_n, dr, r_s);
         }
         // compute true orbital frequency
-        sum_omega_sqr += G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
+        sum_omega_sqr += G_const_ * m_n * Kokkos::pow(dr, -3.0);
       }
       // determine target internal energy based on fixed Mach profile
       Real cs_sqr_target  = -sum_phi * inv_Mach_sqr_;
