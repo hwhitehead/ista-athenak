@@ -152,14 +152,14 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       rho = Kokkos::max(rho, rho0 * rho_floor_fac);
 
       // set velocity in disc (everything softened-Keplerian about host)
-      // velocity profile is such that g + v^2 / r = 0
+      // velocity profile is such that g + v^2 / r + dPdr / rho = 0
       Real g_soft;
       if (soft_mode == 0) {
         g_soft = nbody::CalcPlummerAcceleration(G_const * m_host, R, r_soft_host);
       } else {
         g_soft = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
       }
-      Real v_phi = Kokkos::sqrt(-g_soft * R * (1 - inv_Mach_sqr));
+      Real v_phi = Kokkos::sqrt(-g_soft * R * (1.0 - inv_Mach_sqr));
       if (!prograde) {
         v_phi *= -1.0;
       }
@@ -176,14 +176,14 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         phi_grav = nbody::CalcSplinePotential(G_const * m_host, R, r_soft_host);
       }
       Real cs_sqr_local = -phi_grav * inv_Mach_sqr;
-      cs_sqr_local = Kokkos::max(cs_sqr_local, cs_sqr_floor);
-      const Real U = cs_sqr_local * rho * inv_gm1;
+      cs_sqr_local      = Kokkos::max(cs_sqr_local, cs_sqr_floor);
+      const Real U      = cs_sqr_local * rho * inv_gm1;
       
       // ===== Set primitive variables =====
-      w0_(m, IDN, k, j, i) = rho;              
-      w0_(m, IVX, k, j, i) = vx;               
-      w0_(m, IVY, k, j, i) = vy;               
-      if (is_3d) w0_(m, IVZ, k, j, i) = vz;             
+      w0_(m, IDN, k, j, i)               = rho;              
+      w0_(m, IVX, k, j, i)               = vx;               
+      w0_(m, IVY, k, j, i)               = vy;               
+      if (is_3d) w0_(m, IVZ, k, j, i)    = vz;             
       if (is_ideal) w0_(m, IEN, k, j, i) = U;   
     }); 
 

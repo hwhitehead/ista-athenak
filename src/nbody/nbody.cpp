@@ -679,15 +679,17 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
       Real sum_phi = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
-        const Real dx = x - nbody_data_.d_view(n, X_DATA);
-        const Real dy = y - nbody_data_.d_view(n, Y_DATA);
-        const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
+        const Real dx  = x - nbody_data_.d_view(n, X_DATA);
+        const Real dy  = y - nbody_data_.d_view(n, Y_DATA);
+        const Real dz  = z - nbody_data_.d_view(n, Z_DATA);
+        const Real dr  = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
+        const Real m_n = nbody_data_.d_view(n, M_DATA);
+        const Real r_s = nbody_data_.d_view(n, R_SOFT_DATA);
         // compute softened gravitational acceleration
         if (soft_mode_ == 0) {
-          sum_phi += CalcPlummerPotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcPlummerPotential(G_const_ * m_n, dr, r_s);
         } else {
-          sum_phi += CalcSplinePotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcSplinePotential(G_const_ * m_n, dr, r_s);
         }
       }
       // determine target internal energy based on fixed Mach profile
