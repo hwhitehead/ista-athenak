@@ -47,10 +47,10 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   const int is   = indcs.is - indcs.ng;
   const int ie   = indcs.ie + indcs.ng; 
-  const int js   = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
-  const int je   = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
-  const int ks   = (pmy_pack->pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
-  const int ke   = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
+  const int js   = (pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
+  const int je   = (pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
+  const int ks   = (pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
+  const int ke   = (pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
   
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
