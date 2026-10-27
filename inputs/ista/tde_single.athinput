@@ -84,10 +84,10 @@ src_accretion       = 0             # boolean: include accretion src for hydro
 sum_backreaction    = 1             # boolean: collect mdot, acceleration from hydro
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
-Mach                = 100.0         # Mach number of disc for pgen and cooling
+Mach                = 10000.0         # Mach number of disc for pgen and cooling
 alpha               = 0.0           # viscosity scaling parameter
 nu_max              = 1e-3          # ceiling for viscosity computed with constant alpha
-cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
+cs_sqr_floor        = 1e-15         # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
 cooling_mode        = -1             # thermodynamics -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
 sink_mode           = 0             # sink rate mode  0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
