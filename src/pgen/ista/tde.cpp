@@ -132,7 +132,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // set density using radial and vertical profile
       // disc is ALWAYS in the x-y plane, orbit is rotated
-      const Real outer_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_minidisc,4.0));
+      const Real outer_profile = 1.0; // / Kokkos::cosh(Kokkos::pow(R/r_minidisc,4.0));
       Real radial_profile;
       if (alpha == 0.0) {
         // constant nu -> constant surface density
