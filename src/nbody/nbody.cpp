@@ -537,7 +537,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         
         // apply accretion, if in sink radius and flagged
         Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
-        if (src_accretion_) {
+        if (false) {
           // only accrete down to floor value to avoid blowup
           const Real drho_floor = rho_sink_floor_ - rho; 
           const Real r_ratio = dr / r_soft;

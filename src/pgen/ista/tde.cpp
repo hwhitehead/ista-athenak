@@ -41,9 +41,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // Initial conditions. (1) Get mesh (which is in scope of pgen class)
   auto &indcs = pmy_mesh_->mb_indcs;
-  int &is     = indcs.is; int &ie = indcs.ie;
-  int &js     = indcs.js; int &je = indcs.je;
-  int &ks     = indcs.ks; int &ke = indcs.ke;
+  // int &is     = indcs.is; int &ie = indcs.ie;
+  // int &js     = indcs.js; int &je = indcs.je;
+  // int &ks     = indcs.ks; int &ke = indcs.ke;
+
+  const int is   = indcs.is - indcs.ng;
+  const int ie   = indcs.ie + indcs.ng; 
+  const int js   = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
+  const int je   = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
+  const int ks   = (pmy_pack->pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
+  const int ke   = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
   
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
