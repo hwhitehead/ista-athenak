@@ -499,7 +499,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         const Real dy     = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz     = z - nbody_data_.d_view(n, Z_DATA);
         const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
-        const Real dr     = Kokkos::sqrt(dr_sqr) + FLT_MIN;
+        const Real dr     = Kokkos::sqrt(dr_sqr);
         const Real inv_dr = 1.0 / dr;
         const Real r_soft = nbody_data_.d_view(n, R_SOFT_DATA);
         const Real m_n    = nbody_data_.d_view(n, M_DATA);
@@ -687,7 +687,7 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
         if (soft_mode_ == 0) {
           sum_phi += CalcPlummerPotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         } else {
-          sum_phi = CalcSplinePotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
+          sum_phi += CalcSplinePotential(G_const_ * nbody_data_.d_view(n, M_DATA), dr, nbody_data_.d_view(n, R_SOFT_DATA));
         }
       }
       // determine target internal energy based on fixed Mach profile
