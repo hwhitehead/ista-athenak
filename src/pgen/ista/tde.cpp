@@ -44,27 +44,26 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   int &is     = indcs.is; int &ie = indcs.ie;
   int &js     = indcs.js; int &je = indcs.je;
   int &ks     = indcs.ks; int &ke = indcs.ke;
-
-  // const int is   = indcs.is - indcs.ng;
-  // const int ie   = indcs.ie + indcs.ng; 
-  // const int js   = (pmy_mesh_->multi_d) ? indcs.js - indcs.ng: indcs.js;
-  // const int je   = (pmy_mesh_->multi_d) ? indcs.je + indcs.ng: indcs.je;
-  // const int ks   = (pmy_mesh_->three_d) ? indcs.ks - indcs.ng: indcs.ks;
-  // const int ke   = (pmy_mesh_->three_d) ? indcs.ke + indcs.ng: indcs.ke;
+  const int is_wg   = indcs.is - indcs.ng;
+  const int ie_wg   = indcs.ie + indcs.ng; 
+  const int js_wg   = (pmy_mesh_->multi_d) ? indcs.js - indcs.ng: indcs.js;
+  const int je_wg   = (pmy_mesh_->multi_d) ? indcs.je + indcs.ng: indcs.je;
+  const int ks_wg   = (pmy_mesh_->three_d) ? indcs.ks - indcs.ng: indcs.ks;
+  const int ke_wg   = (pmy_mesh_->three_d) ? indcs.ke + indcs.ng: indcs.ke;
   
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
-  const bool is_3d = pmy_mesh_->three_d;
+  const bool is_3d    = pmy_mesh_->three_d;
 
   // load minidisc properties
-  const int prograde = pin->GetOrAddBoolean("problem", "prograde", true);
+  const int prograde    = pin->GetOrAddBoolean("problem", "prograde", true);
   const Real r_minidisc = pin->GetOrAddReal("problem", "r_minidisc", 0.25);
-  const Real r_cavity = pin->GetOrAddReal("problem", "r_cavity", 0.05);
-  const Real rho0 = pin->GetOrAddReal("problem", "rho0", 1.0);
+  const Real r_cavity   = pin->GetOrAddReal("problem", "r_cavity", 0.05);
+  const Real rho0       = pin->GetOrAddReal("problem", "rho0", 1.0);
   
   // thermodynamic properties
-  bool is_ideal = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
-  const Real Mach = pin->GetOrAddReal("nbody", "Mach", 10.0);
+  bool is_ideal    = (pin->GetOrAddString("hydro", "eos", "ideal") == "ideal");
+  const Real Mach  = pin->GetOrAddReal("nbody", "Mach", 10.0);
   const Real alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
 
   // define host, with check for number of bodies
@@ -111,9 +110,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     par_for("pgen_tde", 
             DevExeSpace(),               // CPU or GPU execution space
             0, (pmbp->nmb_thispack-1),   // Loop 1: m = mesh block index (0 to N-1)
-            ks, ke,                      // Loop 2: k = z index
-            js, je,                      // Loop 3: j = y index
-            is, ie,                      // Loop 4: i = x index
+            ks_wg, ke_wg,                      // Loop 2: k = z index
+            js_wg, je_wg,                      // Loop 3: j = y index
+            is_wg, ie_wg,                      // Loop 4: i = x index
     
     KOKKOS_LAMBDA(int m, int k, int j, int i) { 
 
@@ -197,7 +196,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     }); 
 
     // ===== Convert primitives to conserved variables =====
-    pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is, ie, js, je, ks, ke);
+    pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is_wg, ie_wg, js_wg, je_wg, ks_wg, ke_wg);
   } // end hydro init 
   std::cout << "Completed ProblemGenerator::UserProblem on rank " << global_variable::my_rank << std::endl;
 } 
