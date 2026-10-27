@@ -159,7 +159,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       } else {
         g_soft = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
       }
-      Real v_phi = Kokkos::sqrt(-g_soft * R);
+      Real v_phi = Kokkos::sqrt(-g_soft * R * (1 - inv_Mach_sqr));
       if (!prograde) {
         v_phi *= -1.0;
       }
