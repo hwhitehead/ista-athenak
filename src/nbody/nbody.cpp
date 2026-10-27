@@ -570,9 +570,9 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             // ensure accretion only drives to sink value
             drho_acc = Kokkos::max(drho_acc, drho_floor);
             // apply torque free sink
-            const Real rhatx = dx * inv_r;
-            const Real rhaty = dy * inv_r;
-            const Real rhatz = dz * inv_r;
+            const Real rhatx = dx * inv_dr;
+            const Real rhaty = dy * inv_dr;
+            const Real rhatz = dz * inv_dr;
             const Real vx_n = nbody_data_.d_view(n, VX_DATA);
             const Real vy_n = nbody_data_.d_view(n, VY_DATA);
             const Real vz_n = nbody_data_.d_view(n, VZ_DATA);
