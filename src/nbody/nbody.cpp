@@ -604,7 +604,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           //   const Real g_zr_dot_z = g_zr * dz_r / dr_rz;
           //   cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_zl_dot_z * flx3(mb_id, IDN, k, j, i)
           //                                               + g_zr_dot_z * flx3(mb_id, IDN, k + 1, j, i));
-          } // end three_d     
+          //} // end three_d     
         } // end energy evo
 
         // apply acceleration updates AFTER to allow for adiabtic energy evolution
