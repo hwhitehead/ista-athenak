@@ -529,17 +529,27 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
+          DvceArray5D<Real> flx1, flx2, flx3;
+          if (pmy_pack->pmhd != nullptr) {
+            flx1 = pmy_pack->pmhd->uflx.x1f;
+            flx2 = pmy_pack->pmhd->uflx.x2f;
+            flx3 = pmy_pack->pmhd->uflx.x3f;
+          } else {
+            flx1 = pmy_pack->phydro->uflx.x1f;
+            flx2 = pmy_pack->phydro->uflx.x2f;
+            flx3 = pmy_pack->phydro->uflx.x3f;
+          }
           const Real dE_fac = 0.5 * g_soft * beta_dt * inv_dr;
           Real f_x = 0.0, f_y = 0.0, f_z = 0.0;
-          f_x = dx * (pmy_pack->phydro->uflx.x1f(mb_id, IDN, k, j, i) 
-                    + pmy_pack->phydro->uflx.x1f(mb_id, IDN, k, j, i + 1));
+          f_x = dx * (flx1(mb_id, IDN, k, j, i) 
+                    + flx1(mb_id, IDN, k, j, i + 1));
           if (multi_d) {
-            f_y = dy * (pmy_pack->phydro->uflx.x2f(mb_id, IDN, k, j, i) 
-                      + pmy_pack->phydro->uflx.x2f(mb_id, IDN, k, j + 1, i));
+            f_y = dy * (flx2(mb_id, IDN, k, j, i) 
+                      + flx2(mb_id, IDN, k, j + 1, i));
           }
           if (three_d) {
-            f_z = dz * (pmy_pack->phydro->uflx.x3f(mb_id, IDN, k, j, i) 
-                      + pmy_pack->phydro->uflx.x3f(mb_id, IDN, k + 1, j, i));
+            f_z = dz * (flx3(mb_id, IDN, k, j, i) 
+                      + flx3(mb_id, IDN, k + 1, j, i));
           }
           const Real dE_grav = dE_fac * (f_x + f_y + f_z);
           cons(mb_id, IEN, k, j, i) += dE_grav;          
