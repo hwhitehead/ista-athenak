@@ -96,11 +96,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   if (pmbp->phydro != nullptr) 
   {
 
-    auto &w0_ = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
-    const Real inv_Mach = 1.0 / Mach;
-    const Real inv_Mach_sqr = SQR(inv_Mach);
-    const Real inv_gm1 = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
-    Real cs_sqr = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
+    auto &w0_                = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
+    const Real inv_Mach      = 1.0 / Mach;
+    const Real inv_Mach_sqr  = SQR(inv_Mach);
+    const Real inv_gm1       = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
+    const Real cs_sqr_iso    = pin->GetOrAddReal("hydro", "iso_sound_speed", 1.0);
     const Real rho_floor_fac = pin->GetOrAddReal("problem", "rho_floor_fac", 1e-8);
     const Real cs_sqr_floor  = pin->GetOrAddReal("problem", "cs_sqr_floor", 1e-8);
     const Real G_const       = pin->GetOrAddReal("nbody", "G_const", 1.0);

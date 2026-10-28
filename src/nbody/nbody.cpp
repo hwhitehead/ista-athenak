@@ -1255,7 +1255,7 @@ void NBodyTrackRefinementCondition(MeshBlockPack* pmbp) {
 KOKKOS_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const Real h) {
   
   // check if in the Newtonian far field
-  if (r > h) { 
+  if (r >= h) { 
     return -Gm / SQR(r);
   } 
   
@@ -1281,7 +1281,7 @@ KOKKOS_FUNCTION Real CalcSplineAcceleration(const Real Gm, const Real r, const R
 KOKKOS_FUNCTION Real CalcSplinePotential(const Real Gm, const Real r, const Real h) {
 
   // check if in the Newtonian far field
-  if (r > h) {
+  if (r >= h) {
     return -Gm / r;
   }
 
