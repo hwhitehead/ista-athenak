@@ -21,6 +21,7 @@
 #include "shearing_box/orbital_advection.hpp"
 #include "bvals/bvals.hpp"
 #include "hydro/hydro.hpp"
+#include "mhd/mhd.hpp"
 #include "coordinates/cell_locations.hpp"
 
 #include "nbody/nbody.hpp"
@@ -481,6 +482,18 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   const Real inv_gm1 = 1.0 / gm1;
   const Real max_sink_fac = 0.5; // maximal fractional loss per fine timestep
 
+  // capture flux arrays for energy updates
+  DvceArray5D<Real> flx1, flx2, flx3;
+  if (pmy_pack->pmhd != nullptr) {
+    flx1 = pmy_pack->pmhd->uflx.x1f;
+    flx2 = pmy_pack->pmhd->uflx.x2f;
+    flx3 = pmy_pack->pmhd->uflx.x3f;
+  } else {
+    flx1 = pmy_pack->phydro->uflx.x1f;
+    flx2 = pmy_pack->phydro->uflx.x2f;
+    flx3 = pmy_pack->phydro->uflx.x3f;
+  }
+
   par_for("nbody_gravity_src", 
           DevExeSpace(), 
           0, nmb1, 
@@ -529,16 +542,6 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
-          DvceArray5D<Real> flx1, flx2, flx3;
-          if (pmy_pack->pmhd != nullptr) {
-            flx1 = pmy_pack->pmhd->uflx.x1f;
-            flx2 = pmy_pack->pmhd->uflx.x2f;
-            flx3 = pmy_pack->pmhd->uflx.x3f;
-          } else {
-            flx1 = pmy_pack->phydro->uflx.x1f;
-            flx2 = pmy_pack->phydro->uflx.x2f;
-            flx3 = pmy_pack->phydro->uflx.x3f;
-          }
           const Real dE_fac = 0.5 * g_soft * beta_dt * inv_dr;
           Real f_x = 0.0, f_y = 0.0, f_z = 0.0;
           f_x = dx * (flx1(mb_id, IDN, k, j, i) 
