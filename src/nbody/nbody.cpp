@@ -584,7 +584,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           } // end multi_d
 
           if (three_d) {
-            const Real hdz = 0.5 * size.d_view(m).dx3;
+            const Real hdz = 0.5 * size.d_view(mb_id).dx3;
             const Real dz_l = dz - hdz;
             const Real dz_r = dz + hdz;
             const Real dr_lz = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
