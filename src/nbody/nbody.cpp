@@ -542,20 +542,14 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
-          const Real dE_fac = 0.5 * g_soft * beta_dt * inv_dr;
-          Real f_x = 0.0, f_y = 0.0, f_z = 0.0;
-          f_x = dx * (flx1(mb_id, IDN, k, j, i) 
-                    + flx1(mb_id, IDN, k, j, i + 1));
-          if (multi_d) {
-            f_y = dy * (flx2(mb_id, IDN, k, j, i) 
-                      + flx2(mb_id, IDN, k, j + 1, i));
-          }
-          if (three_d) {
-            f_z = dz * (flx3(mb_id, IDN, k, j, i) 
-                      + flx3(mb_id, IDN, k + 1, j, i));
-          }
-          const Real dE_grav = dE_fac * (f_x + f_y + f_z);
-          cons(mb_id, IEN, k, j, i) += dE_grav;          
+          const Real g_fac = g_soft * inv_r;
+          const Real g_x = g_fac * dx;
+          const Real g_y = g_fac * dy;
+          const Real g_z = g_fac * dz;
+          Real rho_v_dot_g = 0.5 * g_x * (flx1(mb_idx, IDN, k, j, i) + flx1(mb_idx, IDN, k, j, i + 1));
+          if (multi_d) rho_v_dot_g += 0.5 * g_y * (flx2(mb_idx, IDN, k, j, i) + flx2(mb_idx, IDN, k, j + 1, i));
+          if (three_d) rho_v_dot_g += 0.5 * g_z * (flx3(mb_idx, IDN, k, j, i) + flx3(mb_idx, IDN, k + 1, j, i));
+          cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;          
         } // end energy evo
 
         // apply acceleration updates AFTER to allow for adiabtic energy evolution
