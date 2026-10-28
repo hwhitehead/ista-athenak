@@ -33,7 +33,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
 refinement = adaptive     # static mesh refinement (SMR)
-num_levels = 5
+num_levels = 7
 refinement_interval = 3
 max_nmb_per_rank = 2048
 
@@ -41,13 +41,13 @@ max_nmb_per_rank = 2048
 method = user
 
 <refined_region1>
-x1min = 0.19           
-x1max = 0.2
+x1min = 0.18           
+x1max = 0.21
 x2min = 0.076
 x2max =  0.086
 x3min = -0.05
 x3max = 0.05
-level = 4
+level = 6
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -63,7 +63,7 @@ reconstruct = ppm4          # spatial reconstruction method
 rsolver     = hlle          # Riemann-solver to be used
 gamma       = 1.4           # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0       # isothermal only
-#nu_iso = 1e-7               # must be non-zero to use alpha prescription
+nu_iso = 1e-7               # must be non-zero to use alpha prescription
 dfloor = 1e-10
 pfloor = 1e-12
 
@@ -85,12 +85,12 @@ sum_backreaction    = 1             # boolean: collect mdot, acceleration from h
 inc_backreaction    = 0             # boolean: apply mdot, acceleration during live evolution
 verbose             = 0             # boolean: write progress checks to stdout
 Mach                = 40.0          # Mach number of disc for pgen and cooling
-alpha               = 0.0           # viscosity scaling parameter
+alpha               = 0.1           # viscosity scaling parameter
 nu_max              = 1e-3          # ceiling for viscosity computed with constant alpha
 cs_sqr_floor        = 1e-10         # floor for sound speed used in cooling
 pre_calc_phi        = 0             # boolean: precalcule potential on per-cell basis
 cooling_mode        = 2             # thermodynamics -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
-sink_mode           = 4             # sink rate mode  0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
+sink_mode           = 2             # sink rate mode  0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
 visc_mode           = 1             # visc calc mode  0 = true, 1 = ideal kinematic viscosity
 soft_mode           = 1             # gravitational softening mode 0 = plummer, 1 = spline
 torq_mode           = 0             # (INACTIVE) angular momentum removal in sink 0 = torque free, 1 = free fall 
