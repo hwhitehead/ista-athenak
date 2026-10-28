@@ -546,9 +546,9 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real g_x = g_fac * dx;
           const Real g_y = g_fac * dy;
           const Real g_z = g_fac * dz;
-          Real rho_v_dot_g = 0.5 * g_x * (flx1(mb_idx, IDN, k, j, i) + flx1(mb_idx, IDN, k, j, i + 1));
-          if (multi_d) rho_v_dot_g += 0.5 * g_y * (flx2(mb_idx, IDN, k, j, i) + flx2(mb_idx, IDN, k, j + 1, i));
-          if (three_d) rho_v_dot_g += 0.5 * g_z * (flx3(mb_idx, IDN, k, j, i) + flx3(mb_idx, IDN, k + 1, j, i));
+          Real rho_v_dot_g = 0.5 * g_x * (flx1(mb_id, IDN, k, j, i) + flx1(mb_id, IDN, k, j, i + 1));
+          if (multi_d) rho_v_dot_g += 0.5 * g_y * (flx2(mb_id, IDN, k, j, i) + flx2(mb_id, IDN, k, j + 1, i));
+          if (three_d) rho_v_dot_g += 0.5 * g_z * (flx3(mb_id, IDN, k, j, i) + flx3(mb_id, IDN, k + 1, j, i));
           cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;          
         } // end energy evo
 
@@ -556,7 +556,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         
         // apply accretion, if in sink radius and flagged
         Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
-        if (false) {
+        if (src_accretion_) {
           // only accrete down to floor value to avoid blowup
           const Real drho_floor = rho_sink_floor_ - rho; 
           const Real r_ratio = dr / r_soft;
