@@ -542,65 +542,68 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
-          
-          // compute work done in x direction
-          const Real hdx = 0.5 * size.d_view(mb_id).dx1;
-          const Real dx_l = dx - hdx;
-          const Real dx_r = dx + hdx;
-          const Real dr_lx = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
-          const Real dr_rx = Kokkos::sqrt(SQR(dx_r) + SQR(dy) + SQR(dz));
-          Real g_xl, g_xr;
-          if (soft_mode_ == 0) {
-            g_xl = CalcPlummerAcceleration(Gm_n, dr_lx, r_soft);
-            g_xr = CalcPlummerAcceleration(Gm_n, dr_rx, r_soft);
-          } else {
-            g_xl = CalcSplineAcceleration(Gm_n, dr_lx, r_soft);
-            g_xr = CalcSplineAcceleration(Gm_n, dr_rx, r_soft);
-          }
-          const Real g_xl_dot_x = g_xl * dx_l / dr_lx;
-          const Real g_xr_dot_x = g_xr * dx_r / dr_rx;
-          cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_xl_dot_x * flx1(mb_id, IDN, k, j, i)
-                                                      + g_xr_dot_x * flx1(mb_id, IDN, k, j, i + 1));
+          const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
+                             + dpy_grav * prim(mb_id, IVY, k, j, i)
+                             + dpz_grav * prim(mb_id, IVZ, k, j, i);
 
-          if (multi_d) {
-            // compute work done in x direction
-            const Real hdy = 0.5 * size.d_view(mb_id).dx2;
-            const Real dy_l = dy - hdy;
-            const Real dy_r = dy + hdy;
-            const Real dr_ly = Kokkos::sqrt(SQR(dx) + SQR(dy_l) + SQR(dz));
-            const Real dr_ry = Kokkos::sqrt(SQR(dx) + SQR(dy_r) + SQR(dz));
-            Real g_yl, g_yr;
-            if (soft_mode_ == 0) {
-              g_yl = CalcPlummerAcceleration(Gm_n, dr_ly, r_soft);
-              g_yr = CalcPlummerAcceleration(Gm_n, dr_ry, r_soft);
-            } else {
-              g_yl = CalcSplineAcceleration(Gm_n, dr_ly, r_soft);
-              g_yr = CalcSplineAcceleration(Gm_n, dr_ry, r_soft);
-            }
-            const Real g_yl_dot_y = g_yl * dy_l / dr_ly;
-            const Real g_yr_dot_y = g_yr * dy_r / dr_ry;
-            cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_yl_dot_y * flx2(mb_id, IDN, k, j, i)
-                                                        + g_yr_dot_y * flx2(mb_id, IDN, k, j + 1, i));
-          } // end multi_d
+          // // compute work done in x direction
+          // const Real hdx = 0.5 * size.d_view(mb_id).dx1;
+          // const Real dx_l = dx - hdx;
+          // const Real dx_r = dx + hdx;
+          // const Real dr_lx = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
+          // const Real dr_rx = Kokkos::sqrt(SQR(dx_r) + SQR(dy) + SQR(dz));
+          // Real g_xl, g_xr;
+          // if (soft_mode_ == 0) {
+          //   g_xl = CalcPlummerAcceleration(Gm_n, dr_lx, r_soft);
+          //   g_xr = CalcPlummerAcceleration(Gm_n, dr_rx, r_soft);
+          // } else {
+          //   g_xl = CalcSplineAcceleration(Gm_n, dr_lx, r_soft);
+          //   g_xr = CalcSplineAcceleration(Gm_n, dr_rx, r_soft);
+          // }
+          // const Real g_xl_dot_x = g_xl * dx_l / dr_lx;
+          // const Real g_xr_dot_x = g_xr * dx_r / dr_rx;
+          // cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_xl_dot_x * flx1(mb_id, IDN, k, j, i)
+          //                                             + g_xr_dot_x * flx1(mb_id, IDN, k, j, i + 1));
 
-          if (three_d) {
-            const Real hdz = 0.5 * size.d_view(mb_id).dx3;
-            const Real dz_l = dz - hdz;
-            const Real dz_r = dz + hdz;
-            const Real dr_lz = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
-            const Real dr_rz = Kokkos::sqrt(SQR(dx_r) + SQR(dy) + SQR(dz));
-            Real g_zl, g_zr;
-            if (soft_mode_ == 0) {
-              g_zl = CalcPlummerAcceleration(Gm_n, dr_lz, r_soft);
-              g_zr = CalcPlummerAcceleration(Gm_n, dr_rz, r_soft);
-            } else {
-              g_zl = CalcSplineAcceleration(Gm_n, dr_lz, r_soft);
-              g_zr = CalcSplineAcceleration(Gm_n, dr_rz, r_soft);
-            }
-            const Real g_zl_dot_z = g_zl * dz_l / dr_lz;
-            const Real g_zr_dot_z = g_zr * dz_r / dr_rz;
-            cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_zl_dot_z * flx3(mb_id, IDN, k, j, i)
-                                                        + g_zr_dot_z * flx3(mb_id, IDN, k + 1, j, i));
+          // if (multi_d) {
+          //   // compute work done in x direction
+          //   const Real hdy = 0.5 * size.d_view(mb_id).dx2;
+          //   const Real dy_l = dy - hdy;
+          //   const Real dy_r = dy + hdy;
+          //   const Real dr_ly = Kokkos::sqrt(SQR(dx) + SQR(dy_l) + SQR(dz));
+          //   const Real dr_ry = Kokkos::sqrt(SQR(dx) + SQR(dy_r) + SQR(dz));
+          //   Real g_yl, g_yr;
+          //   if (soft_mode_ == 0) {
+          //     g_yl = CalcPlummerAcceleration(Gm_n, dr_ly, r_soft);
+          //     g_yr = CalcPlummerAcceleration(Gm_n, dr_ry, r_soft);
+          //   } else {
+          //     g_yl = CalcSplineAcceleration(Gm_n, dr_ly, r_soft);
+          //     g_yr = CalcSplineAcceleration(Gm_n, dr_ry, r_soft);
+          //   }
+          //   const Real g_yl_dot_y = g_yl * dy_l / dr_ly;
+          //   const Real g_yr_dot_y = g_yr * dy_r / dr_ry;
+          //   cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_yl_dot_y * flx2(mb_id, IDN, k, j, i)
+          //                                               + g_yr_dot_y * flx2(mb_id, IDN, k, j + 1, i));
+          // } // end multi_d
+
+          // if (three_d) {
+          //   const Real hdz = 0.5 * size.d_view(mb_id).dx3;
+          //   const Real dz_l = dz - hdz;
+          //   const Real dz_r = dz + hdz;
+          //   const Real dr_lz = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
+          //   const Real dr_rz = Kokkos::sqrt(SQR(dx_r) + SQR(dy) + SQR(dz));
+          //   Real g_zl, g_zr;
+          //   if (soft_mode_ == 0) {
+          //     g_zl = CalcPlummerAcceleration(Gm_n, dr_lz, r_soft);
+          //     g_zr = CalcPlummerAcceleration(Gm_n, dr_rz, r_soft);
+          //   } else {
+          //     g_zl = CalcSplineAcceleration(Gm_n, dr_lz, r_soft);
+          //     g_zr = CalcSplineAcceleration(Gm_n, dr_rz, r_soft);
+          //   }
+          //   const Real g_zl_dot_z = g_zl * dz_l / dr_lz;
+          //   const Real g_zr_dot_z = g_zr * dz_r / dr_rz;
+          //   cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_zl_dot_z * flx3(mb_id, IDN, k, j, i)
+          //                                               + g_zr_dot_z * flx3(mb_id, IDN, k + 1, j, i));
           } // end three_d     
         } // end energy evo
 
