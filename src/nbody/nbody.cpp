@@ -545,6 +545,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
           const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
                              + dpy_grav * prim(mb_id, IVY, k, j, i)
                              + dpz_grav * prim(mb_id, IVZ, k, j, i);
+          cons(mb_id, IEN, k, j, i) += dE_grav;
 
           // // compute work done in x direction
           // const Real hdx = 0.5 * size.d_view(mb_id).dx1;
