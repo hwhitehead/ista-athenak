@@ -526,7 +526,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
 
         // TODO: this should be computed using acceleration and fluxes on cell FACES
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
-          // gravity update applied as work done W = rho v dot g -> dW = dp dot v 
+          // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
                              + dpy_grav * prim(mb_id, IVY, k, j, i)
                              + dpz_grav * prim(mb_id, IVZ, k, j, i);
@@ -700,7 +700,7 @@ void NBody::NBodyForcedIsoSrcTerm(const Real beta_dt) {
       const Real rho_cons   = cons(mb_id, IDN, k, j, i);
       const Real p_cons_sqr = SQR(cons(mb_id, IM1, k, j, i)) + SQR(cons(mb_id, IM2, k, j, i)) + SQR(cons(mb_id, IM3, k, j, i));
       const Real K_next     = 0.5 * p_cons_sqr / rho_cons;
-      const Real U_next     = cs_sqr_target * cons(mb_id, IDN, k, j, i) * inv_gm1;
+      const Real U_next     = cs_sqr_target * rho_cons * inv_gm1;
 
       // set energy
       cons(mb_id, IEN, k, j, i) = U_next + K_next;
