@@ -451,6 +451,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
+  bool &multi_d = pmy_pack->pmesh->multi_d;
+  bool &three_d = pmy_pack->pmesh->three_d;
 
   // general NBody properties 
   auto &nbody_data_     = nbody_data;
@@ -524,12 +526,22 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         cons(mb_id, IM2, k, j, i) += dpy_grav;
         cons(mb_id, IM3, k, j, i) += dpz_grav;
 
-        // TODO: this should be computed using acceleration and fluxes on cell FACES
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
-          const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
-                             + dpy_grav * prim(mb_id, IVY, k, j, i)
-                             + dpz_grav * prim(mb_id, IVZ, k, j, i);
+          // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
+          const Real dE_fac = 0.5 * g_soft * beta_dt * inv_dr;
+          Real f_x = 0.0, f_y = 0.0, f_z = 0.0;
+          f_x = dx * (pmy_pack->phydro->uflx.x1f(mb_id, IDN, k, j, i) 
+                    + pmy_pack->phydro->uflx.x1f(mb_id, IDN, k, j, i + 1));
+          if (multi_d) {
+            f_y = dy * (pmy_pack->phydro->uflx.x2f(mb_id, IDN, k, j, i) 
+                      + pmy_pack->phydro->uflx.x2f(mb_id, IDN, k, j + 1, i));
+          }
+          if (three_d) {
+            f_z = dz * (pmy_pack->phydro->uflx.x3f(mb_id, IDN, k, j, i) 
+                      + pmy_pack->phydro->uflx.x3f(mb_id, IDN, k + 1, j, i));
+          }
+          const Real dE_grav = dE_fac * (f_x + f_y + f_z);
           cons(mb_id, IEN, k, j, i) += dE_grav;          
         } // end energy evo
 
