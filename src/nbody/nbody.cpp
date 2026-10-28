@@ -542,7 +542,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
-          const Real g_fac = g_soft * inv_r;
+          const Real g_fac = g_soft * inv_dr;
           const Real g_x = g_fac * dx;
           const Real g_y = g_fac * dy;
           const Real g_z = g_fac * dz;
