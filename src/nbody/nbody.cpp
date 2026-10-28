@@ -557,8 +557,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             g_xl = CalcSplineAcceleration(Gm_n, dr_lx, r_soft);
             g_xr = CalcSplineAcceleration(Gm_n, dr_rx, r_soft);
           }
-          g_xl_dot_x = g_xl * dx_l / dr_lx;
-          g_xr_dot_x = g_xr * dx_r / dr_rx;
+          const Real g_xl_dot_x = g_xl * dx_l / dr_lx;
+          const Real g_xr_dot_x = g_xr * dx_r / dr_rx;
           cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_xl_dot_x * flx1(mb_id, IDN, k, j, i)
                                                       + g_xr_dot_x * flx1(mb_id, IDN, k, j, i + 1));
 
@@ -577,8 +577,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               g_yl = CalcSplineAcceleration(Gm_n, dr_ly, r_soft);
               g_yr = CalcSplineAcceleration(Gm_n, dr_ry, r_soft);
             }
-            g_yl_dot_y = g_yl * dy_l / dr_ly;
-            g_yr_dot_y = g_yr * dy_r / dr_ry;
+            const Real g_yl_dot_y = g_yl * dy_l / dr_ly;
+            const Real g_yr_dot_y = g_yr * dy_r / dr_ry;
             cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_yl_dot_y * flx2(mb_id, IDN, k, j, i)
                                                         + g_yr_dot_y * flx2(mb_id, IDN, k, j + 1, i));
           } // end multi_d
@@ -597,8 +597,8 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
               g_zl = CalcSplineAcceleration(Gm_n, dr_lz, r_soft);
               g_zr = CalcSplineAcceleration(Gm_n, dr_rz, r_soft);
             }
-            g_zl_dot_z = g_zl * dz_l / dr_lz;
-            g_zr_dot_z = g_zr * dz_r / dr_rz;
+            const Real g_zl_dot_z = g_zl * dz_l / dr_lz;
+            const Real g_zr_dot_z = g_zr * dz_r / dr_rz;
             cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_zl_dot_z * flx3(mb_id, IDN, k, j, i)
                                                         + g_zr_dot_z * flx3(mb_id, IDN, k + 1, j, i));
           } // end three_d     
