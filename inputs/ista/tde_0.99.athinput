@@ -33,7 +33,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
 refinement = adaptive     # static mesh refinement (SMR)
-num_levels = 6
+num_levels = 7
 refinement_interval = 3
 max_nmb_per_rank = 2048
 
@@ -47,7 +47,7 @@ x2min = 0.076
 x2max =  0.086
 x3min = -0.05
 x3max = 0.05
-level = 5
+level = 6
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -102,7 +102,7 @@ z0 = 0.0
 vx0 = 0.25865255918176666
 vy0 = 0.044690275783704485
 vz0 = 0.0
-r_soft0 = 0.0005
+r_soft0 = 0.001
 r_amr0 = 0.0025
 t_amr0 = 0.03
 
@@ -113,7 +113,7 @@ z1 = 0.0
 vx1 = -2.5865255918176664
 vy1 = -0.44690275783704486
 vz1 = 0.0
-r_soft1 = 0.0005
+r_soft1 = 0.001
 r_amr1 = 0.0025
 t_amr1 = 0.0
 
