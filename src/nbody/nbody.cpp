@@ -629,8 +629,8 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
   auto &gv_y           = gv.x2f;
   auto &gv_z           = gv.x3f;
   auto &gf_x           = gf.x1f;
-  auto &gf_y           = gf.x1f;
-  auto &gf_z           = gf.x1f;
+  auto &gf_y           = gf.x2f;
+  auto &gf_z           = gf.x3f;
 
   // unpack Godunov density fluxes from Riemann solver
   DvceArray5D<Real> flx1, flx2, flx3;
