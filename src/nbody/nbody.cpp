@@ -382,14 +382,14 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   // par_for includes one extra cell in active directions (dimension sensitive)
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
-  int il = indcs.is - 1, ir = indcs.ie + 1;
+  int il = indcs.is - indcs.ng, ir = indcs.ie + indcs.ng;
   int jl = indcs.js, jr = indcs.je;
   int kl = indcs.ks, kr = indcs.ke;
   if (multi_d) {
-    jl -= 1; jr += 1;
+    jl -= indcs.ng; jr += indcs.ng;
   }
   if (three_d) {
-    kl -= 1; kr += 1;
+    kl -= indcs.ng; kr += indcs.ng;
   }
   int nmb1 = pmy_pack->nmb_thispack - 1;
   
