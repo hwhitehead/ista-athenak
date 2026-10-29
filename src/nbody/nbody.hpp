@@ -135,6 +135,11 @@ class NBody {
     // local gravitational potential 
     DvceArray5D<Real> phi;          // gravitational potential shape = (nmb, num_nbody, nk+ng, nj+ng, ni+ng)
 
+    // local gravitational force
+    bool precalc_grav;
+    DvceFaceFld5D<Real> gv;         // cell-centered grav acceleration in 3 directions
+    DvceFaceFld5D<Real> gf;         // face-centered grav acceleration in 3 directions (perp to face)
+
     // WIP: DUAL register for non body specific quantities shape = (NVAR_GEN)
     DualArray2D<Real> general_data; 
     
@@ -181,6 +186,7 @@ class NBody {
     void NBodyBetaCoolSrcTerm(const Real beta_dt);  // beta cooling
     void CalcGravitationalPotential(const Real beta_dt);  // pre-compute gravitational potential
     void ApplyGravitationalPotential(const Real beta_dt); // apply gravity using pre-compute values
+    void CalcGravitationalAcceleration(const Real beta_dt);  // pre-compute gravitational acceleration
 
     // inhomogeneous viscosity handling
     Real alpha;  // viscosity coefficient for alpha-disc prescription

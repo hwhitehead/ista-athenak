@@ -41,6 +41,8 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   delta_this_mesh("delta_this_mesh",1,1),
   delta_all_meshes("delta_all_meshes",1,1),
   phi("phi",1,1,1,1,1),
+  gv("gv",1,1,1,1,1),
+  gf("gf",1,1,1,1,1),
   nu_iso("nu_iso",1,1,1,1),
   max_nu_iso("max_nu_iso",1),
   pmy_pack(ppack) {
@@ -100,6 +102,16 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   const int nmb_max = std::max((pmy_pack->nmb_thispack), (pmy_pack->pmesh->nmb_maxperrank));
   if (precalc_phi) {
     Kokkos::realloc(phi, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+  }
+
+  precalc_grav = pin->GetOrAddBoolean("nbody", "precalc_grav", false);
+  if (precalc_grav) {
+    Kokkos::realloc(gv.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+    Kokkos::realloc(gv.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+    Kokkos::realloc(gv.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+    Kokkos::realloc(gf.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+    Kokkos::realloc(gf.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+    Kokkos::realloc(gf.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
   }
   
   // determine viscosity usage
@@ -337,6 +349,121 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
 }
 
 //----------------------------------------------------------------------------------------
+//! \fn  void NBody::CalcGravitationalPotential
+//! \brief Populate an array of gravitational potentials on a per-cell basis to be used 
+//! for calculating momentum/energy updates in NBody::ApplyGravitationalPotential
+void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
+
+  // MeshBlock properties
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  auto &size  = pmy_pack->pmb->mb_size;
+  // par_for includes ghosts (dimension sensitive)
+  int is = indcs.is - indcs.ng, ie = indcs.ie + indcs.ng;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  if (pmy_pack->pmesh->multi_d) {
+    js -= 1; je += 1;
+  }
+  if (pmy_pack->pmesh->three_d) {
+    ks -= 1; ke += 1;
+  }
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  bool &multi_d = pmy_pack->pmesh->multi_d;
+  bool &three_d = pmy_pack->pmesh->three_d;
+
+  // general NBody properties 
+  auto &nbody_data_    = nbody_data;
+  const int num_nbody_ = num_nbody;
+  const Real G_const_  = G_const;
+  auto &gv_            = gv;
+  auto &gf_            = gf;
+  const Real soft_mode_ = soft_mode;
+
+  par_for("nbody_calc_acceleration", 
+          DevExeSpace(), 
+          0, nmb1, 
+          ks, ke, 
+          js, je, 
+          is, ie,
+    KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
+    {
+      // identify cell center positions
+      const Real xv = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      const Real yv = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      const Real zv = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
+
+      // identify lower cell face positions
+      const Real xf = xv - 0.5 * size.d_view(mb_id).dx1;
+      const Real yf = yv - 0.5 * size.d_view(mb_id).dx2;
+      const Real zf = zv - 0.5 * size.d_view(mb_id).dx3;
+
+      // loop over bodies in NBody class
+      for (int n = 0; n < num_nbody_; n++) {
+        // package body properties
+        const Real Gm_n = G_const_ * nbody_data_.d_view(n, M_DATA);
+        const Real r_s  = nbody_data_.d_view(n, R_SOFT_DATA);
+        
+        // compute gravity at cell face
+        const Real dxv = xv - nbody_data_.d_view(n, X_DATA);
+        const Real dyv = yv - nbody_data_.d_view(n, Y_DATA);
+        const Real dzv = zv - nbody_data_.d_view(n, Z_DATA);
+        const Real drv = SQR(dxv) + SQR(dyv) + SQR(dzv);
+        Real gv_local;
+        if (soft_mode_ == 0) {
+          gv_local = CalcPlummerAcceleration(Gm_n, drv, r_s);
+        } else {
+          gv_local = CalcSplineAcceleration(Gm_n, drv, r_s);
+        }
+        // compute components of gravity in cardinal directions
+        // struct uses face label, but "x1f" here means "gv dot x1"
+        const Real gv_over_drv = gv_local / drv;
+        gv_.x1f(mb_id, n, k, j, i) = gv_over_drv * dxv;
+        gv_.x2f(mb_id, n, k, j, i) = gv_over_drv * dyv; // TODO: add dimension check here?
+        gv_.x3f(mb_id, n, k, j, i) = gv_over_drv * dzv;
+
+        // compute gravity on lower x face
+        const Real dxf  = xf - nbody_data_.d_view(n, X_DATA);
+        const Real drfx = SQR(dxf) + SQR(dyv) + SQR(dzv);
+        Real gfx_local; 
+        if (soft_mode_ == 0) {
+          gfx_local = CalcPlummerAcceleration(Gm_n, drfx, r_s);
+        } else {
+          gfx_local = CalcSplineAcceleration(Gm_n, drfx, r_s);
+        }
+        gf_.x1f(mb_id, n, k, j, i) = gfx_local * dxf / drfx; // only stash the component perp to face
+
+        // compute gravity on lower y face
+        if (multi_d) {
+          const Real dyf  = yf - nbody_data_.d_view(n, Y_DATA);
+          const Real drfy = SQR(dxv) + SQR(dyf) + SQR(dzv);
+          Real gfy_local; 
+          if (soft_mode_ == 0) {
+            gfy_local = CalcPlummerAcceleration(Gm_n, drfy, r_s);
+          } else {
+            gfy_local = CalcSplineAcceleration(Gm_n, drfy, r_s);
+          }
+          gf_.x2f(mb_id, n, k, j, i) = gfy_local * dyf / drfy; // only stash the component perp to face
+        } // end multi_d
+
+        // compute gravity on lower z face
+        if (three_d) {
+          const Real dzf  = zf - nbody_data_.d_view(n, Z_DATA);
+          const Real drfz = SQR(dxv) + SQR(dyv) + SQR(dzf);
+          Real gfz_local; 
+          if (soft_mode_ == 0) {
+            gfz_local = CalcPlummerAcceleration(Gm_n, drfz, r_s);
+          } else {
+            gfz_local = CalcSplineAcceleration(Gm_n, drfz, r_s);
+          }
+          gf_.x3f(mb_id, n, k, j, i) = gfz_local * dxf / drfz; // only stash the component perp to face
+        } // end three_d
+      } // end body loop
+    }); // end par_for
+    
+  return;
+}
+
+//----------------------------------------------------------------------------------------
 //! \fn  void NBody::ApplyGravitationalPotential
 //! \brief Following pre-computation of the by-cell gravitational potential, compute 
 //! gravitational accelerations and apply momentum/energy updates to all cells.
@@ -436,6 +563,92 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
     }); // end par_for
   return;
 }
+
+//----------------------------------------------------------------------------------------
+//! \fn  void NBody::ApplyGravitationalAcceleration
+//! \brief Following pre-computation of the by-cell gravitational acceleration, compute 
+//! momentum/energy updates for all cells.
+void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
+
+    // MeshBlock properties
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  auto &size  = pmy_pack->pmb->mb_size;
+  int is = indcs.is, ie = indcs.ie;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto &prim = pmy_pack->phydro->w0;
+  auto &cons = pmy_pack->phydro->u0;
+  const bool multi_d = pmy_pack->pmesh->multi_d;
+  const bool three_d = pmy_pack->pmesh->three_d;
+
+  // general NBody properties 
+  const int num_nbody_ = num_nbody;
+  auto &gv_            = gv;
+  auto &gf_            = gf;
+
+  // Get Godunov density fluxes from Riemann solver
+  DvceArray5D<Real> flx1, flx2, flx3;
+  flx1 = pmy_pack->phydro->uflx.x1f;
+  flx2 = pmy_pack->phydro->uflx.x2f;
+  flx3 = pmy_pack->phydro->uflx.x3f;
+
+  // thermodynamic properties
+  const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
+  const bool evolve_energy  = (cooling_mode != FORCED_ISO);
+
+  // back reation properties
+  bool sum_backreaction_ = sum_backreaction;
+  auto &delta_this_pack_ = delta_this_pack;
+  
+  par_for("nbody_apply_acceleration", 
+          DevExeSpace(), 
+          0, nmb1, 
+          ks, ke, 
+          js, je, 
+          is, ie,
+    KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
+    {
+
+      // loop over bodies in NBody class
+      for (int n = 0; n < num_nbody_; n++) {
+        // update momenta using cell-centered acceleration and density 
+        const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
+        const Real dpx  = gv_.x1f(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpy  = gv_.x2f(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpz  = gv_.x3f(mb_id, n, k, j, i) * rho_beta_dt;
+        cons(mb_id, IM1, k, j, i) += dpx;
+        cons(mb_id, IM2, j, j, i) += dpy;
+        if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
+
+        // update energy using face-centered acceleration and Riemann mass flux on face
+        if (is_ideal && evolve_energy) {
+          Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_.x1f(mb_id, n, k, j, i) 
+                                           + flx1(mb_id, IDN, k, j, i + 1) * gf_.x1f(md_id, n, k, j, i + 1));
+          if (multi_d) rho_v_dot_g += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
+                                           + flx2(mb_id, IDN, k, j + 1, i) * gf_.x2f(md_id, n, k, j + 1, i)); 
+          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
+                                           + flx3(mb_id, IDN, k + 1, j, i) * gf_.x2f(md_id, n, k + 1, j, i)); 
+          cons(mb_id,IEN,k,j,i)    += rho_v_dot_g * beta_dt;
+        } // end energy update
+
+        // compute backreaction 
+        if (sum_backreaction_) {
+          // convert from densities to absolute changes
+          const Real cell_volume = size.d_view(mb_id).dx1 * size.d_view(mb_id).dx2 * size.d_view(mb_id).dx3;
+          // compute momentum change for gravitating body
+          const Real dPx = -dpx * cell_volume;
+          const Real dPy = -dpy * cell_volume;
+          const Real dPz = -dpz * cell_volume;
+          // stash backreaction registers, with care for race conditions
+          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_GRAV_BACK), dPx);
+          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_GRAV_BACK), dPy);
+          Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_GRAV_BACK), dPz);
+        } // end backreaction
+      } // end body loop
+    }); // end par_for
+  return;
+} // end NBody::ApplyGravitationalAcceleration
 
 //----------------------------------------------------------------------------------------
 //! \fn  void NBody::NBodyPointSrcTerm
