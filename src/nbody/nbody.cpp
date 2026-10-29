@@ -671,7 +671,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
         const Real dpz         = gv_z(mb_id, n, k, j, i) * rho_beta_dt;
         cons(mb_id, IM1, k, j, i) += dpx;
-        if (multi_d) cons(mb_id, IM2, j, j, i) += dpy;
+        if (multi_d) cons(mb_id, IM2, k, j, i) += dpy;
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy using face-centered acceleration and Godunov mass flux on face
