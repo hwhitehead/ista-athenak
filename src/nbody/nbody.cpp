@@ -262,19 +262,30 @@ Real NBody::CalcTimeStep() {
 //! runtime booleans to activate specific physical processes
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
-  // gravity source terms
-  switch (grav_mode) {
-    case LIVE_CALC:
-      NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
-      break;
-    case PRE_POTENTIAL:
-      CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
-      ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
-      break;
-    case PRE_ACCELERATION:
-      CalcGravitationalAcceleration(beta_dt);    // pre-compute per-cell gravitational potential
-      ApplyGravitationalAcceleration(beta_dt);   // apply pre-computed gravity
-  } // end grav_mode cases
+  // apply gravity source terms if flagged
+  if (src_gravity) {
+    switch (grav_mode) {
+      case LIVE_CALC:
+        NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
+        break;
+      case PRE_POTENTIAL:
+        CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
+        ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
+        break;
+      case PRE_ACCELERATION:
+        CalcGravitationalAcceleration(beta_dt);    // pre-compute per-cell gravitational potential
+        ApplyGravitationalAcceleration(beta_dt);   // apply pre-computed gravity
+        break;
+    } // end grav_mode cases
+  } // end src_gravity
+
+  // apply accretion, if flagged
+  if (src_accretion) {
+    if (grav_mode != LIVE_CALC) { // if LIVE_CALC, accretion already included in NBodyPointSrcTerm
+      ApplyAccretion(beta_dt);
+    } // end grav_mode check
+  } // end src_accretion
+  
 
   // thermodynamic src terms
   if (pmy_pack->phydro->peos->eos_data.is_ideal) {
@@ -575,6 +586,14 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 }
 
 //----------------------------------------------------------------------------------------
+//! \fn  void NBody::ApplyAccretion
+//! \brief Apply source term relevant for accretion
+void NBody::ApplyAccretion(const Real beta_dt) {
+
+  return;
+} // end NBody::ApplyAccretion
+
+//----------------------------------------------------------------------------------------
 //! \fn  void NBody::ApplyGravitationalAcceleration
 //! \brief Following pre-computation of the by-cell gravitational acceleration, compute 
 //! momentum/energy updates for all cells.
@@ -604,8 +623,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
   flx3 = pmy_pack->phydro->uflx.x3f;
 
   // thermodynamic properties
-  const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
-  const bool evolve_energy  = (cooling_mode != FORCED_ISO);
+  const bool evolve_energy  = pmy_pack->phydro->peos->eos_data.is_ideal && (cooling_mode != FORCED_ISO);
 
   // back reation properties
   bool sum_backreaction_ = sum_backreaction;
@@ -631,8 +649,8 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         cons(mb_id, IM2, j, j, i) += dpy;
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
-        // update energy using face-centered acceleration and Riemann mass flux on face
-        if (is_ideal && evolve_energy) {
+        // update energy using face-centered acceleration and Godunov mass flux on face
+        if (evolve_energy) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_.x1f(mb_id, n, k, j, i) 
                                            + flx1(mb_id, IDN, k, j, i + 1) * gf_.x1f(mb_id, n, k, j, i + 1));
           if (multi_d) rho_v_dot_g += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
@@ -644,7 +662,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
 
         // compute backreaction 
         if (sum_backreaction_) {
-          // convert from densities to absolute changes
+          // convert from momentum densities to absolute momentum using cell volume
           const Real cell_volume = size.d_view(mb_id).dx1 * size.d_view(mb_id).dx2 * size.d_view(mb_id).dx3;
           // compute momentum change for gravitating body
           const Real dPx = -dpx * cell_volume;

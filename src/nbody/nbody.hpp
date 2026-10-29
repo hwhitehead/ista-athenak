@@ -193,6 +193,7 @@ class NBody {
     void ApplyGravitationalPotential(const Real beta_dt); // apply gravity using pre-compute values
     void CalcGravitationalAcceleration(const Real beta_dt);  // pre-compute gravitational acceleration
     void ApplyGravitationalAcceleration(const Real beta_dt);  // apply gravitational acceleration with pre-compute
+    void ApplyAccretion(const Real beta_dt);        // apply only accretion source term
 
     // inhomogeneous viscosity handling
     Real alpha;  // viscosity coefficient for alpha-disc prescription
