@@ -661,16 +661,14 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
     {
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
-        // update momenta using cell-centered acceleration and density 
-        {
-          const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
-          const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
-          const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
-          const Real dpz         = gv_z(mb_id, n, k, j, i) * rho_beta_dt;
-          cons(mb_id, IM1, k, j, i) += dpx;
-          if (multi_d) cons(mb_id, IM2, k, j, i) += dpy;
-          if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
-        }
+        // update momenta using cell-centered acceleration and density
+        const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
+        const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpz         = gv_z(mb_id, n, k, j, i) * rho_beta_dt;
+        cons(mb_id, IM1, k, j, i) += dpx;
+        if (multi_d) cons(mb_id, IM2, k, j, i) += dpy;
+        if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy using face-centered acceleration and Godunov mass flux on face
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
