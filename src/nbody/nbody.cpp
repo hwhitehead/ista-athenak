@@ -397,9 +397,15 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
   const Real G_const_  = G_const;
-  auto &gv_            = gv;
-  auto &gf_            = gf;
   const Real soft_mode_ = soft_mode;
+
+  // unpack gravity registers
+  auto &gv_x           = gv.x1f;
+  auto &gv_y           = gv.x2f;
+  auto &gv_z           = gv.x3f;
+  auto &gf_x           = gf.x1f;
+  auto &gf_y           = gf.x1f;
+  auto &gf_z           = gf.x1f;
 
   par_for("nbody_calc_acceleration", 
           DevExeSpace(), 
@@ -439,20 +445,22 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute components of gravity in cardinal directions
         // FaceField5D struct uses face label, but "x1f" here means "gv dot x1"
         const Real gv_over_drv = gv_kji / drv;
-        gv_.x1f(mb_id, n, k, j, i) = gv_over_drv * dxv;
-        gv_.x2f(mb_id, n, k, j, i) = gv_over_drv * dyv; // TODO: add dimension check here?
-        gv_.x3f(mb_id, n, k, j, i) = gv_over_drv * dzv;
+        gv_x(mb_id, n, k, j, i) = gv_over_drv * dxv;
+        if (multi_d) gv_y(mb_id, n, k, j, i) = gv_over_drv * dyv; 
+        if (three_d) gv_z(mb_id, n, k, j, i) = gv_over_drv * dzv;
 
         // compute gravity on lower x face
-        const Real dxf  = xf - nbody_data_.d_view(n, X_DATA);
-        const Real drfx = SQR(dxf) + SQR(dyv) + SQR(dzv);
-        Real gfx_kji; 
-        if (soft_mode_ == 0) {
-          gfx_kji = CalcPlummerAcceleration(Gm_n, drfx, r_s);
-        } else {
-          gfx_kji = CalcSplineAcceleration(Gm_n, drfx, r_s);
+        {
+          const Real dxf  = xf - nbody_data_.d_view(n, X_DATA);
+          const Real drfx = SQR(dxf) + SQR(dyv) + SQR(dzv);
+          Real gfx_kji; 
+          if (soft_mode_ == 0) {
+            gfx_kji = CalcPlummerAcceleration(Gm_n, drfx, r_s);
+          } else {
+            gfx_kji = CalcSplineAcceleration(Gm_n, drfx, r_s);
+          }
+          gf_x(mb_id, n, k, j, i) = gfx_kji * dxf / drfx; // only stash the component perp to face
         }
-        gf_.x1f(mb_id, n, k, j, i) = gfx_kji * dxf / drfx; // only stash the component perp to face
 
         // compute gravity on lower y face
         if (multi_d) {
@@ -464,7 +472,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
           } else {
             gfy_kji = CalcSplineAcceleration(Gm_n, drfy, r_s);
           }
-          gf_.x2f(mb_id, n, k, j, i) = gfy_kji * dyf / drfy; // only stash the component perp to face
+          gf_y(mb_id, n, k, j, i) = gfy_kji * dyf / drfy; // only stash the component perp to face
         } // end multi_d
 
         // compute gravity on lower z face
@@ -477,7 +485,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
           } else {
             gfz_kji = CalcSplineAcceleration(Gm_n, drfz, r_s);
           }
-          gf_.x3f(mb_id, n, k, j, i) = gfz_kji * dzf / drfz; // only stash the component perp to face
+          gf_z(mb_id, n, k, j, i) = gfz_kji * dzf / drfz; // only stash the component perp to face
         } // end three_d
       } // end body loop
     }); // end par_for
@@ -614,14 +622,26 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
 
   // general NBody properties 
   const int num_nbody_ = num_nbody;
-  auto &gv_            = gv;
-  auto &gf_            = gf;
 
-  // Get Godunov density fluxes from Riemann solver
+  // unpack gravity registers
+  auto &gv_x           = gv.x1f;
+  auto &gv_y           = gv.x2f;
+  auto &gv_z           = gv.x3f;
+  auto &gf_x           = gf.x1f;
+  auto &gf_y           = gf.x1f;
+  auto &gf_z           = gf.x1f;
+
+  // unpack Godunov density fluxes from Riemann solver
   DvceArray5D<Real> flx1, flx2, flx3;
-  flx1 = pmy_pack->phydro->uflx.x1f;
-  flx2 = pmy_pack->phydro->uflx.x2f;
-  flx3 = pmy_pack->phydro->uflx.x3f;
+  if (pmy_pack->pmhd != nullptr) {
+    flx1 = pmy_pack->pmhd->uflx.x1f;
+    flx2 = pmy_pack->pmhd->uflx.x2f;
+    flx3 = pmy_pack->pmhd->uflx.x3f;
+  } else {
+    flx1 = pmy_pack->phydro->uflx.x1f;
+    flx2 = pmy_pack->phydro->uflx.x2f;
+    flx3 = pmy_pack->phydro->uflx.x3f;
+  }
 
   // thermodynamic properties
   const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
@@ -642,23 +662,23 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
       for (int n = 0; n < num_nbody_; n++) {
         // update momenta using cell-centered acceleration and density 
         const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
-        const Real dpx         = gv_.x1f(mb_id, n, k, j, i) * rho_beta_dt;
-        const Real dpy         = gv_.x2f(mb_id, n, k, j, i) * rho_beta_dt;
-        const Real dpz         = gv_.x3f(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpz         = gv_z(mb_id, n, k, j, i) * rho_beta_dt;
         cons(mb_id, IM1, k, j, i) += dpx;
-        cons(mb_id, IM2, j, j, i) += dpy;
+        if (multi_d) cons(mb_id, IM2, j, j, i) += dpy;
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy using face-centered acceleration and Godunov mass flux on face
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
         if (evolve_energy) {
-          Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_.x1f(mb_id, n, k, j, i) 
-                                           + flx1(mb_id, IDN, k, j, i + 1) * gf_.x1f(mb_id, n, k, j, i + 1));
-          if (multi_d) rho_v_dot_g += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
-                                           + flx2(mb_id, IDN, k, j + 1, i) * gf_.x2f(mb_id, n, k, j + 1, i)); 
-          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_.x3f(mb_id, n, k, j, i) 
-                                           + flx3(mb_id, IDN, k + 1, j, i) * gf_.x3f(mb_id, n, k + 1, j, i)); 
-          cons(mb_id,IEN,k,j,i)    += rho_v_dot_g * beta_dt;
+          Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
+                                            + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
+          if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
+                                            + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
+          if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
+                                            + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
+          cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
         } // end energy update
 
         // compute backreaction 
