@@ -379,19 +379,19 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
   // par_for includes ghosts (dimension sensitive)
-  int is = indcs.is - indcs.ng, ie = indcs.ie + indcs.ng;
-  int js = indcs.js, je = indcs.je;
-  int ks = indcs.ks, ke = indcs.ke;
-  if (pmy_pack->pmesh->multi_d) {
-    js -= 1; je += 1;
-  }
-  if (pmy_pack->pmesh->three_d) {
-    ks -= 1; ke += 1;
-  }
-  int nmb1 = pmy_pack->nmb_thispack - 1;
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
-
+  int il = indcs.is - 1, ir = indcs.ie + 1;
+  int jl = indcs.js, jr = indcs.je;
+  int kl = indcs.ks, kr = indcs.ke;
+  if (multi_d) {
+    jl -= 1; jr += 1;
+  }
+  if (three_d) {
+    kl -= 1; kr += 1;
+  }
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  
   // general NBody properties 
   auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
@@ -403,9 +403,9 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   par_for("nbody_calc_acceleration", 
           DevExeSpace(), 
           0, nmb1, 
-          ks, ke, 
-          js, je, 
-          is, ie,
+          kl, kr, 
+          jl, jr, 
+          il, ir,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
     {
       // identify cell center positions
@@ -436,7 +436,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
           gv_local = CalcSplineAcceleration(Gm_n, drv, r_s);
         }
         // compute components of gravity in cardinal directions
-        // struct uses face label, but "x1f" here means "gv dot x1"
+        // FaceField5D struct uses face label, but "x1f" here means "gv dot x1"
         const Real gv_over_drv = gv_local / drv;
         gv_.x1f(mb_id, n, k, j, i) = gv_over_drv * dxv;
         gv_.x2f(mb_id, n, k, j, i) = gv_over_drv * dyv; // TODO: add dimension check here?
@@ -476,7 +476,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
           } else {
             gfz_local = CalcSplineAcceleration(Gm_n, drfz, r_s);
           }
-          gf_.x3f(mb_id, n, k, j, i) = gfz_local * dxf / drfz; // only stash the component perp to face
+          gf_.x3f(mb_id, n, k, j, i) = gfz_local * dzf / drfz; // only stash the component perp to face
         } // end three_d
       } // end body loop
     }); // end par_for
@@ -623,7 +623,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
   flx3 = pmy_pack->phydro->uflx.x3f;
 
   // thermodynamic properties
-  const bool evolve_energy  = pmy_pack->phydro->peos->eos_data.is_ideal && (cooling_mode != FORCED_ISO);
+  const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
 
   // back reation properties
   bool sum_backreaction_ = sum_backreaction;
@@ -637,7 +637,6 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
           is, ie,
     KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
     {
-
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
         // update momenta using cell-centered acceleration and density 
@@ -650,13 +649,14 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy using face-centered acceleration and Godunov mass flux on face
+        // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
         if (evolve_energy) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_.x1f(mb_id, n, k, j, i) 
                                            + flx1(mb_id, IDN, k, j, i + 1) * gf_.x1f(mb_id, n, k, j, i + 1));
           if (multi_d) rho_v_dot_g += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
                                            + flx2(mb_id, IDN, k, j + 1, i) * gf_.x2f(mb_id, n, k, j + 1, i)); 
-          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
-                                           + flx3(mb_id, IDN, k + 1, j, i) * gf_.x2f(mb_id, n, k + 1, j, i)); 
+          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_.x3f(mb_id, n, k, j, i) 
+                                           + flx3(mb_id, IDN, k + 1, j, i) * gf_.x3f(mb_id, n, k + 1, j, i)); 
           cons(mb_id,IEN,k,j,i)    += rho_v_dot_g * beta_dt;
         } // end energy update
 
@@ -693,8 +693,6 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
-  bool &multi_d = pmy_pack->pmesh->multi_d;
-  bool &three_d = pmy_pack->pmesh->three_d;
 
   // general NBody properties 
   auto &nbody_data_     = nbody_data;
@@ -787,69 +785,9 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
                              + dpy_grav * prim(mb_id, IVY, k, j, i)
                              + dpz_grav * prim(mb_id, IVZ, k, j, i);
           cons(mb_id, IEN, k, j, i) += dE_grav;
-
-          // // compute work done in x direction
-          // const Real hdx = 0.5 * size.d_view(mb_id).dx1;
-          // const Real dx_l = dx - hdx;
-          // const Real dx_r = dx + hdx;
-          // const Real dr_lx = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
-          // const Real dr_rx = Kokkos::sqrt(SQR(dx_r) + SQR(dy) + SQR(dz));
-          // Real g_xl, g_xr;
-          // if (soft_mode_ == 0) {
-          //   g_xl = CalcPlummerAcceleration(Gm_n, dr_lx, r_soft);
-          //   g_xr = CalcPlummerAcceleration(Gm_n, dr_rx, r_soft);
-          // } else {
-          //   g_xl = CalcSplineAcceleration(Gm_n, dr_lx, r_soft);
-          //   g_xr = CalcSplineAcceleration(Gm_n, dr_rx, r_soft);
-          // }
-          // const Real g_xl_dot_x = g_xl * dx_l / dr_lx;
-          // const Real g_xr_dot_x = g_xr * dx_r / dr_rx;
-          // cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_xl_dot_x * flx1(mb_id, IDN, k, j, i)
-          //                                             + g_xr_dot_x * flx1(mb_id, IDN, k, j, i + 1));
-
-          // if (multi_d) {
-          //   // compute work done in x direction
-          //   const Real hdy = 0.5 * size.d_view(mb_id).dx2;
-          //   const Real dy_l = dy - hdy;
-          //   const Real dy_r = dy + hdy;
-          //   const Real dr_ly = Kokkos::sqrt(SQR(dx) + SQR(dy_l) + SQR(dz));
-          //   const Real dr_ry = Kokkos::sqrt(SQR(dx) + SQR(dy_r) + SQR(dz));
-          //   Real g_yl, g_yr;
-          //   if (soft_mode_ == 0) {
-          //     g_yl = CalcPlummerAcceleration(Gm_n, dr_ly, r_soft);
-          //     g_yr = CalcPlummerAcceleration(Gm_n, dr_ry, r_soft);
-          //   } else {
-          //     g_yl = CalcSplineAcceleration(Gm_n, dr_ly, r_soft);
-          //     g_yr = CalcSplineAcceleration(Gm_n, dr_ry, r_soft);
-          //   }
-          //   const Real g_yl_dot_y = g_yl * dy_l / dr_ly;
-          //   const Real g_yr_dot_y = g_yr * dy_r / dr_ry;
-          //   cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_yl_dot_y * flx2(mb_id, IDN, k, j, i)
-          //                                               + g_yr_dot_y * flx2(mb_id, IDN, k, j + 1, i));
-          // } // end multi_d
-
-          // if (three_d) {
-          //   const Real hdz = 0.5 * size.d_view(mb_id).dx3;
-          //   const Real dz_l = dz - hdz;
-          //   const Real dz_r = dz + hdz;
-          //   const Real dr_lz = Kokkos::sqrt(SQR(dx_l) + SQR(dy) + SQR(dz));
-          //   const Real dr_rz = Kokkos::sqrt(SQR(dx_r) + SQR(dy) + SQR(dz));
-          //   Real g_zl, g_zr;
-          //   if (soft_mode_ == 0) {
-          //     g_zl = CalcPlummerAcceleration(Gm_n, dr_lz, r_soft);
-          //     g_zr = CalcPlummerAcceleration(Gm_n, dr_rz, r_soft);
-          //   } else {
-          //     g_zl = CalcSplineAcceleration(Gm_n, dr_lz, r_soft);
-          //     g_zr = CalcSplineAcceleration(Gm_n, dr_rz, r_soft);
-          //   }
-          //   const Real g_zl_dot_z = g_zl * dz_l / dr_lz;
-          //   const Real g_zr_dot_z = g_zr * dz_r / dr_rz;
-          //   cons(mb_id, IEN, k, j, i) += 0.5 * beta_dt * (g_zl_dot_z * flx3(mb_id, IDN, k, j, i)
-          //                                               + g_zr_dot_z * flx3(mb_id, IDN, k + 1, j, i));
-          //} // end three_d     
         } // end energy evo
 
-        // apply acceleration updates AFTER to allow for adiabtic energy evolution
+        // apply acceleration updates AFTER gravity update applied
         
         // apply accretion, if in sink radius and flagged
         Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;

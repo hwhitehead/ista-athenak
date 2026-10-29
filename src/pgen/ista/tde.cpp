@@ -53,7 +53,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &size          = pmbp->pmb->mb_size;
-  const bool is_3d    = pmy_mesh_->three_d;
+  const bool three_d  = pmy_mesh_->three_d;
 
   // load minidisc properties
   const int prograde    = pin->GetOrAddBoolean("problem", "prograde", true);
@@ -191,7 +191,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       w0_(m, IDN, k, j, i)               = rho;              
       w0_(m, IVX, k, j, i)               = vx;               
       w0_(m, IVY, k, j, i)               = vy;               
-      if (is_3d) w0_(m, IVZ, k, j, i)    = vz;             
+      if (three_d) w0_(m, IVZ, k, j, i)    = vz;             
       if (is_ideal) w0_(m, IEN, k, j, i) = U;   
     }); 
 
