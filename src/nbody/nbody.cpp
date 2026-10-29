@@ -566,7 +566,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
         const Real dpy  = g_yv * rho_beta_dt;
         const Real dpz  = g_zv * rho_beta_dt;
         cons(mb_id, IM1, k, j, i) += dpx;
-        cons(mb_id, IM2, j, j, i) += dpy;
+        cons(mb_id, IM2, k, j, i) += dpy;
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy
