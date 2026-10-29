@@ -108,6 +108,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
       Kokkos::realloc(phi, nmb_max, num_nbody, ncells3, ncells2, ncells1);
       break;
     case PRE_ACCELERATION: // grav_mode = 2, pre-calc acceleration at centers and faces
+      // realloc each 3D struct (gv, gf)
       Kokkos::realloc(gv.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
       Kokkos::realloc(gv.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
       Kokkos::realloc(gv.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
@@ -378,7 +379,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
-  // par_for includes ghosts (dimension sensitive)
+  // par_for includes one extra cell in active directions (dimension sensitive)
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
   int il = indcs.is - 1, ir = indcs.ie + 1;
@@ -413,7 +414,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
       const Real yv = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real zv = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // identify lower cell face positions
+      // identify lower cell face positions (displaced by half cell width)
       const Real xf = xv - 0.5 * size.d_view(mb_id).dx1;
       const Real yf = yv - 0.5 * size.d_view(mb_id).dx2;
       const Real zf = zv - 0.5 * size.d_view(mb_id).dx3;
@@ -424,20 +425,20 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         const Real Gm_n = G_const_ * nbody_data_.d_view(n, M_DATA);
         const Real r_s  = nbody_data_.d_view(n, R_SOFT_DATA);
         
-        // compute gravity at cell face
+        // compute gravity at cell center
         const Real dxv = xv - nbody_data_.d_view(n, X_DATA);
         const Real dyv = yv - nbody_data_.d_view(n, Y_DATA);
         const Real dzv = zv - nbody_data_.d_view(n, Z_DATA);
         const Real drv = SQR(dxv) + SQR(dyv) + SQR(dzv);
-        Real gv_local;
+        Real gv_kji;
         if (soft_mode_ == 0) {
-          gv_local = CalcPlummerAcceleration(Gm_n, drv, r_s);
+          gv_kji = CalcPlummerAcceleration(Gm_n, drv, r_s);
         } else {
-          gv_local = CalcSplineAcceleration(Gm_n, drv, r_s);
+          gv_kji = CalcSplineAcceleration(Gm_n, drv, r_s);
         }
         // compute components of gravity in cardinal directions
         // FaceField5D struct uses face label, but "x1f" here means "gv dot x1"
-        const Real gv_over_drv = gv_local / drv;
+        const Real gv_over_drv = gv_kji / drv;
         gv_.x1f(mb_id, n, k, j, i) = gv_over_drv * dxv;
         gv_.x2f(mb_id, n, k, j, i) = gv_over_drv * dyv; // TODO: add dimension check here?
         gv_.x3f(mb_id, n, k, j, i) = gv_over_drv * dzv;
@@ -445,38 +446,38 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower x face
         const Real dxf  = xf - nbody_data_.d_view(n, X_DATA);
         const Real drfx = SQR(dxf) + SQR(dyv) + SQR(dzv);
-        Real gfx_local; 
+        Real gfx_kji; 
         if (soft_mode_ == 0) {
-          gfx_local = CalcPlummerAcceleration(Gm_n, drfx, r_s);
+          gfx_kji = CalcPlummerAcceleration(Gm_n, drfx, r_s);
         } else {
-          gfx_local = CalcSplineAcceleration(Gm_n, drfx, r_s);
+          gfx_kji = CalcSplineAcceleration(Gm_n, drfx, r_s);
         }
-        gf_.x1f(mb_id, n, k, j, i) = gfx_local * dxf / drfx; // only stash the component perp to face
+        gf_.x1f(mb_id, n, k, j, i) = gfx_kji * dxf / drfx; // only stash the component perp to face
 
         // compute gravity on lower y face
         if (multi_d) {
           const Real dyf  = yf - nbody_data_.d_view(n, Y_DATA);
           const Real drfy = SQR(dxv) + SQR(dyf) + SQR(dzv);
-          Real gfy_local; 
+          Real gfy_kji; 
           if (soft_mode_ == 0) {
-            gfy_local = CalcPlummerAcceleration(Gm_n, drfy, r_s);
+            gfy_kji = CalcPlummerAcceleration(Gm_n, drfy, r_s);
           } else {
-            gfy_local = CalcSplineAcceleration(Gm_n, drfy, r_s);
+            gfy_kji = CalcSplineAcceleration(Gm_n, drfy, r_s);
           }
-          gf_.x2f(mb_id, n, k, j, i) = gfy_local * dyf / drfy; // only stash the component perp to face
+          gf_.x2f(mb_id, n, k, j, i) = gfy_kji * dyf / drfy; // only stash the component perp to face
         } // end multi_d
 
         // compute gravity on lower z face
         if (three_d) {
           const Real dzf  = zf - nbody_data_.d_view(n, Z_DATA);
           const Real drfz = SQR(dxv) + SQR(dyv) + SQR(dzf);
-          Real gfz_local; 
+          Real gfz_kji; 
           if (soft_mode_ == 0) {
-            gfz_local = CalcPlummerAcceleration(Gm_n, drfz, r_s);
+            gfz_kji = CalcPlummerAcceleration(Gm_n, drfz, r_s);
           } else {
-            gfz_local = CalcSplineAcceleration(Gm_n, drfz, r_s);
+            gfz_kji = CalcSplineAcceleration(Gm_n, drfz, r_s);
           }
-          gf_.x3f(mb_id, n, k, j, i) = gfz_local * dzf / drfz; // only stash the component perp to face
+          gf_.x3f(mb_id, n, k, j, i) = gfz_kji * dzf / drfz; // only stash the component perp to face
         } // end three_d
       } // end body loop
     }); // end par_for
@@ -641,9 +642,9 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
       for (int n = 0; n < num_nbody_; n++) {
         // update momenta using cell-centered acceleration and density 
         const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
-        const Real dpx  = gv_.x1f(mb_id, n, k, j, i) * rho_beta_dt;
-        const Real dpy  = gv_.x2f(mb_id, n, k, j, i) * rho_beta_dt;
-        const Real dpz  = gv_.x3f(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpx         = gv_.x1f(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpy         = gv_.x2f(mb_id, n, k, j, i) * rho_beta_dt;
+        const Real dpz         = gv_.x3f(mb_id, n, k, j, i) * rho_beta_dt;
         cons(mb_id, IM1, k, j, i) += dpx;
         cons(mb_id, IM2, j, j, i) += dpy;
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
@@ -1124,10 +1125,8 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real alpha_        = alpha;
   const Real G_const_      = G_const;
   const Real nu_max_       = nu_max;
-  const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real visc_mode_    = visc_mode;
   const Real soft_mode_    = visc_mode;
-  const Real cs_sqr_floor_ = cs_sqr_floor;
   const Real gm1           = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
