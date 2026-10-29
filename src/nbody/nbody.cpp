@@ -404,9 +404,10 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   auto &gv_y           = gv.x2f;
   auto &gv_z           = gv.x3f;
   auto &gf_x           = gf.x1f;
-  auto &gf_y           = gf.x1f;
-  auto &gf_z           = gf.x1f;
+  auto &gf_y           = gf.x2f;
+  auto &gf_z           = gf.x3f;
 
+  // iterate over single ghost on either side of real domain to ensure evaluation on all faces (i,i+1)
   par_for("nbody_calc_acceleration", 
           DevExeSpace(), 
           0, nmb1, 
@@ -442,9 +443,9 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         } else {
           gv_kji = CalcSplineAcceleration(Gm_n, drv, r_s);
         }
+
         // compute components of gravity in cardinal directions
-        // FaceField5D struct uses face label, but "x1f" here means "gv dot x1"
-        const Real gv_over_drv = gv_kji / drv;
+        const Real gv_over_drv  = gv_kji / drv;
         gv_x(mb_id, n, k, j, i) = gv_over_drv * dxv;
         if (multi_d) gv_y(mb_id, n, k, j, i) = gv_over_drv * dyv; 
         if (three_d) gv_z(mb_id, n, k, j, i) = gv_over_drv * dzv;
