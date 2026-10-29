@@ -661,6 +661,10 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
     {
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
+        // TEMP - sanity check acceleration values
+        auto val = gv_x(mb_id, n, k, j, i);
+        Kokkos::printf("val = %f", val);
+
         // update momenta using cell-centered acceleration and density 
         const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
         const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
