@@ -104,7 +104,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   switch (grav_mode) {
     case LIVE_CALC: // grav_mode = 0, live calc cell-centered acceleration
       break;
-    case PRE_POTENTIAL: // grave_mode = 1, pre-calc potential at centers
+    case PRE_POTENTIAL: // grav_mode = 1, pre-calc potential at centers
       Kokkos::realloc(phi, nmb_max, num_nbody, ncells3, ncells2, ncells1);
       break;
     case PRE_ACCELERATION: // grav_mode = 2, pre-calc acceleration at centers and faces
@@ -203,7 +203,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
     std::cout << "hydro settings:"      << std::endl;
     std::cout << "src_gravity = "       << src_gravity << std::endl;
-    std::cout << "grave_mode = "        << grave_mode << std::endl;
+    std::cout << "grav_mode = "         << grav_mode << std::endl;
     std::cout << "src_accretion = "     << src_accretion << std::endl;
     std::cout << "cooling_mode = "      << cooling_mode << std::endl;
     std::cout << "sink_mode = "         << sink_mode << std::endl;
