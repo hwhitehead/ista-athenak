@@ -85,6 +85,12 @@ enum NBodyCoolingModes {NO_COOLING = -1,
                         BETA_COOL_THERM = 3,
                         NVAR_COOL = 4};
 
+// indices for gravity modes
+enum NBodyGravityModes {LIVE_CALC = 0,
+                        PRE_POTENTIAL = 1,
+                        PRE_ACCELERATION = 2,
+                        NVAR_GRAV = 3};
+
 
 namespace nbody {
 
@@ -117,7 +123,6 @@ class NBody {
     DualArray2D<Real> nbody_data; // principle data register shape = (num_nbody, NVAR_DATA)
     bool verbose;                 // boolean flag for command line progress writes
     Real rho_sink_floor;          // minimum density in sink region 
-    bool precalc_phi;             // boolean: precompute gravitational potential
     int num_levels;               // total number of refinement levels
 
     // Back reaction communicators shape = (num_nbody, NVAR_REG)
@@ -135,8 +140,7 @@ class NBody {
     // local gravitational potential 
     DvceArray5D<Real> phi;          // gravitational potential shape = (nmb, num_nbody, nk+ng, nj+ng, ni+ng)
 
-    // local gravitational force
-    bool precalc_grav;
+    // local gravitational acceleration
     DvceFaceFld5D<Real> gv;         // cell-centered grav acceleration in 3 directions
     DvceFaceFld5D<Real> gf;         // face-centered grav acceleration in 3 directions (perp to face)
 
@@ -153,6 +157,7 @@ class NBody {
     int sink_mode;                                      // accretion routine (0 = fixed rate, 1 = flat visc, 2 = dyn visc)
     int visc_mode;                                      // viscous routine (0 = use flat, 1 = ideal alpha disc, 2 = true alpha disc)
     int soft_mode;                                      // softening routine (0 = plummer, 1 = spline)
+    int grav_mode;                                      // gravity routine (0 = cc, 1 = cc/fc by potential, 2 = cc/fc by acceleration)
 
     // disc state variables (for sound speed compute)
     Real Mach, inv_Mach_sqr, cs_sqr_floor;

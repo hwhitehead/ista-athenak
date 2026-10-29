@@ -54,7 +54,6 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   src_gravity       = pin->GetOrAddBoolean("nbody", "src_gravity", false);
   src_accretion     = pin->GetOrAddBoolean("nbody", "src_accretion", false);
   cooling_mode      = pin->GetOrAddInteger("nbody", "cooling_mode", 0); // typed by NBodyCoolingModes in nbody.hpp
-  precalc_phi       = pin->GetOrAddBoolean("nbody", "precalc_phi", false);
 
   // set back reaction options
   inc_backreaction  = pin->GetOrAddBoolean("nbody", "inc_backreaction", false);
@@ -93,26 +92,30 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
   // import verbose flag
   verbose = pin->GetOrAddBoolean("nbody", "verbose", false);
 
-  // allocate per-cell register for nbody gravitational potential
-  // register includes ghosts to allow for on-face evaluation of forcing
-  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  // determine array sizes for registers including ghosts
+  auto &indcs       = pmy_pack->pmesh->mb_indcs;
   const int ncells1 = indcs.nx1 + 2 * (indcs.ng);
   const int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
   const int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
   const int nmb_max = std::max((pmy_pack->nmb_thispack), (pmy_pack->pmesh->nmb_maxperrank));
-  if (precalc_phi) {
-    Kokkos::realloc(phi, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-  }
 
-  precalc_grav = pin->GetOrAddBoolean("nbody", "precalc_grav", false);
-  if (precalc_grav) {
-    Kokkos::realloc(gv.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-    Kokkos::realloc(gv.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-    Kokkos::realloc(gv.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-    Kokkos::realloc(gf.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-    Kokkos::realloc(gf.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-    Kokkos::realloc(gf.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
-  }
+  // determine gravity module 
+  grav_mode = pin->GetOrAddInteger("nbody", "grav_mode", 0);
+  switch (grav_mode) {
+    case LIVE_CALC: // grav_mode = 0, live calc cell-centered acceleration
+      break;
+    case PRE_POTENTIAL: // grave_mode = 1, pre-calc potential at centers
+      Kokkos::realloc(phi, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      break;
+    case PRE_ACCELERATION: // grav_mode = 2, pre-calc acceleration at centers and faces
+      Kokkos::realloc(gv.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      Kokkos::realloc(gv.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      Kokkos::realloc(gv.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      Kokkos::realloc(gf.x1f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      Kokkos::realloc(gf.x2f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      Kokkos::realloc(gf.x3f, nmb_max, num_nbody, ncells3, ncells2, ncells1);
+      break;
+  } // end grav_mode switch
   
   // determine viscosity usage
   alpha     = pin->GetOrAddReal("nbody", "alpha", 0.0);
@@ -200,7 +203,7 @@ NBody::NBody(MeshBlockPack *ppack, ParameterInput *pin) :
 
     std::cout << "hydro settings:"      << std::endl;
     std::cout << "src_gravity = "       << src_gravity << std::endl;
-    std::cout << "precalc_phi = "       << precalc_phi << std::endl;
+    std::cout << "grave_mode = "        << grave_mode << std::endl;
     std::cout << "src_accretion = "     << src_accretion << std::endl;
     std::cout << "cooling_mode = "      << cooling_mode << std::endl;
     std::cout << "sink_mode = "         << sink_mode << std::endl;
@@ -259,12 +262,19 @@ Real NBody::CalcTimeStep() {
 //! runtime booleans to activate specific physical processes
 void NBody::NBodySrcTerms(const Real beta_dt) {
   
-  if (precalc_phi) {
-    CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
-    ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
-  } else {
-    NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
-  }
+  // gravity source terms
+  switch (grav_mode) {
+    case LIVE_CALC:
+      NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
+      break;
+    case PRE_POTENTIAL:
+      CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
+      ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
+      break;
+    case PRE_ACCELERATION:
+      CalcGravitationalAcceleration(beta_dt);    // pre-compute per-cell gravitational potential
+      ApplyGravitationalAcceleration(beta_dt);   // apply pre-computed gravity
+  } // end grav_mode cases
 
   // thermodynamic src terms
   if (pmy_pack->phydro->peos->eos_data.is_ideal) {
@@ -624,11 +634,11 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         // update energy using face-centered acceleration and Riemann mass flux on face
         if (is_ideal && evolve_energy) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_.x1f(mb_id, n, k, j, i) 
-                                           + flx1(mb_id, IDN, k, j, i + 1) * gf_.x1f(md_id, n, k, j, i + 1));
+                                           + flx1(mb_id, IDN, k, j, i + 1) * gf_.x1f(mb_id, n, k, j, i + 1));
           if (multi_d) rho_v_dot_g += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
-                                           + flx2(mb_id, IDN, k, j + 1, i) * gf_.x2f(md_id, n, k, j + 1, i)); 
+                                           + flx2(mb_id, IDN, k, j + 1, i) * gf_.x2f(mb_id, n, k, j + 1, i)); 
           if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_.x2f(mb_id, n, k, j, i) 
-                                           + flx3(mb_id, IDN, k + 1, j, i) * gf_.x2f(md_id, n, k + 1, j, i)); 
+                                           + flx3(mb_id, IDN, k + 1, j, i) * gf_.x2f(mb_id, n, k + 1, j, i)); 
           cons(mb_id,IEN,k,j,i)    += rho_v_dot_g * beta_dt;
         } // end energy update
 
