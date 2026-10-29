@@ -81,8 +81,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // set host properties
   std::string host_index = (orbit_primary) ? "0" : "1";
-  std::cout << "orbit_primary = " << orbit_primary << std::endl;
-  std::cout << "host_index = " << host_index << std::endl;
   const Real m_host      = pin->GetReal("nbody", "m" + host_index);
   const Real x_host      = pin->GetReal("nbody", "x" + host_index);
   const Real y_host      = pin->GetReal("nbody", "y" + host_index);

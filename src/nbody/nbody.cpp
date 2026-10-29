@@ -436,7 +436,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         const Real dxv = xv - nbody_data_.d_view(n, X_DATA);
         const Real dyv = yv - nbody_data_.d_view(n, Y_DATA);
         const Real dzv = zv - nbody_data_.d_view(n, Z_DATA);
-        const Real drv = SQR(dxv) + SQR(dyv) + SQR(dzv);
+        const Real drv = Kokkos::sqrt(SQR(dxv) + SQR(dyv) + SQR(dzv));
         Real gv_kji;
         if (soft_mode_ == 0) {
           gv_kji = CalcPlummerAcceleration(Gm_n, drv, r_s);
@@ -453,7 +453,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower x face
         {
           const Real dxf  = xf - nbody_data_.d_view(n, X_DATA);
-          const Real drfx = SQR(dxf) + SQR(dyv) + SQR(dzv);
+          const Real drfx = Kokkos::sqrt(SQR(dxf) + SQR(dyv) + SQR(dzv));
           Real gfx_kji; 
           if (soft_mode_ == 0) {
             gfx_kji = CalcPlummerAcceleration(Gm_n, drfx, r_s);
@@ -466,7 +466,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower y face
         if (multi_d) {
           const Real dyf  = yf - nbody_data_.d_view(n, Y_DATA);
-          const Real drfy = SQR(dxv) + SQR(dyf) + SQR(dzv);
+          const Real drfy = Kokkos::sqrt(SQR(dxv) + SQR(dyf) + SQR(dzv));
           Real gfy_kji; 
           if (soft_mode_ == 0) {
             gfy_kji = CalcPlummerAcceleration(Gm_n, drfy, r_s);
@@ -479,7 +479,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower z face
         if (three_d) {
           const Real dzf  = zf - nbody_data_.d_view(n, Z_DATA);
-          const Real drfz = SQR(dxv) + SQR(dyv) + SQR(dzf);
+          const Real drfz = Kokkos::sqrt(SQR(dxv) + SQR(dyv) + SQR(dzf));
           Real gfz_kji; 
           if (soft_mode_ == 0) {
             gfz_kji = CalcPlummerAcceleration(Gm_n, drfz, r_s);
@@ -662,13 +662,15 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
         // update momenta using cell-centered acceleration and density 
-        const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
-        const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
-        const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
-        const Real dpz         = gv_z(mb_id, n, k, j, i) * rho_beta_dt;
-        cons(mb_id, IM1, k, j, i) += dpx;
-        if (multi_d) cons(mb_id, IM2, k, j, i) += dpy;
-        if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
+        {
+          const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
+          const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
+          const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
+          const Real dpz         = gv_z(mb_id, n, k, j, i) * rho_beta_dt;
+          cons(mb_id, IM1, k, j, i) += dpx;
+          if (multi_d) cons(mb_id, IM2, k, j, i) += dpy;
+          if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
+        }
 
         // update energy using face-centered acceleration and Godunov mass flux on face
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
