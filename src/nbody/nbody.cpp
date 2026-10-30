@@ -816,16 +816,28 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         // update energy using face-centered acceleration and Godunov mass flux on face
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
         if (evolve_energy) {
-          Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
-          if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
-          if (three_d) v_dot_g += prim(mb_id, IVZ, k, j, i) * gv_z(mb_id, n, k, j, i);
-          const Real rho_v_dot_g = prim(mb_id, IDN, k, j, i) * v_dot_g;
-          // Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
-          //                                   + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
-          // if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
-          //                                   + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
-          // if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
-          //                                   + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
+          // // METHOD 1: CC ONLY
+          // Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
+          // if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
+          // if (three_d) v_dot_g += prim(mb_id, IVZ, k, j, i) * gv_z(mb_id, n, k, j, i);
+          // cosnt Real rho_v_dot_g = prim(mb_id, IDN, k, j, i) * v_dot_g;
+
+          const Real dEx_fc = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
+                                   + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
+          const Real dEx_cc = prim(mb_id, IVX, k, j, i) * prim(mb_id, IDN, k, j, i) * gv_x(mb_id, n, k, j, i);
+
+          const Real dEy_fc = 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
+                                   + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i));
+          const Real dEy_cc = prim(mb_id, IVY, k, j, i) * prim(mb_id, IDN, k, j, i) * gv_y(mb_id, n, k, j, i);
+          Kokkos::printf("ratio_x = %f, ratio_y = %f\n", dEx_fc / dEx_cc, dEy_fc / dEy_cc);
+
+          // METHOD 2: full conservative model
+          Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
+                                            + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
+          if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
+                                            + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
+          if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
+                                            + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
           cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
         } // end energy update
 
