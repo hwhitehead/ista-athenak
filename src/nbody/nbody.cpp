@@ -379,7 +379,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
-  // par_for includes one extra cell in active directions (dimension sensitive)
+  // par_for includes ghost cells in active directions (dimension sensitive)
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
   int il = indcs.is - indcs.ng, ir = indcs.ie + indcs.ng;
@@ -400,6 +400,8 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
   const Real soft_mode_ = soft_mode;
 
   // unpack gravity registers
+  // registers are DvceFaceFld5D objects, but for gv, x1f labels the cell-centered acceleration in x1
+  // for gv, x1f labels the lower-x face-centered acceleration in x1
   auto &gv_x           = gv.x1f;
   auto &gv_y           = gv.x2f;
   auto &gv_z           = gv.x3f;
@@ -421,10 +423,10 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
       const Real yv = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
       const Real zv = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
-      // identify lower cell face positions (displaced by half cell width)
-      const Real xf = xv - 0.5 * size.d_view(mb_id).dx1;
-      const Real yf = yv - 0.5 * size.d_view(mb_id).dx2;
-      const Real zf = zv - 0.5 * size.d_view(mb_id).dx3;
+      // identify lower cell face positions 
+      const Real xf = LeftEdgeX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      const Real yf = LeftEdgeX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      const Real zf = LeftEdgeX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
 
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
@@ -436,7 +438,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         const Real dxv = xv - nbody_data_.d_view(n, X_DATA);
         const Real dyv = yv - nbody_data_.d_view(n, Y_DATA);
         const Real dzv = zv - nbody_data_.d_view(n, Z_DATA);
-        const Real drv = Kokkos::sqrt(SQR(dxv) + SQR(dyv) + SQR(dzv));
+        const Real drv = Kokkos::sqrt(SQR(dxv) + SQR(dyv) + SQR(dzv)); // cc_x, cc_y, cc_z
         Real gv_kji;
         if (soft_mode_ == 0) {
           gv_kji = CalcPlummerAcceleration(Gm_n, drv, r_s);
@@ -444,7 +446,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
           gv_kji = CalcSplineAcceleration(Gm_n, drv, r_s);
         }
 
-        // compute components of gravity in cardinal directions
+        // project components of cell-centered gravity in cardinal directions
         const Real gv_over_drv  = gv_kji / drv;
         gv_x(mb_id, n, k, j, i) = gv_over_drv * dxv;
         if (multi_d) gv_y(mb_id, n, k, j, i) = gv_over_drv * dyv; 
@@ -453,7 +455,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower x face
         {
           const Real dxf  = xf - nbody_data_.d_view(n, X_DATA);
-          const Real drfx = Kokkos::sqrt(SQR(dxf) + SQR(dyv) + SQR(dzv));
+          const Real drfx = Kokkos::sqrt(SQR(dxf) + SQR(dyv) + SQR(dzv)); // fc_x, cc_y, cc_z
           Real gfx_kji; 
           if (soft_mode_ == 0) {
             gfx_kji = CalcPlummerAcceleration(Gm_n, drfx, r_s);
@@ -466,7 +468,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower y face
         if (multi_d) {
           const Real dyf  = yf - nbody_data_.d_view(n, Y_DATA);
-          const Real drfy = Kokkos::sqrt(SQR(dxv) + SQR(dyf) + SQR(dzv));
+          const Real drfy = Kokkos::sqrt(SQR(dxv) + SQR(dyf) + SQR(dzv)); // cc_x, fc_y, cc_z
           Real gfy_kji; 
           if (soft_mode_ == 0) {
             gfy_kji = CalcPlummerAcceleration(Gm_n, drfy, r_s);
@@ -479,7 +481,7 @@ void NBody::CalcGravitationalAcceleration(const Real beta_dt) {
         // compute gravity on lower z face
         if (three_d) {
           const Real dzf  = zf - nbody_data_.d_view(n, Z_DATA);
-          const Real drfz = Kokkos::sqrt(SQR(dxv) + SQR(dyv) + SQR(dzf));
+          const Real drfz = Kokkos::sqrt(SQR(dxv) + SQR(dyv) + SQR(dzf)); // cc_x, cc_y, fc_z
           Real gfz_kji; 
           if (soft_mode_ == 0) {
             gfz_kji = CalcPlummerAcceleration(Gm_n, drfz, r_s);
@@ -661,7 +663,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
     {
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
-        // update momenta using cell-centered acceleration and density
+        // update momenta using cell-centered acceleration (gv) and primitive density
         const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
         const Real dpx         = gv_x(mb_id, n, k, j, i) * rho_beta_dt;
         const Real dpy         = gv_y(mb_id, n, k, j, i) * rho_beta_dt;
@@ -673,12 +675,19 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         // update energy using face-centered acceleration and Godunov mass flux on face
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
         if (evolve_energy) {
-          Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
-                                            + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
-          if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
-                                            + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
-          if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
-                                            + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
+          // TEMP: proxy face-flux using cc-value
+          Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gv_x(mb_id, n, k, j, i) 
+                                            + flx1(mb_id, IDN, k, j, i + 1) * gv_x(mb_id, n, k, j, i));
+          if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gv_y(mb_id, n, k, j, i) 
+                                            + flx2(mb_id, IDN, k, j + 1, i) * gv_y(mb_id, n, k, j, i)); 
+          if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gv_z(mb_id, n, k, j, i) 
+                                            + flx3(mb_id, IDN, k + 1, j, i) * gv_z(mb_id, n, k, j, i)); 
+          // Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
+          //                                   + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
+          // if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
+          //                                   + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
+          // if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
+          //                                   + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
           cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
         } // end energy update
 
