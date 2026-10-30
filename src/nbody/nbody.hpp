@@ -90,6 +90,14 @@ enum NBodyGravityModes {LIVE_CALC = 0,
                         PRE_POTENTIAL = 1,
                         PRE_ACCELERATION = 2,
                         NVAR_GRAV = 3};
+                  
+// indices for sink modes 
+enum NBodySinkModes {FLAT_RATE = 0,
+                     HOMO_VISC = 1,
+                     INHOMO_VISC = 2,
+                     IDEAL_VISC = 3,
+                     ADAPT_VISC = 4, 
+                     NVAR_ACC = 5};
 
 
 namespace nbody {

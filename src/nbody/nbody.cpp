@@ -524,8 +524,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
   flx3 = pmy_pack->phydro->uflx.x3f;
 
   // thermodynamic properties
-  const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
-  const bool evolve_energy  = (cooling_mode != FORCED_ISO);
+  const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
 
   // back reation properties
   bool sum_backreaction_ = sum_backreaction;
@@ -572,7 +571,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
         if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
         // update energy
-        if (is_ideal && evolve_energy) {
+        if (evolve_energy) {
           Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
           rho_v_dot_g              += 0.5 * (flx2(mb_id, IDN, k, j, i) * g_yl + flx2(mb_id, IDN, k, j + 1, i) * g_yr);
           if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx3(mb_id, IDN, k + 1, j, i) * g_zr);
@@ -601,6 +600,150 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 //! \fn  void NBody::ApplyAccretion
 //! \brief Apply source term relevant for accretion
 void NBody::ApplyAccretion(const Real beta_dt) {
+
+  // MeshBlock properties
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  auto &size  = pmy_pack->pmb->mb_size;
+  int is = indcs.is, ie = indcs.ie;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  int nmb1 = pmy_pack->nmb_thispack - 1;
+  auto &prim = pmy_pack->phydro->w0;
+  auto &cons = pmy_pack->phydro->u0;
+  const bool multi_d = pmy_pack->pmesh->multi_d;
+  const bool three_d = pmy_pack->pmesh->three_d;
+
+  // general NBody properties 
+  auto &nbody_data_     = nbody_data;
+  const int num_nbody_  = num_nbody;
+
+  // thermodynamic properties
+  const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
+  const Real inv_Mach_sqr_ = inv_Mach_sqr;
+  const Real gm1 = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
+  const Real inv_gm1 = 1.0 / gm1;
+
+  // accretion properties
+  const Real rho_sink_floor_ = rho_sink_floor;
+  const int sink_mode_       = sink_mode;
+  Real nu_iso_homo_          = 0.0;
+  if (sink_mode_ == 1) nu_iso_homo_ = pmy_pack->phydro->pvisc->nu_iso;
+  auto &nu_iso_inhomo_       = nu_iso;
+  Real alpha_ = (alpha != 0.0) ? alpha : 0.1; // use fiducial value if not set 
+  const Real max_sink_fac = 0.5; // maximal fractional loss per fine timestep
+
+  par_for("nbody_apply_accretion", 
+          DevExeSpace(), 
+          0, nmb1, 
+          ks, ke, 
+          js, je, 
+          is, ie,
+    KOKKOS_LAMBDA(const int mb_id, const int k, const int j, const int i) 
+    {
+      // identify cell position
+      const Real x = CellCenterX(i - indcs.is, indcs.nx1, size.d_view(mb_id).x1min, size.d_view(mb_id).x1max);
+      const Real y = CellCenterX(j - indcs.js, indcs.nx2, size.d_view(mb_id).x2min, size.d_view(mb_id).x2max);
+      const Real z = CellCenterX(k - indcs.ks, indcs.nx3, size.d_view(mb_id).x3min, size.d_view(mb_id).x3max);
+
+      // loop over bodies in NBody class
+      for (int n = 0; n < num_nbody_; n++) {
+        // compute body-cell seperation
+        const Real dx     = x - nbody_data_.d_view(n, X_DATA);
+        const Real dy     = y - nbody_data_.d_view(n, Y_DATA);
+        const Real dz     = z - nbody_data_.d_view(n, Z_DATA);
+        const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
+
+        // make proximity check and floor check
+        const Real r_soft_sqr = SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real rho_prim   = prim(mb_id, IDN, k, j, i);
+        const Real drho_floor = rho_sink_floor_ - rho_prim;
+        if ((dr_sqr < 2 * r_soft_sqr) && (drho_floor < 0)) {
+          Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
+          const Real dr = Kokkos::sqrt(dr_sqr);
+          // compute mass removal rate
+          Real sink_rate = 0.0; // defined such that drho/dt = -rho * sink_rate
+          switch (sink_mode_) {
+            case FLAT_RATE:     // set to fixed, high value
+              sink_rate = 100;
+              break;
+            case FLAT_VISC:     // set by viscous time, using homogeneous viscosity
+              sink_rate = 2.25 * nu_iso_homo_ / dr_sqr;
+              break;
+            case INHOMO_VISC:   // set by viscous time, using inhomogeneous viscosity
+              sink_rate = 2.25 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
+              break;
+            case IDEAL_VISC:    // set by viscous time, using ideal fixed Mach disc
+              const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr);
+              sink_rate = 2.25 * nu_ideal / dr_sqr;
+              break;
+            case ADAPT_VISC:    // set by viscous time, using local potential by adaptive sound speed
+              const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
+              const Real omega_sqr_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
+              const Real nu_local = alpha_ * cs_sqr_local * Kokkos::pow(omega_sqr_local, -0.5);
+              sink_rate = 2.25 * nu_local / dr_sqr;
+              break;
+          } // end sink_mode cases
+
+          // apply window and ceiling to sink rate
+          sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4));          // apply sharpened Gaussian profile to sink region
+          sink_rate  = Kokkos::min(sink_rate, max_sink_fac / beta_dt); // limit to maximum % removal per finetimestep
+          const Real rhodot = - rho * sink_rate;
+          drho_acc = rhodot * beta_dt;
+          drho_acc = Kokkos::max(drho_acc, drho_floor);                // ensure accretion only drives to sink value
+
+          // determine momentum change, given torque free sink TODO: add option for non-torque free sink
+          const Real inv_dr = 1.0 / dr;
+          const Real rhatx = dx * inv_dr;
+          const Real rhaty = dy * inv_dr;
+          const Real rhatz = dz * inv_dr;
+          const Real vx_n = nbody_data_.d_view(n, VX_DATA);
+          const Real vy_n = nbody_data_.d_view(n, VY_DATA);
+          const Real vz_n = nbody_data_.d_view(n, VZ_DATA);
+          const Real dvdotrhat = (prim(mb_id, IVX, k, j, i) - vx_n) * rhatx 
+                               + (prim(mb_id, IVY, k, j, i) - vy_n) * rhaty 
+                               + (prim(mb_id, IVZ, k, j, i) - vz_n) * rhatz;
+          const Real vxstar    = dvdotrhat * rhatx + vx_n;
+          const Real vystar    = dvdotrhat * rhaty + vy_n;
+          const Real vzstar    = dvdotrhat * rhatz + vz_n;
+          dpx_acc = drho_acc * vxstar;
+          dpy_acc = drho_acc * vystar;
+          dpz_acc = drho_acc * vzstar;
+
+          // apply accretion updates to cell's conserved quantities
+          cons(mb_id, IDN, k, j, i) += drho_acc;
+          cons(mb_id, IM1, k, j, i) += dpx_acc;
+          if (multi_d) cons(mb_id, IM2, k, j, i) += dpy_acc;
+          if (three_d) cons(mb_id, IM3, k, j, i) += dpz_acc;
+
+          // adiabatic update from accretion
+          if (evolve_energy) {
+            // compute current specific internal energy and kinetic energy updates
+            const Real epsilon        = prim(mb_id, IEN, k, j, i) / prim(mb_id, IDN, k, j, i);
+            const Real vstar_sqr      = SQR(vxstar) + SQR(vystar) + SQR(vzstar);
+            const Real vdagger_sqr    = SQR(prim(mb_id, IVX, k, j, i) - vxstar) 
+                                      + SQR(prim(mb_id, IVY, k, j, i) - vystar) 
+                                      + SQR(prim(mb_id, IVZ, k, j, i) - vzstar);
+            const Real dE_acc         = drho_acc * (epsilon + 0.5 * vstar_sqr - 0.5 * vdagger_sqr);
+            cons(mb_id, IEN, k, j, i) += dE_acc;
+          } // end energy update
+
+          // if flagged, report backreaction on body 
+          if (sum_backreaction_) {
+            // convert from densities 
+            const Real cell_volume = size.d_view(mb_id).dx1 * size.d_view(mb_id).dx2 * size.d_view(mb_id).dx3;
+            const Real dm_tot   = -drho_acc * cell_volume; 
+            const Real dPx_acc  = -dpx_acc  * cell_volume;
+            const Real dPy_acc  = -dpy_acc  * cell_volume;
+            const Real dPz_acc  = -dpz_acc  * cell_volume;
+            // make thread-safe add to backreaction registers
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DM_BACK), dm_tot);
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPX_ACC_BACK), dPx_acc);
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPY_ACC_BACK), dPy_acc);
+            Kokkos::atomic_add(&delta_this_pack_.d_view(n, DPZ_ACC_BACK), dPz_acc);
+          } // end backreaction
+        } // end if flagged for accretion
+      } // end body loop
+    }); // end par_for
 
   return;
 } // end NBody::ApplyAccretion
@@ -675,15 +818,16 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         // update energy using face-centered acceleration and Godunov mass flux on face
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
         if (evolve_energy) {
-          // Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
-          // if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
-          // if (three_d) v_dot_g += prim(mb_id, IVZ, k, j, i) * gv_z(mb_id, n, k, j, i);
-          Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
-                                            + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
-          if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
-                                            + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
-          if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
-                                            + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
+          Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
+          if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
+          if (three_d) v_dot_g += prim(mb_id, IVZ, k, j, i) * gv_z(mb_id, n, k, j, i);
+          const Real rho_v_dot_g = prim(mb_id, IDN, k, j, i) * v_dot_g;
+          // Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
+          //                                   + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
+          // if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
+          //                                   + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
+          // if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
+          //                                   + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
           cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
         } // end energy update
 
