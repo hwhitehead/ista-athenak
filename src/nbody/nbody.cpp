@@ -817,10 +817,10 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
         // i = lower x face, i + 1 = upper x face (and same for y, z with j, k)
         if (evolve_energy) {
           // // METHOD 1: CC ONLY - this is stable and matches the NBodyPointSrc behaviour
-          Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
-          if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
-          if (three_d) v_dot_g += prim(mb_id, IVZ, k, j, i) * gv_z(mb_id, n, k, j, i);
-          const Real rho_v_dot_g = prim(mb_id, IDN, k, j, i) * v_dot_g;
+          Real v_dot_g               = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
+          if (multi_d) v_dot_g      += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
+          if (three_d) v_dot_g      += prim(mb_id, IVZ, k, j, i) * gv_z(mb_id, n, k, j, i);
+          const Real rho_v_dot_g     = prim(mb_id, IDN, k, j, i) * v_dot_g;
           cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
 
           // const Real dEx_fc = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
