@@ -841,7 +841,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
           //                                   + flx2(mb_id, IDN, k, j + 1, i) * gf_y(mb_id, n, k, j + 1, i)); 
           // if (three_d) rho_v_dot_g  += 0.5 * (flx3(mb_id, IDN, k, j, i)     * gf_z(mb_id, n, k, j, i) 
           //                                   + flx3(mb_id, IDN, k + 1, j, i) * gf_z(mb_id, n, k + 1, j, i)); 
-          cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
+          // cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
         } // end energy update
 
         // compute backreaction 
