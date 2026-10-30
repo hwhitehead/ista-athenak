@@ -680,7 +680,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
           const Real f_xr = gf_x(mb_id, n, k, j, i + 1) / gv_x(mb_id, n, k, j, i);
           const Real f_yl = gf_y(mb_id, n, k, j, i) / gv_y(mb_id, n, k, j, i);
           const Real f_yr = gf_y(mb_id, n, k, j+ 1, i) / gv_y(mb_id, n, k, j, i);
-          Kokkos::print("f_xl = %f, f_xr = %f, f_yl = %f, f_yr = %f", f_xl ,f_xr, f_yl, f_yr);
+          Kokkos::printf("f_xl = %f, f_xr = %f, f_yl = %f, f_yr = %f", f_xl ,f_xr, f_yl, f_yr);
 
           Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
           if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
