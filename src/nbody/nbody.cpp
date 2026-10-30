@@ -832,7 +832,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
           // const Real dEy_cc = prim(mb_id, IVY, k, j, i) * prim(mb_id, IDN, k, j, i) * gv_y(mb_id, n, k, j, i);
           //Kokkos::printf("ratio_x = %f, ratio_y = %f\n", dEx_fc / dEx_cc, dEy_fc / dEy_cc);
 
-          // METHOD 2: use fluxes, but only cc gravity
+          // METHOD 2: use fluxes, but only cc gravity - produces the same energy errors as Method 3
           Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gv_x(mb_id, n, k, j, i) 
                                             + flx1(mb_id, IDN, k, j, i + 1) * gv_x(mb_id, n, k, j, i));
           if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gv_y(mb_id, n, k, j, i) 
@@ -841,7 +841,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
                                             + flx3(mb_id, IDN, k + 1, j, i) * gv_z(mb_id, n, k, j, i)); 
           cons(mb_id, IEN, k, j, i) += rho_v_dot_g * beta_dt;
 
-          // METHOD 2: full conservative model
+          // METHOD 3: full conservative model
           // Real rho_v_dot_g           = 0.5 * (flx1(mb_id, IDN, k, j, i)     * gf_x(mb_id, n, k, j, i) 
           //                                   + flx1(mb_id, IDN, k, j, i + 1) * gf_x(mb_id, n, k, j, i + 1));
           // if (multi_d) rho_v_dot_g  += 0.5 * (flx2(mb_id, IDN, k, j, i)     * gf_y(mb_id, n, k, j, i) 
