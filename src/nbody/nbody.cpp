@@ -617,7 +617,6 @@ void NBody::ApplyAccretion(const Real beta_dt) {
   auto &nbody_data_     = nbody_data;
   const int num_nbody_  = num_nbody;
   const Real G_const_   = G_const;
-  const bool su
 
   // thermodynamic properties
   const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
@@ -667,26 +666,20 @@ void NBody::ApplyAccretion(const Real beta_dt) {
           const Real dr = Kokkos::sqrt(dr_sqr);
           // compute mass removal rate
           Real sink_rate = 0.0; // defined such that drho/dt = -rho * sink_rate
-          switch (sink_mode_) {
-            case FLAT_RATE:     // set to fixed, high value
-              sink_rate = 100;
-              break;
-            case HOMO_VISC:     // set by viscous time, using homogeneous viscosity
-              sink_rate = 2.25 * nu_iso_homo_ / dr_sqr;
-              break;
-            case INHOMO_VISC:   // set by viscous time, using inhomogeneous viscosity
-              sink_rate = 2.25 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
-              break;
-            case IDEAL_VISC:    // set by viscous time, using ideal fixed Mach disc
-              const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr);
-              sink_rate = 2.25 * nu_ideal / dr_sqr;
-              break;
-            case ADAPT_VISC:    // set by viscous time, using local potential by adaptive sound speed
-              const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
-              const Real omega_sqr_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
-              const Real nu_local = alpha_ * cs_sqr_local * Kokkos::pow(omega_sqr_local, -0.5);
-              sink_rate = 2.25 * nu_local / dr_sqr;
-              break;
+          if (sink_mode_ == FLAT_RATE) {          // set to fixed, high value
+            sink_rate = 100;
+          } else if (sink_mode_ == HOMO_VISC) {   // set by viscous time, using homogeneous viscosity
+            sink_rate = 2.25 * nu_iso_homo_ / dr_sqr;
+          } else if (sink_mode_ == INHOMO_VISC) { // set by viscous time, using inhomogeneous viscosity
+            sink_rate = 2.25 * nu_iso_inhomo_(mb_id, k, j, i) / dr_sqr;
+          } else if (sink_mode_ == IDEAL_VISC) {  // set by viscous time, using ideal fixed Mach disc
+            const Real nu_ideal = alpha_ * inv_Mach_sqr_ * Kokkos::sqrt(G_const_ * nbody_data_.d_view(n, M_DATA) * dr);
+            sink_rate = 2.25 * nu_ideal / dr_sqr;
+          } else if (sink_mode_ == ADAPT_VISC) {  // set by viscous time, using local potential by adaptive sound speed
+            const Real cs_sqr_local = prim(mb_id, IEN, k, j, i) * gm1 / prim(mb_id, IDN, k, j, i);
+            const Real omega_sqr_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
+            const Real nu_local = alpha_ * cs_sqr_local * Kokkos::pow(omega_sqr_local, -0.5);
+            sink_rate = 2.25 * nu_local / dr_sqr;
           } // end sink_mode cases
 
           // apply window and ceiling to sink rate
