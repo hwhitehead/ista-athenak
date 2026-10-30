@@ -616,6 +616,8 @@ void NBody::ApplyAccretion(const Real beta_dt) {
   // general NBody properties 
   auto &nbody_data_     = nbody_data;
   const int num_nbody_  = num_nbody;
+  const Real G_const_   = G_const;
+  const bool su
 
   // thermodynamic properties
   const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
@@ -631,6 +633,10 @@ void NBody::ApplyAccretion(const Real beta_dt) {
   auto &nu_iso_inhomo_       = nu_iso;
   Real alpha_ = (alpha != 0.0) ? alpha : 0.1; // use fiducial value if not set 
   const Real max_sink_fac = 0.5; // maximal fractional loss per fine timestep
+
+  // back reation properties
+  bool sum_backreaction_ = sum_backreaction;
+  auto &delta_this_pack_ = delta_this_pack;
 
   par_for("nbody_apply_accretion", 
           DevExeSpace(), 
@@ -654,10 +660,9 @@ void NBody::ApplyAccretion(const Real beta_dt) {
         const Real dr_sqr = SQR(dx) + SQR(dy) + SQR(dz);
 
         // make proximity check and floor check
-        const Real r_soft_sqr = SQR(nbody_data_.d_view(n, R_SOFT_DATA));
-        const Real rho_prim   = prim(mb_id, IDN, k, j, i);
-        const Real drho_floor = rho_sink_floor_ - rho_prim;
-        if ((dr_sqr < 2 * r_soft_sqr) && (drho_floor < 0)) {
+        const Real r_soft     = nbody_data_.d_view(n, R_SOFT_DATA);
+        const Real drho_floor = rho_sink_floor_ - prim(mb_id, IDN, k, j, i);
+        if ((dr_sqr < 2 * SQR(r_soft)) && (drho_floor < 0)) {
           Real drho_acc = 0, dpx_acc = 0, dpy_acc = 0, dpz_acc = 0;
           const Real dr = Kokkos::sqrt(dr_sqr);
           // compute mass removal rate
@@ -666,7 +671,7 @@ void NBody::ApplyAccretion(const Real beta_dt) {
             case FLAT_RATE:     // set to fixed, high value
               sink_rate = 100;
               break;
-            case FLAT_VISC:     // set by viscous time, using homogeneous viscosity
+            case HOMO_VISC:     // set by viscous time, using homogeneous viscosity
               sink_rate = 2.25 * nu_iso_homo_ / dr_sqr;
               break;
             case INHOMO_VISC:   // set by viscous time, using inhomogeneous viscosity
@@ -685,9 +690,9 @@ void NBody::ApplyAccretion(const Real beta_dt) {
           } // end sink_mode cases
 
           // apply window and ceiling to sink rate
-          sink_rate *= Kokkos::exp(-Kokkos::pow(r_ratio, 4));          // apply sharpened Gaussian profile to sink region
+          sink_rate *= Kokkos::exp(-Kokkos::pow(dr / r_soft, 4));      // apply sharpened Gaussian profile to sink region
           sink_rate  = Kokkos::min(sink_rate, max_sink_fac / beta_dt); // limit to maximum % removal per finetimestep
-          const Real rhodot = - rho * sink_rate;
+          const Real rhodot = - prim(mb_id, IDN, k, j, i) * sink_rate;
           drho_acc = rhodot * beta_dt;
           drho_acc = Kokkos::max(drho_acc, drho_floor);                // ensure accretion only drives to sink value
 
