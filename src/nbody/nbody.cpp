@@ -679,7 +679,7 @@ void NBody::ApplyGravitationalAcceleration(const Real beta_dt) {
           const Real cc_mass_flux = prim(mb_id, IVX, k, j, i) * prim(mb_id, IDN, k, j, i);
           const Real fc_mass_flux = flx1(mb_id, IDN, k, j, i);
           const Real flux_ratio = cc_mass_flux / fc_mass_flux;
-          Kokkos::printf("flux ratio = %f\n", flux_mass_ratio);
+          Kokkos::printf("flux ratio = %f\n", flux_ratio);
 
           Real v_dot_g = prim(mb_id, IVX, k, j, i) * gv_x(mb_id, n, k, j, i);
           if (multi_d) v_dot_g += prim(mb_id, IVY, k, j, i) * gv_y(mb_id, n, k, j, i);
