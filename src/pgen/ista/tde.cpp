@@ -172,6 +172,10 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
           const Real r_cav_host  = pgen_nbody_data.d_view(n, 9);
           const Real r_disk_host = pgen_nbody_data.d_view(n, 10);
 
+          // if host has no minidisc, skip to next body
+          if (r_disk_host <= 0.0) continue;
+
+          // determine distance to host
           const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
           const Real z = x3v - z_host;
           const Real R = Kokkos::sqrt(R_sqr);
@@ -265,6 +269,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         const Real r_cav_host = pgen_nbody_data.d_view(host_index, 9);
         const Real r_disk_host = pgen_nbody_data.d_view(host_index, 10);
 
+        // determine distance to host
         const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
         const Real z = x3v - z_host;
         const Real R = Kokkos::sqrt(R_sqr);

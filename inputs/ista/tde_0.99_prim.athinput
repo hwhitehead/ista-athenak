@@ -33,7 +33,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
 refinement = adaptive     # static mesh refinement (SMR)
-num_levels = 8
+num_levels = 7
 refinement_interval = 3
 max_nmb_per_rank = 2048
 
@@ -47,7 +47,7 @@ x2min = -0.0086
 x2max =  -0.0076
 x3min = -0.05
 x3max = 0.05
-level = 7
+level = 6
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
@@ -68,9 +68,6 @@ dfloor = 1e-10
 pfloor = 1e-12
 
 <problem>
-prograde            = 1             # rotation direction of disc 
-r_minidisc          = 0.005         # outer radius of initial disc
-r_cavity            = 0.0           # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
 rho_floor_fac       = 1e-8          # floor value applied to non-disc void
 orbit_primary       = 1             # boolean: specify host for disc
@@ -105,6 +102,9 @@ vz0 = 0.0
 r_soft0 = 0.00025
 r_amr0 = 0.0025
 t_amr0 = 0.0
+r_disk0 = 0.005
+r_cav0 = 0.0
+grade0 = 1
 
 m1 =  0.1
 x1 = 0.19580558784893903
@@ -116,6 +116,9 @@ vz1 = 0.0
 r_soft1 = 0.00025
 r_amr1 = 0.0025
 t_amr1 = 0.03
+r_disk0 = 0.0
+r_cav0 = 0.0
+grade0 = 0
 
 <output1>
 file_type  = hst         # history data dump
