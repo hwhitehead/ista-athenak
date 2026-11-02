@@ -92,11 +92,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   pgen_nbody_data.template modify<HostMemSpace>();
   pgen_nbody_data.template sync<DevExeSpace>();
 
-  // determine build mode (single or double for minidiscs)
-  int host_index = -1; // initially unformatted
+  // determine build mode (single or double minidiscs)
+  int host_index = -1; // initially, no host identified
   for (int n = 0; n < num_nbody; n++) {
     if (pgen_nbody_data.h_view(n, 10) > 0.0) {
-      if (host_index != -1) {
+      if (host_index == -1) {
         host_index = n; // first valid host identified
       } else {
         host_index = -2; // multiple hosts identified, build multiple minidiscs
