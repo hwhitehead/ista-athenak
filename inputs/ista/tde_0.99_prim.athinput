@@ -116,9 +116,9 @@ vz1 = 0.0
 r_soft1 = 0.00025
 r_amr1 = 0.0025
 t_amr1 = 0.03
-r_disk0 = 0.0
-r_cav0 = 0.0
-grade0 = 0
+r_disk1 = 0.0
+r_cav1 = 0.0
+grade1 = 0
 
 <output1>
 file_type  = hst         # history data dump
