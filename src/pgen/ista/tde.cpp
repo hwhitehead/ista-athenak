@@ -79,6 +79,44 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     }
   }
 
+  // package body properties
+  DualArray2D<Real> pgen_nbody_data;
+  int pgen_nvar_data = 11; // number of variables in pgen_nbody_data register
+  Kokkos::realloc(pgen_nbody_data, num_nbody, pgen_nvar_data); // NBodyDataIndices
+
+  for (int n = 0; n < num_nbody; n++) {
+    std::string str_n = std::to_string(n);
+    // standard register imports, as in NBody
+    pgen_nbody_data.h_view(n, 0) = pin->GetReal("nbody", "m" + str_n);
+    pgen_nbody_data.h_view(n, 1) = pin->GetReal("nbody", "x" + str_n);
+    pgen_nbody_data.h_view(n, 2) = pin->GetReal("nbody", "y" + str_n);
+    pgen_nbody_data.h_view(n, 3) = pin->GetReal("nbody", "z" + str_n);
+    pgen_nbody_data.h_view(n, 4) = pin->GetReal("nbody", "vx" + str_n);
+    pgen_nbody_data.h_view(n, 5) = pin->GetReal("nbody", "vy" + str_n);
+    pgen_nbody_data.h_view(n, 6) = pin->GetReal("nbody", "vz" + str_n);
+    pgen_nbody_data.h_view(n, 7) = pin->GetReal("nbody", "r_soft" + str_n);
+    // initial conditions imports
+    pgen_nbody_data.h_view(n, 8) = pin->GetReal("nbody", "grade" + str_n);
+    pgen_nbody_data.h_view(n, 9) = pin->GetReal("nbody", "r_cav" + str_n);
+    pgen_nbody_data.h_view(n, 10) = pin->GetReal("nbody", "r_disk" + str_n);
+  } // end nbody loop
+
+  // push properties to device
+  pgen_nbody_data.template modify<HostMemSpace>();
+  pgen_nbody_data.template sync<DevExeSpace>();
+
+  // determine build mode (single or double for minidiscs)
+  int host_index = -1; // initially unformatted
+  for (int n = 0; n < num_nbody; n++) {
+    if (pgen_nbody_data.h_view(n, 10) > 0.0) {
+      if (host_index != -1) {
+        host_index = n; // first valid host identified
+      } else {
+        host_index = -2; // multiple hosts identified, build multiple minidiscs
+      }
+    }
+  } // end nbody loop
+
   // set host properties
   std::string host_index = (orbit_primary) ? "0" : "1";
   const Real m_host      = pin->GetReal("nbody", "m" + host_index);
@@ -130,68 +168,186 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       int nx3     = indcs.nx3;                              // nz
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);   // z coordinate
 
-      // determine distance from host in cylindrical and spherical polars 
-      const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
-      const Real z = x3v - z_host;
-      // const Real r_sqr = R_sqr + SQR(x3v - z_parent);
-      const Real R = Kokkos::sqrt(R_sqr);
+      // construct IC by build configuration
+      if (host_index == -2) {
+        // build multiple minidiscs
 
-      // set density using radial and vertical profile
-      // disc is ALWAYS in the x-y plane, orbit is rotated
-      const Real outer_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_minidisc,4.0));
-      Real radial_profile;
-      if (alpha == 0.0) {
-        // constant nu -> constant surface density
-        radial_profile = 1.0;
+        // iterate over potential hosts, determine contributions
+        // density: linear sum of minidisc contributions (assuming no overlap)
+        // velocity: weighted by local angular frequency
+        // sound speed: determine by constant Mach profile
+        Real sum_rho = 0.0;
+        Real sum_phi = 0.0;
+        Real sum_omega_sqr = 0.0;
+        Real weighted_vx_sum = 0.0, weighted_vy_sum = 0.0, weighted_vz_sum = 0.0;
+        for (int n = 0; n < num_nbody; n++) {
+          // unpack host properties
+          const Real m_host = pgen_nbody_data(n, 0);
+          const Real x_host = pgen_nbody_data(n, 1);
+          const Real y_host = pgen_nbody_data(n, 2);
+          const Real z_host = pgen_nbody_data(n, 3);
+          const Real vx_host = pgen_nbody_data(n, 4);
+          const Real vy_host = pgen_nbody_data(n, 5);
+          const Real vz_host = pgen_nbody_data(n, 6);
+          const Real r_soft_host = pgen_nbody_data(n, 7);
+          const Real grade_host = pgen_nbody_data(n, 8);
+          const Real r_cav_host = pgen_nbody_data(n, 9);
+          const Real r_disk_host = pgen_nbody_data(n, 10);
+
+          const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
+          const Real z = x3v - z_host;
+          const Real R = Kokkos::sqrt(R_sqr);
+
+          // set density using radial and vertical profile
+          // disc is ALWAYS in the x-y plane, orbit is rotated
+          const Real outer_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_disk_host,4.0));
+          Real radial_profile;
+          if (alpha == 0.0) {
+            // constant nu -> constant surface density
+            radial_profile = 1.0;
+          } else {
+            // constant alpha -> surface density propto r^-0.5
+            if (R < r_soft_host) { // set as flat within sink
+              radial_profile = Kokkos::pow(r_soft_host / r_disk_host, -0.5);
+            } else {
+              radial_profile = Kokkos::pow(R / r_disk_host, -0.5);
+            }
+          }
+          const Real inner_profile = rho_floor_fac + (1.0 - rho_floor_fac) * Kokkos::exp(-Kokkos::pow((r_cav_host / R), 4.0));
+          const Real H_sqr = R_sqr * inv_Mach_sqr;
+          const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
+          Real rho = rho0 * radial_profile * inner_profile * outer_profile * vertical_profile;
+          sum_rho += rho;
+
+          // set velocity in disc (everything softened-Keplerian about host)
+          // velocity profile is such that g + v^2 / r + dPdr / rho = 0
+          Real g_soft;
+          if (soft_mode == 0) {
+            g_soft = nbody::CalcPlummerAcceleration(G_const * m_host, R, r_soft_host);
+          } else {
+            g_soft = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
+          }
+          Real v_phi = Kokkos::sqrt(-g_soft * R * (1.0 - inv_Mach_sqr));
+          if (grade_host != 1.0) { // if retrograde, flip sign of velocity
+            v_phi *= -1.0;
+          }
+          const Real phi = Kokkos::atan2(x2v - y_host, x1v - x_host); // RH argument from +x axis
+          const Real vx = vx_host - v_phi * Kokkos::sin(phi);
+          const Real vy = vy_host + v_phi * Kokkos::cos(phi);
+          const Real vz = vz_host;
+
+          // add local potential to total
+          Real phi_grav;
+          if (soft_mode == 0) {
+            phi_grav = nbody::CalcPlummerPotential(G_const * m_host, R, r_soft_host);
+          } else {
+            phi_grav = nbody::CalcSplinePotential(G_const * m_host, R, r_soft_host);
+          }
+          sum_phi += phi_grav;
+
+          // add local orbital frequnecy to total
+          const Real omega_sqr = G_const * pgen_nbody_data.d_view(n, 0) * Kokkos::pow(R, -3.0);
+          sum_omega_sqr += omega_sqr;
+
+          // add weighted velocity to total
+          weighted_vx_sum += vx * omega_sqr;
+          weighted_vy_sum += vy * omega_sqr;
+          weighted_vz_sum += vz * omega_sqr;
+        } // end nbody loop
+
+        // compute local hydrodynamic properties (applying floors)
+        const Real rho  = Kokkos::max(sum_rho, rho0 * rho_floor_fac);
+        const Real norm = 1.0 / sum_omega_sqr;
+        const Real vx   = weighted_vx_sum * norm;
+        const Real vy   = weighted_vy_sum * norm;
+        const Real vz   = weighted_vz_sum * norm;
+        Real cs_sqr     = -sum_phi * inv_Mach_sqr;
+        cs_sqr_local    = Kokkos::max(cs_sqr_local, cs_sqr_floor);
+        const Real U    = cs_sqr * rho * inv_gm1;
+
+        // stash primitive values
+        w0_(m, IDN, k, j, i)               = rho;              
+        w0_(m, IVX, k, j, i)               = vx;               
+        w0_(m, IVY, k, j, i)               = vy;               
+        if (three_d) w0_(m, IVZ, k, j, i)  = vz;             
+        if (is_ideal) w0_(m, IEN, k, j, i) = U;   
       } else {
-        // constant alpha -> surface density propto r^-0.5
-        if (R < r_soft_host) { // set as flat within sink
-          radial_profile = Kokkos::pow(r_soft_host / r_minidisc, -0.5);
+        // build single minidisc about body indexed by host_index
+
+        // unpack host properties
+        const Real m_host = pgen_nbody_data(host_index, 0);
+        const Real x_host = pgen_nbody_data(host_index, 1);
+        const Real y_host = pgen_nbody_data(host_index, 2);
+        const Real z_host = pgen_nbody_data(host_index, 3);
+        const Real vx_host = pgen_nbody_data(host_index, 4);
+        const Real vy_host = pgen_nbody_data(host_index, 5);
+        const Real vz_host = pgen_nbody_data(host_index, 6);
+        const Real r_soft_host = pgen_nbody_data(host_index, 7);
+        const Real grade_host = pgen_nbody_data(host_index, 8);
+        const Real r_cav_host = pgen_nbody_data(host_index, 9);
+        const Real r_disk_host = pgen_nbody_data(host_index, 10);
+
+        const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
+        const Real z = x3v - z_host;
+        const Real R = Kokkos::sqrt(R_sqr);
+
+        // set density using radial and vertical profile
+        // disc is ALWAYS in the x-y plane, orbit is rotated
+        const Real outer_profile = 1.0 / Kokkos::cosh(Kokkos::pow(R/r_disk_host,4.0));
+        Real radial_profile;
+        if (alpha == 0.0) {
+          // constant nu -> constant surface density
+          radial_profile = 1.0;
         } else {
-          radial_profile = Kokkos::pow(R / r_minidisc, -0.5);
+          // constant alpha -> surface density propto r^-0.5
+          if (R < r_soft_host) { // set as flat within sink
+            radial_profile = Kokkos::pow(r_soft_host / r_disk_host, -0.5);
+          } else {
+            radial_profile = Kokkos::pow(R / r_disk_host, -0.5);
+          }
         }
-      }
-      const Real inner_profile = rho_floor_fac + (1.0 - rho_floor_fac) * Kokkos::exp(-Kokkos::pow((r_cavity / R), 4.0));
-      const Real H_sqr = R_sqr * inv_Mach_sqr;
-      const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
-      Real rho = rho0 * radial_profile * inner_profile * outer_profile * vertical_profile;
-      rho = Kokkos::max(rho, rho0 * rho_floor_fac);
+        const Real inner_profile = rho_floor_fac + (1.0 - rho_floor_fac) * Kokkos::exp(-Kokkos::pow((r_cav_host / R), 4.0));
+        const Real H_sqr = R_sqr * inv_Mach_sqr;
+        const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
+        Real rho = rho0 * radial_profile * inner_profile * outer_profile * vertical_profile;
+        rho = Kokkos::max(rho, rho0 * rho_floor_fac);
 
-      // set velocity in disc (everything softened-Keplerian about host)
-      // velocity profile is such that g + v^2 / r + dPdr / rho = 0
-      Real g_soft;
-      if (soft_mode == 0) {
-        g_soft = nbody::CalcPlummerAcceleration(G_const * m_host, R, r_soft_host);
-      } else {
-        g_soft = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
-      }
-      Real v_phi = Kokkos::sqrt(-g_soft * R * (1.0 - inv_Mach_sqr));
-      if (!prograde) {
-        v_phi *= -1.0;
-      }
-      const Real phi = Kokkos::atan2(x2v - y_host, x1v - x_host); // RH argument from +x axis
-      const Real vx = vx_host - v_phi * Kokkos::sin(phi);
-      const Real vy = vy_host + v_phi * Kokkos::cos(phi);
-      const Real vz = vz_host;
+        // set velocity in disc (everything softened-Keplerian about host)
+        // velocity profile is such that g + v^2 / r + dPdr / rho = 0
+        Real g_soft;
+        if (soft_mode == 0) {
+          g_soft = nbody::CalcPlummerAcceleration(G_const * m_host, R, r_soft_host);
+        } else {
+          g_soft = nbody::CalcSplineAcceleration(G_const * m_host, R, r_soft_host);
+        }
+        Real v_phi = Kokkos::sqrt(-g_soft * R * (1.0 - inv_Mach_sqr));
+        if (grade_host != 1.0) { // if retrograde, flip sign of velocity
+            v_phi *= -1.0;
+          }
+        const Real phi = Kokkos::atan2(x2v - y_host, x1v - x_host); // RH argument from +x axis
+        const Real vx = vx_host - v_phi * Kokkos::sin(phi);
+        const Real vy = vy_host + v_phi * Kokkos::cos(phi);
+        const Real vz = vz_host;
 
-      // set pressure using fixed Mach number prescription
-      Real phi_grav;
-      if (soft_mode == 0) {
-        phi_grav = nbody::CalcPlummerPotential(G_const * m_host, R, r_soft_host);
-      } else {
-        phi_grav = nbody::CalcSplinePotential(G_const * m_host, R, r_soft_host);
-      }
-      Real cs_sqr_local = -phi_grav * inv_Mach_sqr;
-      cs_sqr_local      = Kokkos::max(cs_sqr_local, cs_sqr_floor);
-      const Real U      = cs_sqr_local * rho * inv_gm1;
-      
-      // ===== Set primitive variables =====
-      w0_(m, IDN, k, j, i)               = rho;              
-      w0_(m, IVX, k, j, i)               = vx;               
-      w0_(m, IVY, k, j, i)               = vy;               
-      if (three_d) w0_(m, IVZ, k, j, i)    = vz;             
-      if (is_ideal) w0_(m, IEN, k, j, i) = U;   
-    }); 
+        // set pressure using fixed Mach number prescription
+        Real phi_grav;
+        if (soft_mode == 0) {
+          phi_grav = nbody::CalcPlummerPotential(G_const * m_host, R, r_soft_host);
+        } else {
+          phi_grav = nbody::CalcSplinePotential(G_const * m_host, R, r_soft_host);
+        }
+        Real cs_sqr_local = -phi_grav * inv_Mach_sqr;
+        cs_sqr_local      = Kokkos::max(cs_sqr_local, cs_sqr_floor);
+        const Real U      = cs_sqr_local * rho * inv_gm1;
+        
+        // ===== Set primitive variables =====
+        w0_(m, IDN, k, j, i)               = rho;              
+        w0_(m, IVX, k, j, i)               = vx;               
+        w0_(m, IVY, k, j, i)               = vy;               
+        if (three_d) w0_(m, IVZ, k, j, i)  = vz;             
+        if (is_ideal) w0_(m, IEN, k, j, i) = U;   
+      } // end single minidisc build
+    }); // end parfor
 
     // ===== Convert primitives to conserved variables =====
     pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is_wg, ie_wg, js_wg, je_wg, ks_wg, ke_wg);
