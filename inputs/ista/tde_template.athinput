@@ -58,19 +58,16 @@ tlim       = TLIM        # time limit
 ndiag      = 1.6667     # cycles between diagostic output
 
 <hydro>
-eos         = ideal         # EOS type
-reconstruct = ppm4          # spatial reconstruction method
-rsolver     = hlle          # Riemann-solver to be used
-gamma       = 1.4           # gamma = C_p/C_v (ideal only)
-iso_sound_speed = 1.0       # isothermal only
-nu_iso = 8e-7               # must be non-zero to use alpha prescription
-dfloor = 1e-10
-pfloor = 1e-12
+eos             = ideal         # EOS type
+reconstruct     = ppm4          # spatial reconstruction method
+rsolver         = hlle          # Riemann-solver to be used
+gamma           = 1.4           # gamma = C_p/C_v (ideal only)
+iso_sound_speed = 1.0           # isothermal only
+nu_iso          = NU_ISO        # must be non-zero to use alpha prescription
+dfloor          = 1e-12
+pfloor          = 1e-12
 
 <problem>
-prograde            = PROGRADE      # rotation direction of disc 
-r_minidisc          = R_MINIDISC    # outer radius of initial disc
-r_cavity            = R_CAVITY      # inner radius of initial disc
 rho0                = 1.0           # homogeneous density of disc
 rho_floor_fac       = 1e-8          # floor value applied to non-disc void
 disc_host           = DISC_HOST             # boolean: specify host for disc
@@ -95,27 +92,33 @@ visc_mode           = VISC_MODE             # visc calc mode  0 = true, 1 = idea
 soft_mode           = SOFT_MODE             # gravitational softening mode 0 = plummer, 1 = spline
 torq_mode           = 0             # (INACTIVE) angular momentum removal in sink 0 = torque free, 1 = free fall 
 
-m0 = M0
-x0 = X0
-y0 = Y0
-z0 = Z0
-vx0 = VX0
-vy0 = VY0
-vz0 = VZ0
+m0      = M0
+x0      = X0
+y0      = Y0
+z0      = Z0
+vx0     = VX0
+vy0     = VY0
+vz0     = VZ0
 r_soft0 = R_SOFT0
-r_amr0 = R_AMR0
-t_amr0 = T_AMR0
+r_amr0  = R_AMR0
+t_amr0  = T_AMR0
+r_soft0 = R_SOFT0
+r_cav0  = R_CAV0
+grade0  = GRADE0
 
-m1 = M1
-x1 = X1
-y1 = Y1
-z1 = Z1
-vx1 = VX1
-vy1 = VY1
-vz1 = VZ1
+m1      = M1
+x1      = X1
+y1      = Y1
+z1      = Z1
+vx1     = VX1
+vy1     = VY1
+vz1     = VZ1
 r_soft1 = R_SOFT1
-r_amr1 = R_AMR1
-t_amr1 = T_AMR1
+r_amr1  = R_AMR1
+t_amr1  = T_AMR1
+r_soft1 = R_SOFT1
+r_cav1  = R_CAV1
+grade1  = GRADE1
 
 <output1>
 file_type  = hst         # history data dump

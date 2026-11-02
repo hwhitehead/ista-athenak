@@ -1,11 +1,22 @@
 import sys, os, re
 import numpy as np
+from shutil import copyfile
+from copy import deepcopy
 
 pysrc = os.path.join(os.path.dirname(__file__), "/Users/hwhitehead/github/ista-athenak/pysrc")
 if pysrc not in sys.path: sys.path.append(pysrc)
 from ista_classes import NBody, InitBinary
 
-def build_athinput(): 
+def build_athinput(athinput_dict, output_file, template_file): 
+
+    copyfile(template_file, output_file)
+    # open as read for replacement
+    with open(output_file, "r") as file:
+        file_data = file.read()
+        # write mesh format
+        file_data = file_data.replace("RUN_LABEL_VAL", str(run_label))
+
+
 
 if __name__ == "__main__":
 
@@ -23,3 +34,6 @@ if __name__ == "__main__":
 
     # define physics settings
     athinput_dict[""]
+
+    # define path to input template and output
+    template_file = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_template.athinput"
