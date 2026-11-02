@@ -1340,7 +1340,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         // compute orbital frequency
         sum_omega_sqr += G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
         // compute softened gravitational potential (if needed for ideal viscosity)
-        if (visc_mode == 0) continue;
+        if (visc_mode_ == 0) continue;
         const Real Gm_n = G_const_ * nbody_data_.d_view(n, M_DATA);
         const Real r_s  = nbody_data_.d_view(n, R_SOFT_DATA);
         if (soft_mode_ == 0) {
@@ -1355,7 +1355,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       if (visc_mode_ == 0) {
         cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
       } else {
-        cs_sqr = -sum_phi * inv_Mach_sqr;
+        cs_sqr = -sum_phi * inv_Mach_sqr_;
       }
 
       // compute local kinematic viscosity using alpha prescripton
