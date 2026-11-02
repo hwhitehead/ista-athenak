@@ -49,6 +49,15 @@ x3min = -0.05
 x3max = 0.05
 level = 6
 
+<refined_region2>
+x1min = 0.18           
+x1max = 0.21
+x2min = 0.076
+x2max = 0.086
+x3min = -0.05
+x3max = 0.05
+level = 6
+
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
 integrator = rk2        # time integration algorithm
@@ -115,7 +124,7 @@ vy1 = -0.44690275783704486
 vz1 = 0.0
 r_soft1 = 0.0005
 r_amr1 = 0.0025
-t_amr1 = 0.03
+t_amr1 = 0.0
 r_disk1 = 0.005
 r_cav1 = 0.0
 grade1 = 0
