@@ -1316,7 +1316,8 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
   const Real G_const_      = G_const;
   const Real nu_max_       = nu_max;
   const Real visc_mode_    = visc_mode;
-  const Real soft_mode_    = visc_mode;
+  const Real soft_mode_    = soft_mode;
+  const Real inv_Mach_sqr_ = inv_Mach_sqr;
   const Real gm1           = pmy_pack->phydro->peos->eos_data.gamma - 1.0;
 
   par_for("nbody_calc_visc", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
@@ -1329,6 +1330,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
 
       // compute local omega via quadratic sum of true orbital frequencies
       Real sum_omega_sqr = 0.0;
+      Real sum_phi = 0.0;
       for (int n = 0; n < num_nbody_; n++) {
         // compute true and softened seperation
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
@@ -1337,10 +1339,24 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
         const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz)) + FLT_MIN;
         // compute orbital frequency
         sum_omega_sqr += G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr, -3.0);
+        // compute softened gravitational potential (if needed for ideal viscosity)
+        if (visc_mode == 0) continue;
+        const Real Gm_n = G_const_ * nbody_data_.d_view(n, M_DATA);
+        const Real r_s  = nbody_data_.d_view(n, R_SOFT_DATA);
+        if (soft_mode_ == 0) {
+          sum_phi += CalcPlummerPotential(Gm_n, dr, r_s);
+        } else {
+          sum_phi += CalcSplinePotential(Gm_n, dr, r_s);
+        }
       }
 
-      // calculate local sound speed from primitive state
-      const Real cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
+      // calculate local sound speed as either ideal or true from primitive state
+      Real cs_sqr; 
+      if (visc_mode_ == 0) {
+        cs_sqr = w0(mb_id, IEN, k, j, i) * gm1 / w0(mb_id, IDN, k, j, i); 
+      } else {
+        cs_sqr = -sum_phi * inv_Mach_sqr;
+      }
 
       // compute local kinematic viscosity using alpha prescripton
       Real nu = alpha_ * cs_sqr * Kokkos::pow(sum_omega_sqr, -0.5);
