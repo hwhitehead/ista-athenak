@@ -66,19 +66,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real Mach  = pin->GetOrAddReal("nbody", "Mach", 10.0);
   const Real alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
 
-  // define host, with check for number of bodies
-  bool orbit_primary = pin->GetOrAddBoolean("problem", "orbit_primary", true);
-  if (num_nbody == 1) {
-    // enforce primary as host
-    orbit_primary = true;
-  } else if (num_nbody == 0){
-    if (global_variable::my_rank == 0) {
-      std::cout << "### FATAL ERROR in ProblemGenerator::UserProblem" << std::endl
-                << "Require num_nbody > 0 to host disc" << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-  }
-
   // package body properties
   DualArray2D<Real> pgen_nbody_data;
   int pgen_nvar_data = 11; // number of variables in pgen_nbody_data register
@@ -116,17 +103,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       }
     }
   } // end nbody loop
-
-  // set host properties
-  std::string host_index = (orbit_primary) ? "0" : "1";
-  const Real m_host      = pin->GetReal("nbody", "m" + host_index);
-  const Real x_host      = pin->GetReal("nbody", "x" + host_index);
-  const Real y_host      = pin->GetReal("nbody", "y" + host_index);
-  const Real z_host      = pin->GetReal("nbody", "z" + host_index);
-  const Real vx_host     = pin->GetReal("nbody", "vx" + host_index);
-  const Real vy_host     = pin->GetReal("nbody", "vy" + host_index);
-  const Real vz_host     = pin->GetReal("nbody", "vz" + host_index);
-  const Real r_soft_host = pin->GetReal("nbody", "r_soft" + host_index);
 
   // set initial hydrodynamic state
   if (pmbp->phydro != nullptr) 
@@ -176,23 +152,25 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         // density: linear sum of minidisc contributions (assuming no overlap)
         // velocity: weighted by local angular frequency
         // sound speed: determine by constant Mach profile
-        Real sum_rho = 0.0;
-        Real sum_phi = 0.0;
-        Real sum_omega_sqr = 0.0;
-        Real weighted_vx_sum = 0.0, weighted_vy_sum = 0.0, weighted_vz_sum = 0.0;
+        Real sum_rho         = 0.0;
+        Real sum_phi         = 0.0;
+        Real sum_omega_sqr   = 0.0;
+        Real weighted_vx_sum = 0.0; 
+        Real weighted_vy_sum = 0.0; 
+        Real weighted_vz_sum = 0.0;
         for (int n = 0; n < num_nbody; n++) {
           // unpack host properties
-          const Real m_host = pgen_nbody_data(n, 0);
-          const Real x_host = pgen_nbody_data(n, 1);
-          const Real y_host = pgen_nbody_data(n, 2);
-          const Real z_host = pgen_nbody_data(n, 3);
-          const Real vx_host = pgen_nbody_data(n, 4);
-          const Real vy_host = pgen_nbody_data(n, 5);
-          const Real vz_host = pgen_nbody_data(n, 6);
-          const Real r_soft_host = pgen_nbody_data(n, 7);
-          const Real grade_host = pgen_nbody_data(n, 8);
-          const Real r_cav_host = pgen_nbody_data(n, 9);
-          const Real r_disk_host = pgen_nbody_data(n, 10);
+          const Real m_host      = pgen_nbody_data.d_view(n, 0);
+          const Real x_host      = pgen_nbody_data.d_view(n, 1);
+          const Real y_host      = pgen_nbody_data.d_view(n, 2);
+          const Real z_host      = pgen_nbody_data.d_view(n, 3);
+          const Real vx_host     = pgen_nbody_data.d_view(n, 4);
+          const Real vy_host     = pgen_nbody_data.d_view(n, 5);
+          const Real vz_host     = pgen_nbody_data.d_view(n, 6);
+          const Real r_soft_host = pgen_nbody_data.d_view(n, 7);
+          const Real grade_host  = pgen_nbody_data.d_view(n, 8);
+          const Real r_cav_host  = pgen_nbody_data.d_view(n, 9);
+          const Real r_disk_host = pgen_nbody_data.d_view(n, 10);
 
           const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
           const Real z = x3v - z_host;
@@ -217,7 +195,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
           const Real H_sqr = R_sqr * inv_Mach_sqr;
           const Real vertical_profile = Kokkos::exp(-0.5 * SQR(z) / H_sqr); // unity if 2D
           Real rho = rho0 * radial_profile * inner_profile * outer_profile * vertical_profile;
-          sum_rho += rho;
 
           // set velocity in disc (everything softened-Keplerian about host)
           // velocity profile is such that g + v^2 / r + dPdr / rho = 0
@@ -243,26 +220,27 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
           } else {
             phi_grav = nbody::CalcSplinePotential(G_const * m_host, R, r_soft_host);
           }
-          sum_phi += phi_grav;
 
-          // add local orbital frequnecy to total
+          // compute local orbital frequnecy
           const Real omega_sqr = G_const * pgen_nbody_data.d_view(n, 0) * Kokkos::pow(R, -3.0);
-          sum_omega_sqr += omega_sqr;
-
-          // add weighted velocity to total
-          weighted_vx_sum += vx * omega_sqr;
+          
+          // add local values to sum
+          sum_omega_sqr   += omega_sqr;       // used to determine weighting
+          sum_rho         += rho;             // linear sum (no minidisc overlap)
+          weighted_vx_sum += vx * omega_sqr;  // weighted by square orbital frequency
           weighted_vy_sum += vy * omega_sqr;
           weighted_vz_sum += vz * omega_sqr;
+          sum_phi         += phi_grav;        // coherant with constant Mach number profile
         } // end nbody loop
 
-        // compute local hydrodynamic properties (applying floors)
+        // compute local hydrodynamic properties (applying normalisation and floors)
         const Real rho  = Kokkos::max(sum_rho, rho0 * rho_floor_fac);
         const Real norm = 1.0 / sum_omega_sqr;
         const Real vx   = weighted_vx_sum * norm;
         const Real vy   = weighted_vy_sum * norm;
         const Real vz   = weighted_vz_sum * norm;
         Real cs_sqr     = -sum_phi * inv_Mach_sqr;
-        cs_sqr_local    = Kokkos::max(cs_sqr_local, cs_sqr_floor);
+        cs_sqr          = Kokkos::max(cs_sqr, cs_sqr_floor);
         const Real U    = cs_sqr * rho * inv_gm1;
 
         // stash primitive values
@@ -275,17 +253,17 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         // build single minidisc about body indexed by host_index
 
         // unpack host properties
-        const Real m_host = pgen_nbody_data(host_index, 0);
-        const Real x_host = pgen_nbody_data(host_index, 1);
-        const Real y_host = pgen_nbody_data(host_index, 2);
-        const Real z_host = pgen_nbody_data(host_index, 3);
-        const Real vx_host = pgen_nbody_data(host_index, 4);
-        const Real vy_host = pgen_nbody_data(host_index, 5);
-        const Real vz_host = pgen_nbody_data(host_index, 6);
-        const Real r_soft_host = pgen_nbody_data(host_index, 7);
-        const Real grade_host = pgen_nbody_data(host_index, 8);
-        const Real r_cav_host = pgen_nbody_data(host_index, 9);
-        const Real r_disk_host = pgen_nbody_data(host_index, 10);
+        const Real m_host = pgen_nbody_data.d_view(host_index, 0);
+        const Real x_host = pgen_nbody_data.d_view(host_index, 1);
+        const Real y_host = pgen_nbody_data.d_view(host_index, 2);
+        const Real z_host = pgen_nbody_data.d_view(host_index, 3);
+        const Real vx_host = pgen_nbody_data.d_view(host_index, 4);
+        const Real vy_host = pgen_nbody_data.d_view (host_index, 5);
+        const Real vz_host = pgen_nbody_data.d_view(host_index, 6);
+        const Real r_soft_host = pgen_nbody_data.d_view(host_index, 7);
+        const Real grade_host = pgen_nbody_data.d_view(host_index, 8);
+        const Real r_cav_host = pgen_nbody_data.d_view(host_index, 9);
+        const Real r_disk_host = pgen_nbody_data.d_view(host_index, 10);
 
         const Real R_sqr = SQR(x1v - x_host) + SQR(x2v - y_host);
         const Real z = x3v - z_host;
