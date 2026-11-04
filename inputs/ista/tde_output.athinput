@@ -5,13 +5,13 @@ basename  = nbody       # problem ID: basename of output filenames
  
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
-nx1       = 160       # Number of zones in X1-direction (root level, dx=0.1)
+nx1       = 320       # Number of zones in X1-direction (root level, dx=0.1)
 x1min     = -0.5120000000000005     # minimum value of X1
 x1max     = 0.5120000000000005     # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
-nx2       = 64       # Number of zones in X2-direction (root level, dx=0.1)
+nx2       = 128       # Number of zones in X2-direction (root level, dx=0.1)
 x2min     = -0.20480000000000018     # minimum value of X2
 x2max     = 0.20480000000000018     # maximum value of X2
 ix2_bc    = outflow     # inner-X2 boundary flag
@@ -30,7 +30,7 @@ nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <mesh_refinement>
 refinement          = adaptive     # static mesh refinement (SMR)
-num_levels          = 6
+num_levels          = 7
 refinement_interval = 3
 max_nmb_per_rank    = 2048
 
@@ -86,7 +86,7 @@ z0      = -0.0
 vx0     = 0.25865255918176666
 vy0     = 0.044690275783704485
 vz0     = -0.0
-r_soft0 = 0.0010000000000000009
+r_soft0 = 0.0005000000000000004
 r_amr0  = 0.0031176595388187228
 t_amr0  = 0.0
 r_disk0 = 0.0
@@ -100,7 +100,7 @@ z1      = 0.0
 vx1     = -2.5865255918176664
 vy1     = -0.44690275783704486
 vz1     = 0.0
-r_soft1 = 0.0010000000000000009
+r_soft1 = 0.0005000000000000004
 r_amr1  = 0.0031176595388187228
 t_amr1  = 0.0
 r_disk1 = 0.0062353190776374455
@@ -123,7 +123,7 @@ x2min = -0.009669362776956068
 x2max = -0.006551703238137345
 x3min = -0.05
 x3max = 0.05
-level = 5
+level = 6
 
 <refined_region2>
 x1min = 0.19424675807952968
@@ -132,7 +132,7 @@ x2min = 0.07954650030605769
 x2max = 0.08266415984487642
 x3min = -0.05
 x3max = 0.05
-level = 5
+level = 6
 
 <comment>
 a = 1.0
@@ -166,9 +166,9 @@ t_amr1 = 0.0
 Mach = 50.0
 alpha = 0.1
 nu_iso = 1e-08
-cells_per_soft = 5
-soft_per_rp = 10
-num_levels = 6
+cells_per_soft = 10
+soft_per_rp = 20
+num_levels = 7
 max_nmb_per_rank = 2048
 domain_scale = 2.5
 three_d = False
