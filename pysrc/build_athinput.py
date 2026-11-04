@@ -94,11 +94,12 @@ def build_athinput(IC_dict, output_file, template_file):
     # specify disc properties and physics modules
     athinput_dict["MACH"]         = IC_dict["Mach"]
     athinput_dict["ALPHA"]        = IC_dict["alpha"]
-    athinput_dict["COOLING_MODE"] = IC_dict["cooling_mode"]
     athinput_dict["NU_ISO"]       = IC_dict["nu_iso"]
+    athinput_dict["GRAV_MODE"]    = IC_dict["grav_mode"]
+    athinput_dict["COOLING_MODE"] = IC_dict["cooling_mode"]
     athinput_dict["SINK_MODE"]    = IC_dict["sink_mode"]
-    athinput_dict["VISC_MODE"]    = IC_dict["sink_mode"]
-    athinput_dict["SOFT_MODE"]    = IC_dict["sink_mode"]
+    athinput_dict["VISC_MODE"]    = IC_dict["visc_mode"]
+    athinput_dict["SOFT_MODE"]    = IC_dict["soft_mode"]
 
     # specify non-binary nbody properties
     r_H_p = r_p * np.cbrt(IC_dict["q"] / (3 * (1 + IC_dict["q"]))) # Hill radius at periapsis
@@ -192,11 +193,12 @@ if __name__ == "__main__":
     IC_dict['hydro_dt']  = None
 
     # define physics settings
-    IC_dict["cooling_mode"] = 2
     IC_dict["grav_mode"]    = 2
-    IC_dict["visc_mode"]    = 1
-    IC_dict["soft_mode"]    = 2
+    IC_dict["cooling_mode"] = 2
     IC_dict["sink_mode"]    = 2
+    IC_dict["visc_mode"]    = 1
+    IC_dict["grav_mode"]    = 2
+    IC_dict["soft_mode"]    = 0
 
     # non-binary nbody properties
     IC_dict["grade0"]  = 1
