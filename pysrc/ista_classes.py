@@ -658,8 +658,6 @@ class InitBinary:
         X, Y, VX, VY = self.init_in_plane(theta)    
         P = np.array([X, Y, 0])
         V = np.array([VX, VY, 0])
-        print(P)
-        print(V)
 
         # incline binary with rotation of i about y axis
         R_y = np.array([[np.cos(i), 0, np.sin(i)],
@@ -668,8 +666,6 @@ class InitBinary:
 
         p = np.matmul(R_y, P)
         v = np.matmul(R_y, V)
-        print(p)
-        print(v)
 
         # split binary into components
         p_prim = p * self.prim_fac
