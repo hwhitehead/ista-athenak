@@ -87,7 +87,7 @@ vx0     = 0.25865255918176666
 vy0     = 0.044690275783704485
 vz0     = -0.0
 r_soft0 = 0.0005000000000000004
-r_amr0  = 0.0031176595388187228
+r_amr0  = 0.004676489308228084
 t_amr0  = 0.0
 r_disk0 = 0.0
 r_cav0  = 0.0
@@ -101,11 +101,11 @@ vx1     = -2.5865255918176664
 vy1     = -0.44690275783704486
 vz1     = 0.0
 r_soft1 = 0.0005000000000000004
-r_amr1  = 0.0031176595388187228
+r_amr1  = 0.004676489308228084
 t_amr1  = 0.0
-r_disk1 = 0.0062353190776374455
+r_disk1 = 0.009352978616456169
 r_cav1  = 0.0
-grade1  = 1
+grade1  = 0
 
 <output1>
 file_type  = hst         # history data dump
@@ -117,19 +117,19 @@ variable   = hydro_w    # variables to be output
 dt         = 0.0005585564208097473     # time increment between outputs
 
 <refined_region1>
-x1min = -0.021139388554303265
-x1max = -0.018021729015484544
-x2min = -0.009669362776956068
-x2max = -0.006551703238137345
+x1min = -0.02191880343900795
+x1max = -0.01724231413077986
+x2min = -0.010448777661660748
+x2max = -0.005772288353432664
 x3min = -0.05
 x3max = 0.05
 level = 6
 
 <refined_region2>
-x1min = 0.19424675807952968
-x1max = 0.1973644176183484
-x2min = 0.07954650030605769
-x2max = 0.08266415984487642
+x1min = 0.193467343194825
+x1max = 0.19814383250305306
+x2min = 0.07876708542135301
+x2max = 0.0834435747295811
 x3min = -0.05
 x3max = 0.05
 level = 6
@@ -152,13 +152,13 @@ sink_mode = 2
 visc_mode = 1
 soft_mode = 0
 grade0 = 1
-grade1 = 1
+grade1 = 0
 r_cav0 = 0.0
 r_cav1 = 0.0
 r_disk0 = None
 r_disk1 = None
 beta0 = 0
-beta1 = 2
+beta1 = 3
 r_amr0 = None
 r_amr1 = None
 t_amr0 = 0.0
