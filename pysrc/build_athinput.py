@@ -202,13 +202,13 @@ if __name__ == "__main__":
 
     # non-binary nbody properties
     IC_dict["grade0"]  = 1
-    IC_dict["grade1"]  = 1
+    IC_dict["grade1"]  = 0
     IC_dict["r_cav0"]  = 0.0
     IC_dict["r_cav1"]  = 0.0
     IC_dict["r_disk0"] = None # set with scaling to periapsis?
     IC_dict["r_disk1"] = None
     IC_dict["beta0"]   = 0    # TDE-like impact parameter = r_t / r_p
-    IC_dict["beta1"]   = 2
+    IC_dict["beta1"]   = 3
     IC_dict["r_amr0"]  = None # auto set as half-disc width
     IC_dict["r_amr1"]  = None # auto set as half-disc width
     
