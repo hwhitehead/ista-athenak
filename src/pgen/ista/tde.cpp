@@ -24,22 +24,21 @@
 
 // nbody problem generator
 void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
-
-  // load nbody properties
-  int num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
+  
+  // determine .hst output settings
   bool hist_nbody = pin->GetOrAddBoolean("nbody", "hist_nbody", false);
   if (hist_nbody) {
     user_hist = true;
     user_hist_func = nbody::NBodyHistory; 
   }
 
-  // enroll AMR if flagged
+  // determine AMR settings
   user_ref_func = nbody::NBodyTrackRefinementCondition;
 
-  // Skip initialization if this is a restart
+  // skip initialization if this is a restart
   if (restart) return;
 
-  // Initial conditions. (1) Get mesh (which is in scope of pgen class)
+  // 
   auto &indcs = pmy_mesh_->mb_indcs;
   int &is     = indcs.is; 
   int &js     = indcs.js; 
@@ -67,10 +66,10 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   const Real alpha = pin->GetOrAddReal("nbody", "alpha", 0.0);
 
   // package body properties
+  int num_nbody = pin->GetOrAddInteger("nbody", "num_nbody", 0);
   DualArray2D<Real> pgen_nbody_data;
   int pgen_nvar_data = 11; // number of variables in pgen_nbody_data register
   Kokkos::realloc(pgen_nbody_data, num_nbody, pgen_nvar_data); // NBodyDataIndices
-
   for (int n = 0; n < num_nbody; n++) {
     std::string str_n = std::to_string(n);
     // standard register imports, as in NBody
@@ -108,7 +107,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   if (pmbp->phydro != nullptr) 
   {
 
-    auto &w0_                = pmbp->phydro->w0;  // Primitive variables (density, velocity, pressure)
+    // unpack data pre par_for dispatch
+    auto &w0_                = pmbp->phydro->w0; 
     const Real inv_Mach      = 1.0 / Mach;
     const Real inv_Mach_sqr  = SQR(inv_Mach);
     const Real inv_gm1       = 1.0 / (pmbp->phydro->peos->eos_data.gamma - 1.0);
@@ -336,8 +336,4 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     pmbp->phydro->peos->PrimToCons(w0_, pmbp->phydro->u0, is_wg, ie_wg, js_wg, je_wg, ks_wg, ke_wg);
   } // end hydro init 
   std::cout << "Completed ProblemGenerator::UserProblem on rank " << global_variable::my_rank << std::endl;
-} 
-
-// ======================== User-Defined Source Terms =========================
-// ============================================================================
-
+} // end ProblemGenerator
