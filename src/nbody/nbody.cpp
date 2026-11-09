@@ -338,6 +338,7 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
   auto &nbody_data_    = nbody_data;
   const int num_nbody_ = num_nbody;
   const Real G_const_  = G_const;
+  const int soft_mode_ = soft_mode;
   auto &phi_           = phi;
 
   par_for("nbody_calc_potential", 
@@ -359,11 +360,16 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
         const Real dx = x - nbody_data_.d_view(n, X_DATA);
         const Real dy = y - nbody_data_.d_view(n, Y_DATA);
         const Real dz = z - nbody_data_.d_view(n, Z_DATA);
-        const Real dr_sqr_soft = SQR(dx) + SQR(dy) + SQR(dz) + SQR(nbody_data_.d_view(n, R_SOFT_DATA));
+        const Real dr = Kokkos::sqrt(SQR(dx) + SQR(dy) + SQR(dz));
 
         // compute and set softened gravitational potential
-        const Real phi_local = G_const_ * nbody_data_.d_view(n, M_DATA) * Kokkos::pow(dr_sqr_soft, -0.5);
-        phi_(mb_id, n, k, j, i) = phi_local;
+        const Real Gm_n = G_const_ * nbody_data_.d_view(n, M_DATA);
+        const Real r_s  = nbody_data_.d_view(n, R_SOFT_DATA);
+        if (soft_mode_ == 0) {
+          phi_(mb_id, n, k, j, i) = CalcPlummerPotential(Gm_n, drv, r_s);
+        } else {
+          phi_(mb_id, n, k, j, i) = CalcSplinePotential(Gm_n, drv, r_s);
+        } // end soft_mode
       } // end body loop
     }); // end par_for
     
@@ -545,38 +551,50 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
 
       // loop over bodies in NBody class
       for (int n = 0; n < num_nbody_; n++) {
-        // compute acceleration on cell faces using pre-calc values
-        const Real g_xl = m1_odx1 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k, j, i - 1));
-        const Real g_xr = m1_odx1 * (phi_(mb_id, n, k, j, i + 1) - phi_(mb_id, n, k, j, i));
-        const Real g_yl = m1_odx2 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k, j - 1, i));
-        const Real g_yr = m1_odx2 * (phi_(mb_id, n, k, j + 1, i) - phi_(mb_id, n, k, j, i));
-        Real g_zl = 0.0, g_zr = 0.0;
-        if (three_d) {
-          const Real g_zl = m1_odx3 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k - 1, j, i));
-          const Real g_zr = m1_odx3 * (phi_(mb_id, n, k + 1, j, i) - phi_(mb_id, n, k, j, i));
-        }
-
-        // compute cell centered accelerations
-        const Real g_xv = 0.5 * (g_xl + g_xr);
-        const Real g_yv = 0.5 * (g_yl + g_yr);
-        const Real g_zv = 0.5 * (g_zl + g_zr); // zero if !three_d
-
-        // update momenta
+        // stash cell-centered density for momentum update
         const Real rho_beta_dt = prim(mb_id, IDN, k, j, i) * beta_dt; 
-        const Real dpx  = g_xv * rho_beta_dt;
-        const Real dpy  = g_yv * rho_beta_dt;
-        const Real dpz  = g_zv * rho_beta_dt;
-        cons(mb_id, IM1, k, j, i) += dpx;
-        cons(mb_id, IM2, k, j, i) += dpy;
-        if (three_d) cons(mb_id, IM3, k, j, i) += dpz;
 
-        // update energy
-        if (evolve_energy) {
-          Real rho_v_dot_g          = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
-          rho_v_dot_g              += 0.5 * (flx2(mb_id, IDN, k, j, i) * g_yl + flx2(mb_id, IDN, k, j + 1, i) * g_yr);
-          if (three_d) rho_v_dot_g += 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx3(mb_id, IDN, k + 1, j, i) * g_zr);
-          cons(mb_id,IEN,k,j,i)    += rho_v_dot_g * beta_dt;
-        } // end energy update
+        // apply updates in x-direction
+        Real dpx = 0.0;
+        {
+          const Real g_xl = m1_odx1 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k, j, i - 1));
+          const Real g_xr = m1_odx1 * (phi_(mb_id, n, k, j, i + 1) - phi_(mb_id, n, k, j, i));
+          const Real g_xv = 0.5 * (g_xl + g_xr);
+          const Real dpx = g_vx * rho_beta_dt;
+          cons(mb_id, IM1, k, j, i) += dpx;
+          if (evolve_energy) {
+            const Real rho_vx_dot_gx = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
+            cons(mb_id, IEN, k, j, i) += rho_vx_dot_gx * beta_dt;
+          } 
+        } // end x update
+        
+        // apply updates in y-direction
+        Real dpy = 0.0;
+        if (multi_d) {
+          const Real g_yl = m1_odx2 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k, j - 1, i));
+          const Real g_yr = m1_odx2 * (phi_(mb_id, n, k, j + 1, i) - phi_(mb_id, n, k, j, i));
+          const Real g_yv = 0.5 * (g_yl + g_yr);
+          dpy  = g_yv * rho_beta_dt;
+          cons(mb_id, IM2, k, j, i) += dpy;
+          if (evolve_energy) {
+            const Real rho_vy_dot_gy = 0.5 * (flx2(mb_id, IDN, k, j, i) * g_yl + flx2(mb_id, IDN, k, j + 1, i) * g_yr);
+            cons(mb_id, IEN, k, j, i) += rho_vy_dot_gy * beta_dt;
+          }
+        } // end if multi_d
+
+        // apply updates in z-direction
+        Real dpz = 0.0;
+        if (three_d) {
+          const Real g_zl = m1_odx2 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k - 1, j, i));
+          const Real g_zr = m1_odx2 * (phi_(mb_id, n, k + 1, j, i) - phi_(mb_id, n, k, j, i));
+          const Real g_zv = 0.5 * (g_zl + g_zr);
+          dpz  = g_zv * rho_beta_dt;
+          cons(mb_id, IM3, k, j, i) += dpz;
+          if (evolve_energy) {
+            const Real rho_vz_dot_gz = 0.5 * (flx3(mb_id, IDN, k, j, i) * g_zl + flx3(mb_id, IDN, k + 1, j, i) * g_zr);
+            cons(mb_id, IEN, k, j, i) += rho_vz_dot_gz * beta_dt;
+          }
+        } // end if three_d
 
         // compute backreaction 
         if (sum_backreaction_) {
