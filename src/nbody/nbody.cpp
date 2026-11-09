@@ -366,9 +366,9 @@ void NBody::CalcGravitationalPotential(const Real beta_dt) {
         const Real Gm_n = G_const_ * nbody_data_.d_view(n, M_DATA);
         const Real r_s  = nbody_data_.d_view(n, R_SOFT_DATA);
         if (soft_mode_ == 0) {
-          phi_(mb_id, n, k, j, i) = CalcPlummerPotential(Gm_n, drv, r_s);
+          phi_(mb_id, n, k, j, i) = CalcPlummerPotential(Gm_n, dr, r_s);
         } else {
-          phi_(mb_id, n, k, j, i) = CalcSplinePotential(Gm_n, drv, r_s);
+          phi_(mb_id, n, k, j, i) = CalcSplinePotential(Gm_n, dr, r_s);
         } // end soft_mode
       } // end body loop
     }); // end par_for
@@ -517,6 +517,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
+  const bool multi_d = pmy_pack->pmesh->multi_d;
   const bool three_d = pmy_pack->pmesh->three_d;
 
   // general NBody properties 
@@ -560,7 +561,7 @@ void NBody::ApplyGravitationalPotential(const Real beta_dt) {
           const Real g_xl = m1_odx1 * (phi_(mb_id, n, k, j, i) - phi_(mb_id, n, k, j, i - 1));
           const Real g_xr = m1_odx1 * (phi_(mb_id, n, k, j, i + 1) - phi_(mb_id, n, k, j, i));
           const Real g_xv = 0.5 * (g_xl + g_xr);
-          const Real dpx = g_vx * rho_beta_dt;
+          const Real dpx = g_xv * rho_beta_dt;
           cons(mb_id, IM1, k, j, i) += dpx;
           if (evolve_energy) {
             const Real rho_vx_dot_gx = 0.5 * (flx1(mb_id, IDN, k, j, i) * g_xl + flx1(mb_id, IDN, k, j, i + 1) * g_xr);
