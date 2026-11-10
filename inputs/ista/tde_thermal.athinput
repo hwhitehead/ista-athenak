@@ -104,9 +104,9 @@ dt         = 0.0005585564208097473     # time increment between outputs
 
 <refined_region1>
 x1min = -0.005
-x1max = -0.005
+x1max = 0.005
 x2min = -0.005
-x2max = -0.005
+x2max = 0.005
 x3min = -0.05
 x3max = 0.05
 level = 6
