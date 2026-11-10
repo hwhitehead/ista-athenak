@@ -989,7 +989,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
         cons(mb_id, IM2, k, j, i) += dpy_grav;
         cons(mb_id, IM3, k, j, i) += dpz_grav;
 
-        if (is_ideal && evolve_energy) { // only compute energy change if ideal AND not forced iso
+        if (evolve_energy) { // only compute energy change if ideal AND not forced iso
           // gravity update applied as work done W = rho v dot g -> dW = dp dot v
           // TEMP: for simplicity, assume acceleration at faces equal to acceleration at center
           const Real dE_grav = dpx_grav * prim(mb_id, IVX, k, j, i)
@@ -1058,7 +1058,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
             cons(mb_id, IM3, k, j, i) += dpz_acc;
 
             // adiabatic update from accretion
-            if (is_ideal && evolve_energy) {
+            if (evolve_energy) {
               // compute current specific internal energy and kinetic energy updates
               const Real epsilon        = prim(mb_id, IEN, k, j, i) / prim(mb_id, IDN, k, j, i);
               const Real vstar_sqr      = SQR(vxstar) + SQR(vystar) + SQR(vzstar);
