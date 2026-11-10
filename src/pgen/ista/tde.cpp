@@ -305,8 +305,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         }
         Real v_phi = Kokkos::sqrt(-g_soft * R * (1.0 - inv_Mach_sqr));
         if (grade_host != 1.0) { // if retrograde, flip sign of velocity
-            v_phi *= -1.0;
-          }
+          v_phi *= -1.0;
+        }
         const Real phi = Kokkos::atan2(x2v - y_host, x1v - x_host); // RH argument from +x axis
         const Real vx = vx_host - v_phi * Kokkos::sin(phi);
         const Real vy = vy_host + v_phi * Kokkos::cos(phi);
