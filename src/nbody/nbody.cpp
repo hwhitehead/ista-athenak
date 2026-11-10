@@ -913,8 +913,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   const Real soft_mode_ = soft_mode;
 
   // thermodynamic properties
-  const bool is_ideal       = pmy_pack->phydro->peos->eos_data.is_ideal;
-  const bool evolve_energy  = (cooling_mode != FORCED_ISO);
+  const bool evolve_energy  = (pmy_pack->phydro->peos->eos_data.is_ideal) && (cooling_mode != FORCED_ISO);
 
   // back reation properties
   bool sum_backreaction_ = sum_backreaction;

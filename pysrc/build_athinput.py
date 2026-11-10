@@ -180,7 +180,7 @@ if __name__ == "__main__":
     # binary properties
     IC_dict['a']                = 1.0     # semi-major axis of binary
     IC_dict['q']                = 0.1     # mass ratio of binary
-    IC_dict['e']                = 0.99    # eccentricity of binary
+    IC_dict['e']                = 0.9    # eccentricity of binary
     IC_dict["i_in_pi"]          = 0.0     # inclination of binary  (in units pi)
     IC_dict['theta_init_in_pi'] = 0.125   # initial true anomaly (from apoapsis, in units pi)
     IC_dict["theta_exit_in_pi"] = None    # if None, symmetrise about pericenter
