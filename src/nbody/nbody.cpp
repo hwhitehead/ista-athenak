@@ -1383,7 +1383,7 @@ void NBody::CalcViscosity(const DvceArray5D<Real> &w0) {
       nu = Kokkos::min(nu, nu_max_);
 
       // stash viscosity state in register
-      nu_iso_(mb_id, k, j, i) = nu;
+      nu_iso_(mb_id, k, j, i) = 0.0; // TEMP SET AS ZERO
 
       // thread-safe maximum check for tracker
       Kokkos::atomic_max(&max_nu_iso_.d_view(mb_id), nu);
