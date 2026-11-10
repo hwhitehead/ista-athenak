@@ -899,9 +899,15 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   // MeshBlock properties
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   auto &size  = pmy_pack->pmb->mb_size;
-  int is = indcs.is, ie = indcs.ie;
-  int js = indcs.js, je = indcs.je;
-  int ks = indcs.ks, ke = indcs.ke;
+  // int is = indcs.is, ie = indcs.ie;
+  // int js = indcs.js, je = indcs.je;
+  // int ks = indcs.ks, ke = indcs.ke;
+  const int is   = indcs.is - indcs.ng;
+  const int ie   = indcs.ie + indcs.ng; 
+  const int js   = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
+  const int je   = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
+  const int ks   = (pmy_pack->pmesh->three_d) ? indcs.ks - indcs.ng: indcs.ks;
+  const int ke   = (pmy_pack->pmesh->three_d) ? indcs.ke + indcs.ng: indcs.ke;
   int nmb1 = pmy_pack->nmb_thispack - 1;
   auto &prim = pmy_pack->phydro->w0;
   auto &cons = pmy_pack->phydro->u0;
