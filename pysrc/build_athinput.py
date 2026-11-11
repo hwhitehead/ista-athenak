@@ -212,7 +212,7 @@ if __name__ == "__main__":
 
     # non-binary nbody properties
     IC_dict["grade0"]  = 1
-    IC_dict["grade1"]  = 0
+    IC_dict["grade1"]  = 1
     IC_dict["r_cav0"]  = 0.0
     IC_dict["r_cav1"]  = 0.0
     IC_dict["r_disk0"] = None # auto set with scaling to periapsis (beta)

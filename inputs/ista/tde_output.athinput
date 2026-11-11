@@ -105,7 +105,7 @@ r_amr1  = 0.0062353190776374455
 t_amr1  = 0.0
 r_disk1 = 0.0062353190776374455
 r_cav1  = 0.0
-grade1  = 0
+grade1  = 1
 
 <output1>
 file_type  = hst         # history data dump
@@ -144,7 +144,7 @@ visc_mode = 1
 soft_mode = 0
 src_accretion = 0
 grade0 = 1
-grade1 = 0
+grade1 = 1
 r_cav0 = 0.0
 r_cav1 = 0.0
 r_disk0 = None
