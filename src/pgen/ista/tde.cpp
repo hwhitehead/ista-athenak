@@ -257,16 +257,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         // build single minidisc about body indexed by host_index
 
         // unpack host properties
-        const Real m_host = pgen_nbody_data.d_view(host_index, 0);
-        const Real x_host = pgen_nbody_data.d_view(host_index, 1);
-        const Real y_host = pgen_nbody_data.d_view(host_index, 2);
-        const Real z_host = pgen_nbody_data.d_view(host_index, 3);
-        const Real vx_host = pgen_nbody_data.d_view(host_index, 4);
-        const Real vy_host = pgen_nbody_data.d_view (host_index, 5);
-        const Real vz_host = pgen_nbody_data.d_view(host_index, 6);
+        const Real m_host      = pgen_nbody_data.d_view(host_index, 0);
+        const Real x_host      = pgen_nbody_data.d_view(host_index, 1);
+        const Real y_host      = pgen_nbody_data.d_view(host_index, 2);
+        const Real z_host      = pgen_nbody_data.d_view(host_index, 3);
+        const Real vx_host     = pgen_nbody_data.d_view(host_index, 4);
+        const Real vy_host     = pgen_nbody_data.d_view(host_index, 5);
+        const Real vz_host     = pgen_nbody_data.d_view(host_index, 6);
         const Real r_soft_host = pgen_nbody_data.d_view(host_index, 7);
-        const Real grade_host = pgen_nbody_data.d_view(host_index, 8);
-        const Real r_cav_host = pgen_nbody_data.d_view(host_index, 9);
+        const Real grade_host  = pgen_nbody_data.d_view(host_index, 8);
+        const Real r_cav_host  = pgen_nbody_data.d_view(host_index, 9);
         const Real r_disk_host = pgen_nbody_data.d_view(host_index, 10);
 
         // determine distance to host
