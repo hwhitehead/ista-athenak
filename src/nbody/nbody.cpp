@@ -900,7 +900,7 @@ void NBody::NBodyPointSrcTerm(const Real beta_dt) {
   // int is = indcs.is, ie = indcs.ie;
   // int js = indcs.js, je = indcs.je;
   // int ks = indcs.ks, ke = indcs.ke;
-  const int is   = indcs.is - indcs.ng;
+  const int is   = indcs.is - indcs.ng; // TODO: decide on proper loop bounds
   const int ie   = indcs.ie + indcs.ng; 
   const int js   = (pmy_pack->pmesh->multi_d) ? indcs.js - indcs.ng: indcs.js;
   const int je   = (pmy_pack->pmesh->multi_d) ? indcs.je + indcs.ng: indcs.je;
