@@ -154,7 +154,7 @@ def build_athinput(IC_dict, output_file, template_file):
     smr_region_label = 1
     with open(output_file, "a") as file:
         for n in range(2):
-            if athinput_dict["T_AMR{0}".format(n)] == 0: continue  # skip SMR if AMR delayed
+            if athinput_dict["T_AMR{0}".format(n)] > 0: continue  # skip SMR if AMR delayed
             smr_radius = 0.5 * athinput_dict["R_AMR{0}".format(n)] # match size of AMR region
             smr_block = "\n"
             smr_block += "<refined_region{0}>\n".format(smr_region_label)
