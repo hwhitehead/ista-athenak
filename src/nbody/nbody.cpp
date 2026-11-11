@@ -262,55 +262,53 @@ Real NBody::CalcTimeStep() {
 //! \brief Wrapper to invoke source terms associated with the NBody class, including
 //! runtime booleans to activate specific physical processes
 void NBody::NBodySrcTerms(const Real beta_dt) {
-  
-  NBodyPointSrcTerm(beta_dt);
 
-  // // apply gravity source terms if flagged
-  // if (src_gravity) {
-  //   switch (grav_mode) {
-  //     case LIVE_CALC:
-  //       NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
-  //       break;
-  //     case PRE_POTENTIAL:
-  //       CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
-  //       ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
-  //       break;
-  //     case PRE_ACCELERATION:
-  //       CalcGravitationalAcceleration(beta_dt);    // pre-compute per-cell gravitational potential
-  //       ApplyGravitationalAcceleration(beta_dt);   // apply pre-computed gravity
-  //       break;
-  //   } // end grav_mode cases
-  // } // end src_gravity
+  // apply gravity source terms if flagged
+  if (src_gravity) {
+    switch (grav_mode) {
+      case LIVE_CALC:
+        NBodyPointSrcTerm(beta_dt);             // compute and apply gravity in one par_for execution
+        break;
+      case PRE_POTENTIAL:
+        CalcGravitationalPotential(beta_dt);    // pre-compute per-cell gravitational potential
+        ApplyGravitationalPotential(beta_dt);   // apply pre-computed gravity
+        break;
+      case PRE_ACCELERATION:
+        CalcGravitationalAcceleration(beta_dt);    // pre-compute per-cell gravitational potential
+        ApplyGravitationalAcceleration(beta_dt);   // apply pre-computed gravity
+        break;
+    } // end grav_mode cases
+  } // end src_gravity
 
-  // // apply accretion, if flagged
-  // if (src_accretion) {
-  //   if (grav_mode != LIVE_CALC) { // if LIVE_CALC, accretion already included in NBodyPointSrcTerm
-  //     ApplyAccretion(beta_dt);
-  //   } // end grav_mode check
-  // } // end src_accretion
+  // apply accretion, if flagged
+  if (src_accretion) {
+    if (grav_mode != LIVE_CALC) { // if LIVE_CALC, accretion already included in NBodyPointSrcTerm
+      ApplyAccretion(beta_dt);
+    } // end grav_mode check
+  } // end src_accretion
   
 
-  // // thermodynamic src terms
-  // if (pmy_pack->phydro->peos->eos_data.is_ideal) {
-  //   switch (cooling_mode) {
-  //     case NO_COOLING:      // no cooling term flagged, skip
-  //       break;
-  //     case FORCED_ISO:      // instantly fix temperature to fixed Mach number
-  //       NBodyForcedIsoSrcTerm(beta_dt);
-  //       break;
-  //     case BLACK_BODY:      // apply optically thick black body cooling
-  //       NBodyBlackBodySrcTerm(beta_dt);
-  //       break;
-  //     case BETA_COOL_DYN:  // apply beta cooling to fixed Mach number on dynamical timescale
-  //       NBodyBetaCoolSrcTerm(beta_dt);
-  //       break;
-  //     case BETA_COOL_THERM: // apply beta cooling to fixed Mach number on thermal timescale
-  //       NBodyBetaCoolSrcTerm(beta_dt);
-  //       break;
-  //     default:
-  //       break;
-  //   } // end cooling switch
-  // } // end is_ideal
+  // thermodynamic src terms
+  if (pmy_pack->phydro->peos->eos_data.is_ideal) {
+    switch (cooling_mode) {
+      case NO_COOLING:      // no cooling term flagged, skip
+        break;
+      case FORCED_ISO:      // instantly fix temperature to fixed Mach number
+        NBodyForcedIsoSrcTerm(beta_dt);
+        break;
+      case BLACK_BODY:      // apply optically thick black body cooling
+        NBodyBlackBodySrcTerm(beta_dt);
+        break;
+      case BETA_COOL_DYN:  // apply beta cooling to fixed Mach number on dynamical timescale
+        NBodyBetaCoolSrcTerm(beta_dt);
+        break;
+      case BETA_COOL_THERM: // apply beta cooling to fixed Mach number on thermal timescale
+        NBodyBetaCoolSrcTerm(beta_dt);
+        break;
+      default:
+        break;
+    } // end cooling switch
+  } // end is_ideal
 
   return;
 }
