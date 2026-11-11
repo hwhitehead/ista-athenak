@@ -92,16 +92,18 @@ def build_athinput(IC_dict, output_file, template_file):
     athinput_dict["MAX_NMB_PER_RANK"] = IC_dict["max_nmb_per_rank"]
 
     # specify disc properties and physics modules
-    athinput_dict["MACH"]         = IC_dict["Mach"]
-    athinput_dict["ALPHA"]        = IC_dict["alpha"]
-    athinput_dict["NU_ISO"]       = IC_dict["nu_iso"]
-    athinput_dict["GRAV_MODE"]    = IC_dict["grav_mode"]
-    athinput_dict["COOLING_MODE"] = IC_dict["cooling_mode"]
-    athinput_dict["SINK_MODE"]    = IC_dict["sink_mode"]
-    athinput_dict["VISC_MODE"]    = IC_dict["visc_mode"]
-    athinput_dict["SOFT_MODE"]    = IC_dict["soft_mode"]
+    athinput_dict["MACH"]          = IC_dict["Mach"]
+    athinput_dict["ALPHA"]         = IC_dict["alpha"]
+    athinput_dict["NU_ISO"]        = IC_dict["nu_iso"]
+    athinput_dict["GRAV_MODE"]     = IC_dict["grav_mode"]
+    athinput_dict["COOLING_MODE"]  = IC_dict["cooling_mode"]
+    athinput_dict["SINK_MODE"]     = IC_dict["sink_mode"]
+    athinput_dict["VISC_MODE"]     = IC_dict["visc_mode"]
+    athinput_dict["SOFT_MODE"]     = IC_dict["soft_mode"]
+    athinput_dict["SRC_ACCRETION"] = IC_dict["src_accretion"]
 
     # specify non-binary nbody properties
+    amr_scale = 1.0 # scaling factor for amr region in units r_disk
     r_H_p = r_p * np.cbrt(IC_dict["q"] / (3 * (1 + IC_dict["q"]))) # Hill radius at periapsis
     for n in range(2):
         # determine disk size
@@ -113,13 +115,21 @@ def build_athinput(IC_dict, output_file, template_file):
         if IC_dict["r_amr{0}".format(n)] is not None:
             r_amr = IC_dict["r_amr{0}".format(n)]
         else:
-            r_amr = 0.5 * r_disk
+            r_amr = amr_scale * r_disk
+        # determine amr timigns
+        if IC_dict["t_amr{0}".format(n)] is not None: # if set, use this value
+            t_amr = IC_dict["t_amr{0}".format(n)]
+        else:
+            if r_disk > 0.0: # starts with disc, init amr at sim start
+                t_amr = 0.0
+            else: # starts without disc, init amr at 75% time to periapsis
+                t_amr = (3/8) * athinput_dict["TLIM"]
         athinput_dict["R_SOFT{0}".format(n)] = r_p / IC_dict["soft_per_rp"]
         athinput_dict["GRADE{0}".format(n)]  = IC_dict["grade{0}".format(n)]
         athinput_dict["R_CAV{0}".format(n)]  = IC_dict["r_cav{0}".format(n)]        
         athinput_dict["R_AMR{0}".format(n)]  = r_amr
         athinput_dict["R_DISK{0}".format(n)] = r_disk
-        athinput_dict["T_AMR{0}".format(n)]  = IC_dict["t_amr{0}".format(n)]
+        athinput_dict["T_AMR{0}".format(n)]  = t_amr
 
     # reset amr value to ensure no-disk systems are resolve
     m = 1
@@ -180,7 +190,7 @@ if __name__ == "__main__":
     # binary properties
     IC_dict['a']                = 1.0     # semi-major axis of binary
     IC_dict['q']                = 0.1     # mass ratio of binary
-    IC_dict['e']                = 0.9    # eccentricity of binary
+    IC_dict['e']                = 0.99    # eccentricity of binary
     IC_dict["i_in_pi"]          = 0.0     # inclination of binary  (in units pi)
     IC_dict['theta_init_in_pi'] = 0.125   # initial true anomaly (from apoapsis, in units pi)
     IC_dict["theta_exit_in_pi"] = None    # if None, symmetrise about pericenter
@@ -188,44 +198,43 @@ if __name__ == "__main__":
     # set timing based on orbit
     IC_dict["num_hydro"] = 200
     IC_dict["num_hst"]   = 1e4
-    IC_dict['tlim']      = None   
-    IC_dict['hst_dt']    = None
-    IC_dict['hydro_dt']  = None
+    IC_dict["tlim"]      = None   
+    IC_dict["hst_dt"]    = None
+    IC_dict["hydro_dt"]  = None
 
     # define physics settings
-    IC_dict["grav_mode"]    = 2 
-    IC_dict["cooling_mode"] = 2
-    IC_dict["sink_mode"]    = 2
-    IC_dict["visc_mode"]    = 1
-    IC_dict["grav_mode"]    = 2
-    IC_dict["soft_mode"]    = 0
+    IC_dict["grav_mode"]     = 0 
+    IC_dict["cooling_mode"]  = -1
+    IC_dict["sink_mode"]     = 2
+    IC_dict["visc_mode"]     = 1
+    IC_dict["soft_mode"]     = 0
+    IC_dict["src_accretion"] = 0
 
     # non-binary nbody properties
     IC_dict["grade0"]  = 1
-    IC_dict["grade1"]  = 1
+    IC_dict["grade1"]  = 0
     IC_dict["r_cav0"]  = 0.0
     IC_dict["r_cav1"]  = 0.0
-    IC_dict["r_disk0"] = None # set with scaling to periapsis?
+    IC_dict["r_disk0"] = None # auto set with scaling to periapsis (beta)
     IC_dict["r_disk1"] = None
-    IC_dict["beta0"]   = 0    # TDE-like impact parameter = r_t / r_p
-    IC_dict["beta1"]   = 3
-    IC_dict["r_amr0"]  = None # auto set as half-disc width
-    IC_dict["r_amr1"]  = None # auto set as half-disc width
-    
-    IC_dict["t_amr0"]  = 0.0 # TODO: make adaptive for single disc flyby
-    IC_dict["t_amr1"]  = 0.0
+    IC_dict["beta0"]   = 0    # TDE-like impact parameter = r_d / r_{H,p}
+    IC_dict["beta1"]   = 2
+    IC_dict["r_amr0"]  = None # auto set as disc width
+    IC_dict["r_amr1"]  = None # auto set as disc width
+    IC_dict["t_amr0"]  = None
+    IC_dict["t_amr1"]  = None
 
     # set disk properties
-    IC_dict["Mach"]   = 50.0
-    IC_dict["alpha"]  = 0.1
-    IC_dict["nu_iso"] = 1e-8 # set to non-zero to allow for adaptive viscosity
+    IC_dict["Mach"]   = 40.0
+    IC_dict["alpha"]  = 0.0
+    IC_dict["nu_iso"] = 0.0 #1e-8 # set to non-zero to allow for adaptive viscosity
 
     # set resolution and softening
     IC_dict["cells_per_soft"]   = 16 # 10
     IC_dict["soft_per_rp"]      = 16 # 20
     IC_dict["num_levels"]       = 7
-    IC_dict["max_nmb_per_rank"] = 2048
-    IC_dict["domain_scale"]     = 2.5           # target domain this scale larger than initial binary size
+    IC_dict["max_nmb_per_rank"] = 4096
+    IC_dict["domain_scale"]     = 1.5           # target domain this scale larger than initial binary size
     IC_dict["three_d"]          = False              # currently inactive
     IC_dict["cells_per_mb"]     = 16
 
