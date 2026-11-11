@@ -193,7 +193,7 @@ if __name__ == "__main__":
     IC_dict['hydro_dt']  = None
 
     # define physics settings
-    IC_dict["grav_mode"]    = 2
+    IC_dict["grav_mode"]    = 2 
     IC_dict["cooling_mode"] = 2
     IC_dict["sink_mode"]    = 2
     IC_dict["visc_mode"]    = 1
@@ -221,8 +221,8 @@ if __name__ == "__main__":
     IC_dict["nu_iso"] = 1e-8 # set to non-zero to allow for adaptive viscosity
 
     # set resolution and softening
-    IC_dict["cells_per_soft"]   = 10 # 10
-    IC_dict["soft_per_rp"]      = 20 # 20
+    IC_dict["cells_per_soft"]   = 16 # 10
+    IC_dict["soft_per_rp"]      = 16 # 20
     IC_dict["num_levels"]       = 7
     IC_dict["max_nmb_per_rank"] = 2048
     IC_dict["domain_scale"]     = 2.5           # target domain this scale larger than initial binary size
