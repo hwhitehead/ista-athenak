@@ -47,7 +47,7 @@ ndiag      = 1.6667     # cycles between diagostic output
 
 <hydro>
 eos             = ideal         # EOS type
-reconstruct     = wenoz          # spatial reconstruction method
+reconstruct     = plm          # spatial reconstruction method
 rsolver         = hlle          # Riemann-solver to be used
 gamma           = 1.4           # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0           # isothermal only
