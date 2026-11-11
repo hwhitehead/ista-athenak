@@ -154,8 +154,8 @@ def build_athinput(IC_dict, output_file, template_file):
     smr_region_label = 1
     with open(output_file, "a") as file:
         for n in range(2):
-            smr_radius = 0.5 * athinput_dict["R_AMR{0}".format(n)] # match AMR region
-            if smr_radius == 0: continue
+            if athinput_dict["T_AMR{0}".format(n)] == 0: continue  # skip SMR if AMR delayed
+            smr_radius = 0.5 * athinput_dict["R_AMR{0}".format(n)] # match size of AMR region
             smr_block = "\n"
             smr_block += "<refined_region{0}>\n".format(smr_region_label)
             smr_block += "x1min = {0}\n".format(athinput_dict["X{0}".format(n)] - smr_radius)
@@ -226,8 +226,8 @@ if __name__ == "__main__":
 
     # set disk properties
     IC_dict["Mach"]   = 40.0
-    IC_dict["alpha"]  = 0.0
-    IC_dict["nu_iso"] = 0.0 #1e-8 # set to non-zero to allow for adaptive viscosity
+    IC_dict["alpha"]  = 0.1
+    IC_dict["nu_iso"] = 1e-8 # set to non-zero to allow for adaptive viscosity
 
     # set resolution and softening
     IC_dict["cells_per_soft"]   = 16 # 10

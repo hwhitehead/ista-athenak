@@ -51,7 +51,7 @@ reconstruct     = wenoz          # spatial reconstruction method
 rsolver         = hlle          # Riemann-solver to be used
 gamma           = 1.4           # gamma = C_p/C_v (ideal only)
 iso_sound_speed = 1.0           # isothermal only
-nu_iso          = 0.0        # must be non-zero to use alpha prescription
+nu_iso          = 1e-08        # must be non-zero to use alpha prescription
 dfloor          = 1e-12
 pfloor          = 1e-12
 
@@ -69,7 +69,7 @@ sum_backreaction    = 1                 # boolean: collect mdot, acceleration fr
 inc_backreaction    = 0                 # boolean: apply mdot, acceleration during live evolution
 verbose             = 0                 # boolean: write progress checks to stdout
 Mach                = 40.0            # Mach number of disc for pgen and cooling
-alpha               = 0.0           # viscosity scaling parameter
+alpha               = 0.1           # viscosity scaling parameter
 nu_max              = 1e-3              # ceiling for viscosity computed with constant alpha
 cs_sqr_floor        = 1e-10             # floor for sound speed used in cooling
 grav_mode           = 0       # grav calc mode 0 = LIVE_CALC, 1 = PRE_POTENTIAL, 2 = PRE_ACCELERATION
@@ -125,15 +125,6 @@ x3min = -0.05
 x3max = 0.05
 level = 6
 
-<refined_region2>
-x1min = 0.1926879283101203
-x1max = 0.19892324738775777
-x2min = 0.07798767053664833
-x2max = 0.08422298961428577
-x3min = -0.05
-x3max = 0.05
-level = 6
-
 <comment>
 a = 1.0
 q = 0.1
@@ -165,8 +156,8 @@ r_amr1 = None
 t_amr0 = None
 t_amr1 = None
 Mach = 40.0
-alpha = 0.0
-nu_iso = 0.0
+alpha = 0.1
+nu_iso = 1e-08
 cells_per_soft = 16
 soft_per_rp = 16
 num_levels = 7
