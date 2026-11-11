@@ -205,7 +205,7 @@ if __name__ == "__main__":
     # define physics settings
     IC_dict["grav_mode"]     = 0 
     IC_dict["cooling_mode"]  = -1
-    IC_dict["sink_mode"]     = 2
+    IC_dict["sink_mode"]     = 0
     IC_dict["visc_mode"]     = 1
     IC_dict["soft_mode"]     = 0
     IC_dict["src_accretion"] = 0
