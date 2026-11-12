@@ -42,7 +42,7 @@ evolution  = dynamic    # dynamic/kinematic/static
 integrator = rk2        # time integration algorithm
 cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1         # cycle limit
-tlim       = 0.0        # time limit
+tlim       = 0.09035247480104204        # time limit
 ndiag      = 1.6667     # cycles between diagostic output
 
 <hydro>
@@ -88,7 +88,7 @@ vy0     = 0.05132040871152816
 vz0     = -0.0
 r_soft0 = 0.000625
 r_amr0  = 0.00623531907763744
-t_amr0  = 0.0
+t_amr0  = 0.03388217805039077
 r_disk0 = 0.0
 r_cav0  = 0.0
 grade0  = 1
@@ -109,23 +109,14 @@ grade1  = 1
 
 <output1>
 file_type  = hst         # history data dump
-dt         = 0.0      # time increment between outputs
+dt         = 9.035247480104203e-06      # time increment between outputs
 
 <output2>
 file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
 variable   = hydro_w    # variables to be output
-dt         = 0.0     # time increment between outputs
+dt         = 0.0004517623740052102     # time increment between outputs
 
 <refined_region1>
-x1min = -0.025185061692535243
-x1max = -0.0189497426148978
-x2min = -0.01225827679722935
-x2max = -0.006022957719591909
-x3min = -0.05
-x3max = 0.05
-level = 6
-
-<refined_region2>
 x1min = 0.2175563619983465
 x1max = 0.2237916810759839
 x2min = 0.08828851304528758

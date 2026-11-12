@@ -611,10 +611,9 @@ class NBody:
 
 class InitParabola:
 
-    def __init__(self, R_p, e, q):
+    def __init__(self, R_p, q):
 
         self.R_p = R_p
-        self.e = e
         self.q = q
         self.prim_fac = -q / (1.0 + q)
         self.sec_fac = 1.0 / (1.0 + q)

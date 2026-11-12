@@ -20,7 +20,7 @@ def build_athinput(IC_dict, output_file, template_file):
     if (IC_dict["e"] == 1.0):
         if IC_dict["R_p"] == 0:
             raise Exception("require set periapsis for parabolic flyby")
-        binary = InitParabola(R_p = IC_dict["R_p"], q = IC_dict["q"], e = IC_dict["e"])
+        binary = InitParabola(R_p = IC_dict["R_p"], q = IC_dict["q"])
     else:
         binary = InitBinary(a = IC_dict["a"], q = IC_dict["q"], e = IC_dict["e"])
     init_nbody_state = binary.init(theta=IC_dict["theta_init_in_pi"]* np.pi, i=IC_dict["i_in_pi"] * np.pi, print_values=False)
@@ -48,10 +48,22 @@ def build_athinput(IC_dict, output_file, template_file):
     else:
         E_exit = - E_init # symmetric about pericenter
     m_bin = athinput_dict["M0"] + athinput_dict["M1"]
-    mean_motion = np.sqrt(m_bin / IC_dict["a"] ** 3)
-    t_init = (E_init - IC_dict["e"] * np.sin(E_init)) / mean_motion
-    t_exit = (E_exit - IC_dict["e"] * np.sin(E_exit)) / mean_motion
-    delta_t = t_exit - t_init
+    
+    
+    if (IC_dict["e"] == 1.0):
+        # use Barkers equation to evalute flight time
+        mu = 1.0 + IC_dict["q"]
+        f_init = np.pi + IC_dict["theta_init_in_pi"] * np.pi 
+        f_exit = 3 * np.pi - IC_dict["theta_init_in_pi"] * np.pi 
+        D_init = np.tan(0.5 * f_init)
+        D_exit = np.tan(0.5 * f_exit)
+        delta_t = np.sqrt(IC_dict["R_p"] ** 3 / mu) * (D_exit + 1.0/3 * D_exit ** 3 - D_init - 1.0/3 * D_init ** 3)
+    else:
+        # use Keplers equation to evaluate flight time
+        mean_motion = np.sqrt(m_bin / IC_dict["a"] ** 3)
+        t_init = (E_init - IC_dict["e"] * np.sin(E_init)) / mean_motion
+        t_exit = (E_exit - IC_dict["e"] * np.sin(E_exit)) / mean_motion
+        delta_t = t_exit - t_init
     if IC_dict["tlim"] is not None:
         athinput_dict["TLIM"]     = IC_dict["tlim"]
     else:
