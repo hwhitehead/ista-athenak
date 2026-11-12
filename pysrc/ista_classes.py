@@ -625,7 +625,7 @@ class InitParabola:
 
     def calc_R(self, theta):
 
-        return self.h_sqr / (self.mu * (1 + np.cos(theta)))
+        return self.h_sqr / (self.mu * (1 - np.cos(theta)))
     
     def init_in_plane(self, theta):
 
