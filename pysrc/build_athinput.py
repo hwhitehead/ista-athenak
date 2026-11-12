@@ -5,7 +5,7 @@ from copy import deepcopy
 
 pysrc = os.path.join(os.path.dirname(__file__), "/Users/hwhitehead/github/ista-athenak/pysrc")
 if pysrc not in sys.path: sys.path.append(pysrc)
-from ista_classes import InitBinary
+from ista_classes import InitBinary, InitParabola
 
 def build_athinput(IC_dict, output_file, template_file): 
 
@@ -17,7 +17,12 @@ def build_athinput(IC_dict, output_file, template_file):
     athinput_dict = {}
 
     # build binary
-    binary = InitBinary(a=IC_dict["a"], q=IC_dict["q"], e=IC_dict["e"])
+    if (IC_dict["e"] == 1.0):
+        if IC_dict["R_p"] == 0:
+            raise Exception("require set periapsis for parabolic flyby")
+        binary = InitParabola(R_p = IC_dict["R_p"], q = IC_dict["q"], e = IC_dict["e"])
+    else:
+        binary = InitBinary(a = IC_dict["a"], q = IC_dict["q"], e = IC_dict["e"])
     init_nbody_state = binary.init(theta=IC_dict["theta_init_in_pi"]* np.pi, i=IC_dict["i_in_pi"] * np.pi, print_values=False)
     athinput_dict["M0"]  = init_nbody_state[0]
     athinput_dict["X0"]  = init_nbody_state[1]
@@ -61,8 +66,11 @@ def build_athinput(IC_dict, output_file, template_file):
         athinput_dict["HYDRO_DT"] = delta_t / IC_dict["num_hydro"]
 
     # determine target resolution and domain size
-    r_p = IC_dict["a"] * (1.0 - IC_dict["e"])
-    dx_min = r_p / (IC_dict["cells_per_soft"] * IC_dict["soft_per_rp"])
+    if (IC_dict["e"] == 1):
+        R_p = IC_dict["R_p"]
+    else:
+        R_p = IC_dict["a"] * (1.0 - IC_dict["e"])
+    dx_min = R_p / (IC_dict["cells_per_soft"] * IC_dict["soft_per_rp"])
     dx_root = dx_min * np.power(2, IC_dict["num_levels"] - 1)
     Lx = 2 * IC_dict["domain_scale"] * athinput_dict["X1"]
     Ly = 2 * IC_dict["domain_scale"] * athinput_dict["Y1"]
@@ -104,7 +112,7 @@ def build_athinput(IC_dict, output_file, template_file):
 
     # specify non-binary nbody properties
     amr_scale = 1.0 # scaling factor for amr region in units r_disk
-    r_H_p = r_p * np.cbrt(IC_dict["q"] / (3 * (1 + IC_dict["q"]))) # Hill radius at periapsis
+    r_H_p = R_p * np.cbrt(IC_dict["q"] / (3 * (1 + IC_dict["q"]))) # Hill radius at periapsis
     for n in range(2):
         # determine disk size
         if IC_dict["r_disk{0}".format(n)] is not None:
@@ -124,7 +132,7 @@ def build_athinput(IC_dict, output_file, template_file):
                 t_amr = 0.0
             else: # starts without disc, init amr at 75% time to periapsis
                 t_amr = (3/8) * athinput_dict["TLIM"]
-        athinput_dict["R_SOFT{0}".format(n)] = r_p / IC_dict["soft_per_rp"]
+        athinput_dict["R_SOFT{0}".format(n)] = R_p / IC_dict["soft_per_rp"]
         athinput_dict["GRADE{0}".format(n)]  = IC_dict["grade{0}".format(n)]
         athinput_dict["R_CAV{0}".format(n)]  = IC_dict["r_cav{0}".format(n)]        
         athinput_dict["R_AMR{0}".format(n)]  = r_amr
@@ -188,9 +196,10 @@ if __name__ == "__main__":
     IC_dict = {}
 
     # binary properties
-    IC_dict['a']                = 1.0     # semi-major axis of binary
+    IC_dict['a']                = 1.0     # semi-major axis of binary (for e < 1)
     IC_dict['q']                = 0.1     # mass ratio of binary
-    IC_dict['e']                = 0.99    # eccentricity of binary
+    IC_dict['e']                = 1.0     # eccentricity of binary
+    IC_dict["R_p"]              = 0.01    # periapsis seperation (for e = 1)
     IC_dict["i_in_pi"]          = 0.0     # inclination of binary  (in units pi)
     IC_dict['theta_init_in_pi'] = 0.125   # initial true anomaly (from apoapsis, in units pi)
     IC_dict["theta_exit_in_pi"] = None    # if None, symmetrise about pericenter
