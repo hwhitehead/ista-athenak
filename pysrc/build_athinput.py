@@ -22,6 +22,9 @@ def build_athinput(IC_dict, output_file, template_file):
             raise Exception("require semi-major axis or periapsis to scale binary")
         IC_dict["R_p"] = IC_dict["a"] * (1 - IC_dict["e"])
     binary = InitOrbit(R_p = IC_dict["R_p"], q = IC_dict["q"], e = IC_dict["e"])
+    
+    # determine initial state
+    # if e > 1, set initial seperation to match parabolic flyby with same parameters
     init_nbody_state = binary.init(theta=IC_dict["theta_init_in_pi"]* np.pi, i=IC_dict["i_in_pi"] * np.pi, print_values=False)
     athinput_dict["M0"]  = init_nbody_state[0]
     athinput_dict["X0"]  = init_nbody_state[1]
@@ -40,24 +43,25 @@ def build_athinput(IC_dict, output_file, template_file):
 
     # compute true anomaly from exact nbody state
     theta_init = np.arctan2(athinput_dict["Y1"] - athinput_dict["Y0"], athinput_dict["X1"] - athinput_dict["X0"])
-    f_init = np.pi + theta_init     # switch to true anomaly defined from periapsis
-    f_exit = 3 * np.pi - theta_init # symmetrise about start location
-    
+    f_init = -(np.pi - theta_init)     # switch to true anomaly defined from periapsis
+    f_exit = np.pi - theta_init # symmetrise about start location
+
     mu = 1.0 + IC_dict["q"]
-    if (IC_dict["e"] >= 1.0):
+    if (IC_dict["e"] == 1.0):
         # use Barker's equation to evalute flight time
         D_init = np.tan(0.5 * f_init)
         D_exit = np.tan(0.5 * f_exit)
         delta_t = np.sqrt(IC_dict["R_p"] ** 3 / mu) * (D_exit + 1.0/3 * D_exit ** 3 - D_init - 1.0/3 * D_init ** 3)
     elif (IC_dict["e"] > 1):
         # use hyperbolic Keplers equation to evaluate flight time
-        E_init = np.arccosh((np.cos(f_init) + IC_dict["e"])/(1+IC_dict["e"]*np.cos(f_init)))
-        E_exit = np.arccosh((np.cos(f_exit) + IC_dict["e"])/(1+IC_dict["e"]*np.cos(f_exit)))
+        E_init = 2 * np.arctanh(np.sqrt((IC_dict["e"]-1)/(IC_dict["e"]+1)) * np.tan(0.5 * f_init))
+        E_exit = 2 * np.arctanh(np.sqrt((IC_dict["e"]-1)/(IC_dict["e"]+1)) * np.tan(0.5 * f_exit))
         a_hyp = IC_dict["R_p"] / (1 - IC_dict["e"])
         mean_motion = np.sqrt(mu / -a_hyp ** 3)
-        t_init = (E_init - IC_dict["e"] * np.sinh(E_init)) / mean_motion
-        t_exit = (E_exit - IC_dict["e"] * np.sinh(E_exit)) / mean_motion
+        t_init = (IC_dict["e"] * np.sinh(E_init) - E_init) / mean_motion
+        t_exit = (IC_dict["e"] * np.sinh(E_exit) - E_exit) / mean_motion
         delta_t = t_exit - t_init
+        print(delta_t)
     else: 
         # use Kepler's equation to evaluate flight time
         E_init = np.arctan2(np.sqrt(1 - IC_dict["e"] ** 2) * np.sin(f_init), IC_dict["e"] + np.cos(f_init))
