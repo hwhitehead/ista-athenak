@@ -609,6 +609,102 @@ class NBody:
 
         return edot_grav, edot_acc
 
+class InitOrbit:
+
+    def __init__(self, R_p, q, e):
+
+        self.R_p = R_p
+        self.q = q
+        self.e = e
+        self.prim_fac = -q / (1.0 + q)
+        self.sec_fac = 1.0 / (1.0 + q)
+
+    def calc_R(self, theta):
+
+        if (self.e == 1):
+            return 2 * self.R_p / (1 - np.cos(theta))
+        else:
+            a = self.R_p / (1 - self.e)
+            return a * (1 - self.e ** 2) / (1 - self.e * np.cos(theta))
+
+    def init_in_plane(self, theta):
+
+        # compute positions, velocities in orbital plane
+
+        # if hyperbolic, reset theta to instead set initial seperation 
+        # to match parabolic seperation at this true anomaly
+        if (self.e > 1):
+            R_para = 2 * self.R_p / (1 - np.cos(theta))
+            a = self.R_p / (1 - self.e)
+            cos_theta_hyp = (1 - a * (1 - self.e ** 2) / R_para) / self.e
+            theta_hyp = np.arccos(cos_theta_hyp)
+            theta = theta_hyp
+
+        # calculate position by true anomaly (measured from apoapsis at +ve X)
+        R = self.calc_R(theta)
+        X = R * np.cos(theta)
+        Y = R * np.sin(theta)
+
+        # decompose velocity in radial and azimuthal direction
+        F_R, F_theta = self.calc_F(theta)
+        v_c = np.sqrt((1+self.q) / R)
+        v_R = v_c * F_R
+        v_theta = v_c * F_theta
+        VX = v_R * np.cos(theta) - v_theta * np.sin(theta)
+        VY = v_R * np.sin(theta) + v_theta * np.cos(theta)
+
+        return X, Y, VX, VY
+
+    def init_body_in_plane(self, theta, primary=False):
+
+        X, Y, VX, VY = self.init_in_plane(theta)
+        if primary:
+            mult = self.prim_fac
+        else:
+            mult = self.sec_fac
+
+        return X * mult, Y * mult, VX * mult, VY * mult
+            
+    def init(self, theta, i, print_values=False):
+
+        # get in plane properties
+        X, Y, VX, VY = self.init_in_plane(theta)    
+        P = np.array([X, Y, 0])
+        V = np.array([VX, VY, 0])
+
+        # incline binary with rotation of i about y axis
+        R_y = np.array([[np.cos(i), 0, np.sin(i)],
+                            [0, 1, 0],
+                            [-np.sin(i), 0, np.cos(i)]])
+
+        p = np.matmul(R_y, P)
+        v = np.matmul(R_y, V)
+
+        # split binary into components
+        p_prim = p * self.prim_fac
+        p_sec = p * self.sec_fac
+        v_prim = v * self.prim_fac
+        v_sec = v * self.sec_fac
+
+        if print_values:
+            print("Primary:")
+            print("m = {0}\nx={1}\ny={2}\nz={3}\nvx={4}\nvy={5}\nvz={6}".format(1, *p_prim, *v_prim))
+            print("Secondary:")
+            print("m = {0}\nx={1}\ny={2}\nz={3}\nvx={4}\nvy={5}\nvz={6}".format(self.q, *p_sec, *v_sec))
+
+
+        state = np.array([1, *p_prim, *v_prim, self.q, *p_sec, *v_sec])
+
+        return state
+
+    def calc_F(self, theta):
+
+        F_theta = np.sqrt(1 - self.e * np.cos(theta))
+        F_R = - self.e * np.sin(theta) / F_theta
+
+        return F_R, F_theta
+        
+
 class InitParabola:
 
     def __init__(self, R_p, q):

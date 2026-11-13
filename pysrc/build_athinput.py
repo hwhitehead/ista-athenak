@@ -5,7 +5,7 @@ from copy import deepcopy
 
 pysrc = os.path.join(os.path.dirname(__file__), "/Users/hwhitehead/github/ista-athenak/pysrc")
 if pysrc not in sys.path: sys.path.append(pysrc)
-from ista_classes import InitBinary, InitParabola
+from ista_classes import InitOrbit
 
 def build_athinput(IC_dict, output_file, template_file): 
 
@@ -17,12 +17,11 @@ def build_athinput(IC_dict, output_file, template_file):
     athinput_dict = {}
 
     # build binary
-    if (IC_dict["e"] == 1.0):
-        if IC_dict["R_p"] == 0:
-            raise Exception("require set periapsis for parabolic flyby")
-        binary = InitParabola(R_p = IC_dict["R_p"], q = IC_dict["q"])
-    else:
-        binary = InitBinary(a = IC_dict["a"], q = IC_dict["q"], e = IC_dict["e"])
+    if IC_dict["R_p"] is None:
+        if IC_dict["a"] is None:
+            raise Exception("require semi-major axis or periapsis to scale binary")
+        IC_dict["R_p"] = IC_dict["a"] * (1 - IC_dict["e"])
+    binary = InitOrbit(R_p = IC_dict["R_p"], q = IC_dict["q"], e = IC_dict["e"])
     init_nbody_state = binary.init(theta=IC_dict["theta_init_in_pi"]* np.pi, i=IC_dict["i_in_pi"] * np.pi, print_values=False)
     athinput_dict["M0"]  = init_nbody_state[0]
     athinput_dict["X0"]  = init_nbody_state[1]
@@ -39,31 +38,36 @@ def build_athinput(IC_dict, output_file, template_file):
     athinput_dict["VY1"] = init_nbody_state[12]
     athinput_dict["VZ1"] = init_nbody_state[13]
 
-    # determine timings by angular sweep of orbit
-    f_init = np.pi + IC_dict["theta_init_in_pi"] * np.pi # switch to true anomaly defined from periapsis
-    E_init = np.arctan2(np.sqrt(1 - IC_dict["e"] ** 2) * np.sin(f_init), IC_dict["e"] + np.cos(f_init))
-    if IC_dict["theta_exit_in_pi"] is not None:
-        f_exit = np.pi + IC_dict["theta_exit_in_pi"] * np.pi
-        E_exit = np.arctan2(np.sqrt(1 - IC_dict["e"] ** 2) * np.sin(f_exit), IC_dict["e"] + np.cos(f_exit))
-    else:
-        E_exit = - E_init # symmetric about pericenter
-    m_bin = athinput_dict["M0"] + athinput_dict["M1"]
+    # compute true anomaly from exact nbody state
+    theta_init = np.arctan2(athinput_dict["Y1"] - athinput_dict["Y0"], athinput_dict["X1"] - athinput_dict["X0"])
+    f_init = np.pi + theta_init     # switch to true anomaly defined from periapsis
+    f_exit = 3 * np.pi - theta_init # symmetrise about start location
     
-    
-    if (IC_dict["e"] == 1.0):
-        # use Barkers equation to evalute flight time
-        mu = 1.0 + IC_dict["q"]
-        f_init = np.pi + IC_dict["theta_init_in_pi"] * np.pi 
-        f_exit = 3 * np.pi - IC_dict["theta_init_in_pi"] * np.pi 
+    mu = 1.0 + IC_dict["q"]
+    if (IC_dict["e"] >= 1.0):
+        # use Barker's equation to evalute flight time
         D_init = np.tan(0.5 * f_init)
         D_exit = np.tan(0.5 * f_exit)
         delta_t = np.sqrt(IC_dict["R_p"] ** 3 / mu) * (D_exit + 1.0/3 * D_exit ** 3 - D_init - 1.0/3 * D_init ** 3)
-    else:
-        # use Keplers equation to evaluate flight time
-        mean_motion = np.sqrt(m_bin / IC_dict["a"] ** 3)
+    elif (IC_dict["e"] > 1):
+        # use hyperbolic Keplers equation to evaluate flight time
+        E_init = np.arccosh((np.cos(f_init) + IC_dict["e"])/(1+IC_dict["e"]*np.cos(f_init)))
+        E_exit = np.arccosh((np.cos(f_exit) + IC_dict["e"])/(1+IC_dict["e"]*np.cos(f_exit)))
+        a_hyp = IC_dict["R_p"] / (1 - IC_dict["e"])
+        mean_motion = np.sqrt(mu / -a_hyp ** 3)
+        t_init = (E_init - IC_dict["e"] * np.sinh(E_init)) / mean_motion
+        t_exit = (E_exit - IC_dict["e"] * np.sinh(E_exit)) / mean_motion
+        delta_t = t_exit - t_init
+    else: 
+        # use Kepler's equation to evaluate flight time
+        E_init = np.arctan2(np.sqrt(1 - IC_dict["e"] ** 2) * np.sin(f_init), IC_dict["e"] + np.cos(f_init))
+        E_exit = np.arctan2(np.sqrt(1 - IC_dict["e"] ** 2) * np.sin(f_exit), IC_dict["e"] + np.cos(f_exit))
+        a_ecc = IC_dict["R_p"] / (1 - IC_dict["e"])
+        mean_motion = np.sqrt(mu / a_ecc ** 3)
         t_init = (E_init - IC_dict["e"] * np.sin(E_init)) / mean_motion
         t_exit = (E_exit - IC_dict["e"] * np.sin(E_exit)) / mean_motion
         delta_t = t_exit - t_init
+
     if IC_dict["tlim"] is not None:
         athinput_dict["TLIM"]     = IC_dict["tlim"]
     else:
@@ -78,11 +82,7 @@ def build_athinput(IC_dict, output_file, template_file):
         athinput_dict["HYDRO_DT"] = delta_t / IC_dict["num_hydro"]
 
     # determine target resolution and domain size
-    if (IC_dict["e"] == 1):
-        R_p = IC_dict["R_p"]
-    else:
-        R_p = IC_dict["a"] * (1.0 - IC_dict["e"])
-    dx_min = R_p / (IC_dict["cells_per_soft"] * IC_dict["soft_per_rp"])
+    dx_min = IC_dict["R_p"] / (IC_dict["cells_per_soft"] * IC_dict["soft_per_rp"])
     dx_root = dx_min * np.power(2, IC_dict["num_levels"] - 1)
     Lx = 2 * IC_dict["domain_scale"] * athinput_dict["X1"]
     Ly = 2 * IC_dict["domain_scale"] * athinput_dict["Y1"]
@@ -124,7 +124,7 @@ def build_athinput(IC_dict, output_file, template_file):
 
     # specify non-binary nbody properties
     amr_scale = 1.0 # scaling factor for amr region in units r_disk
-    r_H_p = R_p * np.cbrt(IC_dict["q"] / (3 * (1 + IC_dict["q"]))) # Hill radius at periapsis
+    r_H_p = IC_dict["R_p"] * np.cbrt(IC_dict["q"] / (3 * (1 + IC_dict["q"]))) # Hill radius at periapsis
     for n in range(2):
         # determine disk size
         if IC_dict["r_disk{0}".format(n)] is not None:
@@ -144,7 +144,7 @@ def build_athinput(IC_dict, output_file, template_file):
                 t_amr = 0.0
             else: # starts without disc, init amr at 75% time to periapsis
                 t_amr = (3/8) * athinput_dict["TLIM"]
-        athinput_dict["R_SOFT{0}".format(n)] = R_p / IC_dict["soft_per_rp"]
+        athinput_dict["R_SOFT{0}".format(n)] = IC_dict["R_p"] / IC_dict["soft_per_rp"]
         athinput_dict["GRADE{0}".format(n)]  = IC_dict["grade{0}".format(n)]
         athinput_dict["R_CAV{0}".format(n)]  = IC_dict["r_cav{0}".format(n)]        
         athinput_dict["R_AMR{0}".format(n)]  = r_amr
@@ -199,7 +199,6 @@ def build_athinput(IC_dict, output_file, template_file):
     print("finished athinput construction, saved output at {0}".format(output_file))
 
 
-
 if __name__ == "__main__":
 
     # define initial conditions for TDE athinput
@@ -210,7 +209,7 @@ if __name__ == "__main__":
     # binary properties
     IC_dict['a']                = 1.0     # semi-major axis of binary (for e < 1)
     IC_dict['q']                = 0.1     # mass ratio of binary
-    IC_dict['e']                = 1.0     # eccentricity of binary
+    IC_dict['e']                = 2.0     # eccentricity of binary
     IC_dict["R_p"]              = 0.01    # periapsis seperation (for e = 1)
     IC_dict["i_in_pi"]          = 0.0     # inclination of binary  (in units pi)
     IC_dict['theta_init_in_pi'] = 0.125   # initial true anomaly (from apoapsis, in units pi)
