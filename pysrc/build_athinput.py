@@ -318,7 +318,7 @@ if __name__ == "__main__":
                 # construct proper slurm file
                 slurm_file = os.path.join(slurm_dir, run_name + ".sh")
                 slurm_dict = {}
-                slurm_dict["INPUT_PATH"]  = os.path.join("inputs/ista/tde_prod/", run_name + ".athinput")
+                slurm_dict["INPUT_PATH"]  = os.path.join("inputs/ista/tde_prod/athinput", run_name + ".athinput")
                 slurm_dict["OUTPUT_PATH"] = os.path.join(prod_save_dir, run_name)
                 build_slurm(slurm_dict, slurm_file, slurm_in)
                 # append name of submit script
