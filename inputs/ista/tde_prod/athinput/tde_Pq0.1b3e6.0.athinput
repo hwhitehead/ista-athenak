@@ -1,0 +1,168 @@
+# AthenaK template input file for TDE athinput construction
+
+<job>
+basename  = nbody       # problem ID: basename of output filenames
+ 
+<mesh>
+nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
+nx1       = 48       # Number of zones in X1-direction (root level, dx=0.1)
+x1min     = -0.06     # minimum value of X1
+x1max     = 0.06     # maximum value of X1
+ix1_bc    = outflow     # inner-X1 boundary flag
+ox1_bc    = outflow     # outer-X1 boundary flag
+
+nx2       = 288       # Number of zones in X2-direction (root level, dx=0.1)
+x2min     = -0.36     # minimum value of X2
+x2max     = 0.36     # maximum value of X2
+ix2_bc    = outflow     # inner-X2 boundary flag
+ox2_bc    = outflow     # outer-X2 boundary flag
+
+nx3       = 1           # Number of zones in X3-direction (root level, dx=0.1)
+x3min     = -0.05       # minimum value of X3
+x3max     =  0.05       # maximum value of X3
+ix3_bc    = outflow     # inner-X3 boundary flag
+ox3_bc    = outflow     # outer-X3 boundary flag
+
+<meshblock>
+nx1       = 16          # Number of cells in each MeshBlock, X1-dir
+nx2       = 16          # Number of cells in each MeshBlock, X2-dir
+nx3       = 1           # Number of cells in each MeshBlock, X3-dir
+
+<mesh_refinement>
+refinement          = adaptive     # static mesh refinement (SMR)
+num_levels          = 7
+refinement_interval = 3
+max_nmb_per_rank    = 4096
+
+<amr_criterion0>
+method = user
+
+<time>
+evolution  = dynamic    # dynamic/kinematic/static
+integrator = rk2        # time integration algorithm
+cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim       = -1         # cycle limit
+tlim       = 0.021908195209711222        # time limit
+ndiag      = 1.6667     # cycles between diagostic output
+
+<hydro>
+eos             = ideal         # EOS type
+reconstruct     = plm          # spatial reconstruction method
+rsolver         = hlle          # Riemann-solver to be used
+gamma           = 1.4           # gamma = C_p/C_v (ideal only)
+iso_sound_speed = 1.0           # isothermal only
+nu_iso          = 1e-08        # must be non-zero to use alpha prescription
+dfloor          = 1e-12
+pfloor          = 1e-12
+
+<problem>
+rho0                = 1.0           # homogeneous density of disc
+rho_floor_fac       = 1e-8          # floor value applied to non-disc void
+
+<nbody>
+num_nbody           = 2                 # number of gravitating bodies in domain
+eta_dt              = 0.1               # prefactor for nbody timestep integration
+hist_nbody          = 1                 # boolean: write nbody state to .hst
+src_gravity         = 1                 # boolean: include gravity src for hydro
+src_accretion       = 0   # boolean: include accretion src for hydro
+sum_backreaction    = 1                 # boolean: collect mdot, acceleration from hydro
+inc_backreaction    = 0                 # boolean: apply mdot, acceleration during live evolution
+verbose             = 0                 # boolean: write progress checks to stdout
+Mach                = 40.0            # Mach number of disc for pgen and cooling
+alpha               = 0.1           # viscosity scaling parameter
+nu_max              = 1e-3              # ceiling for viscosity computed with constant alpha
+cs_sqr_floor        = 1e-10             # floor for sound speed used in cooling
+grav_mode           = 0       # grav calc mode 0 = LIVE_CALC, 1 = PRE_POTENTIAL, 2 = PRE_ACCELERATION
+cooling_mode        = -1    # thermodynamics -1 = None, 0 = ForcedIso, 1 = BlackBody, 2 = BetaCool_dyn, 3 = BetaCool_therm
+sink_mode           = 0       # sink rate mode  0 = all, 1 = flat, 2 = adapt nu, 3 = ideal nu, 4 = adapt cs
+visc_mode           = 1       # visc calc mode  0 = true, 1 = ideal kinematic viscosity
+soft_mode           = 0       # gravitational softening mode 0 = plummer, 1 = spline
+torq_mode           = 0                 # (INACTIVE) angular momentum removal in sink 0 = torque free, 1 = free fall 
+
+m0      = 1.0
+x0      = -0.002920324601376996
+y0      = -0.02370638787122997
+z0      = -0.0
+vx0     = 0.3576713546298151
+vy0     = 2.1181893618186165
+vz0     = -0.0
+r_soft0 = 0.000625
+r_amr0  = 0.00935297861645616
+t_amr0  = 0.008215573203641708
+r_disk0 = 0.0
+r_cav0  = 0.0
+grade0  = 1
+
+m1      = 0.1
+x1      = 0.02920324601376996
+y1      = 0.23706387871229967
+z1      = 0.0
+vx1     = -3.5767135462981505
+vy1     = -21.181893618186162
+vz1     = 0.0
+r_soft1 = 0.000625
+r_amr1  = 0.00935297861645616
+t_amr1  = 0.0
+r_disk1 = 0.00935297861645616
+r_cav1  = 0.0
+grade1  = 1
+
+<output1>
+file_type  = hst         # history data dump
+dt         = 2.1908195209711224e-06      # time increment between outputs
+
+<output2>
+file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
+variable   = hydro_w    # variables to be output
+dt         = 0.00010954097604855612     # time increment between outputs
+
+<refined_region1>
+x1min = 0.02452675670554188
+x1max = 0.03387973532199804
+x2min = 0.23238738940407158
+x2max = 0.24174036802052776
+x3min = -0.05
+x3max = 0.05
+level = 6
+
+<comment>
+a = 1.0
+q = 0.1
+e = 6.0
+R_p = 0.01
+i_in_pi = 0.0
+theta_init_in_pi = 0.125
+theta_exit_in_pi = None
+num_hydro = 200
+num_hst = 10000.0
+tlim = None
+hst_dt = None
+hydro_dt = None
+grav_mode = 0
+cooling_mode = -1
+sink_mode = 0
+visc_mode = 1
+soft_mode = 0
+src_accretion = 0
+grade0 = 1
+grade1 = 1
+r_cav0 = 0.0
+r_cav1 = 0.0
+r_disk0 = None
+r_disk1 = None
+beta0 = 0
+beta1 = 3
+r_amr0 = None
+r_amr1 = None
+t_amr0 = None
+t_amr1 = None
+Mach = 40.0
+alpha = 0.1
+nu_iso = 1e-08
+cells_per_soft = 16
+soft_per_rp = 16
+num_levels = 7
+max_nmb_per_rank = 4096
+domain_scale = 1.5
+three_d = False
+cells_per_mb = 16
