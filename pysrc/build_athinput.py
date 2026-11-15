@@ -306,10 +306,7 @@ if __name__ == "__main__":
                 # define binary props
                 IC_dict["e"]      = ecc
                 IC_dict["q"]      = q
-                if (ecc  < 1) :
-                    IC_dict["theta_init_in_pi"] = 0
-                else:
-                    IC_dict["theta_init_in_pi"] = 0.125
+                IC_dict["theta_init_in_pi"] = 0.125
                 # define disc props
                 IC_dict["grade1"] = int(grade=="P") # 1 if prograde, 0 if retrograde
                 IC_dict["beta1"]  = beta
