@@ -5,9 +5,9 @@ basename  = nbody       # problem ID: basename of output filenames
  
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
-nx1       = 48       # Number of zones in X1-direction (root level, dx=0.1)
-x1min     = -0.06     # minimum value of X1
-x1max     = 0.06     # maximum value of X1
+nx1       = 64       # Number of zones in X1-direction (root level, dx=0.1)
+x1min     = -0.08     # minimum value of X1
+x1max     = 0.08     # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
@@ -42,7 +42,7 @@ evolution  = dynamic    # dynamic/kinematic/static
 integrator = rk2        # time integration algorithm
 cfl_number = 0.2        # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1         # cycle limit
-tlim       = 0.021908195209711222        # time limit
+tlim       = 0.0279043349746546        # time limit
 ndiag      = 1.6667     # cycles between diagostic output
 
 <hydro>
@@ -80,47 +80,47 @@ soft_mode           = 0       # gravitational softening mode 0 = plummer, 1 = sp
 torq_mode           = 0                 # (INACTIVE) angular momentum removal in sink 0 = torque free, 1 = free fall 
 
 m0      = 1.0
-x0      = -0.002920324601376996
-y0      = -0.02370638787122997
+x0      = -0.004835032356610967
+y0      = -0.023391100525395024
 z0      = -0.0
-vx0     = 0.3576713546298151
-vy0     = 2.1181893618186165
+vx0     = 0.41757399728870437
+vy0     = 1.6192915454144747
 vz0     = -0.0
 r_soft0 = 0.000625
-r_amr0  = 0.00623531907763744
-t_amr0  = 0.008215573203641708
+r_amr0  = 0.00155882976940936
+t_amr0  = 0.010464125615495475
 r_disk0 = 0.0
 r_cav0  = 0.0
 grade0  = 1
 
 m1      = 0.1
-x1      = 0.02920324601376996
-y1      = 0.23706387871229967
+x1      = 0.04835032356610967
+y1      = 0.23391100525395023
 z1      = 0.0
-vx1     = -3.5767135462981505
-vy1     = -21.181893618186162
+vx1     = -4.175739972887043
+vy1     = -16.192915454144746
 vz1     = 0.0
 r_soft1 = 0.000625
-r_amr1  = 0.00623531907763744
+r_amr1  = 0.00155882976940936
 t_amr1  = 0.0
-r_disk1 = 0.00623531907763744
+r_disk1 = 0.00155882976940936
 r_cav1  = 0.0
-grade1  = 0
+grade1  = 1
 
 <output1>
 file_type  = hst         # history data dump
-dt         = 2.1908195209711224e-06      # time increment between outputs
+dt         = 2.79043349746546e-06      # time increment between outputs
 
 <output2>
 file_type  = bin        # native binary data dump (vtk writer doesn't support SMR/AMR)
 variable   = hydro_w    # variables to be output
-dt         = 0.00010954097604855612     # time increment between outputs
+dt         = 0.000139521674873273     # time increment between outputs
 
 <refined_region1>
-x1min = 0.02608558647495124
-x1max = 0.03232090555258868
-x2min = 0.23394621917348096
-x2max = 0.24018153825111838
+x1min = 0.04757090868140499
+x1max = 0.04912973845081434
+x2min = 0.23313159036924555
+x2max = 0.2346904201386549
 x3min = -0.05
 x3max = 0.05
 level = 6
@@ -128,7 +128,7 @@ level = 6
 <comment>
 a = 1.0
 q = 0.1
-e = 6.0
+e = 4.0
 R_p = 0.01
 i_in_pi = 0.0
 theta_init_in_pi = 0.125
@@ -145,13 +145,13 @@ visc_mode = 1
 soft_mode = 0
 src_accretion = 0
 grade0 = 1
-grade1 = 0
+grade1 = 1
 r_cav0 = 0.0
 r_cav1 = 0.0
 r_disk0 = None
 r_disk1 = None
 beta0 = 0
-beta1 = 2
+beta1 = 0.5
 r_amr0 = None
 r_amr1 = None
 t_amr0 = None

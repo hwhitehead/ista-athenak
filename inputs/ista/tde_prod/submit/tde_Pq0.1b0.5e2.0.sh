@@ -53,5 +53,5 @@ export ATHENAK_WDIR="/nfs/scistore24/haimagrp/hwhitehe/athenak_wdir"
 cd $ATHENAK_DIR
 
 # call executable
-srun --cpu_bind=verbose ./build/src/athena -i inputs/ista/tde_prod/athinput/tde_Rq0.1b3e0.75.athinput -d ${ATHENAK_WDIR}/tde_prod/tde_Rq0.1b3e0.75
+srun --cpu_bind=verbose ./build/src/athena -i inputs/ista/tde_prod/athinput/tde_Pq0.1b0.5e2.0.athinput -d ${ATHENAK_WDIR}/tde_prod/tde_Pq0.1b0.5e2.0
 

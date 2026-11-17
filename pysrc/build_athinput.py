@@ -51,7 +51,7 @@ def build_athinput(IC_dict, output_file, template_file):
         # use Barker's equation to evalute flight time
         D_init = np.tan(0.5 * f_init)
         D_exit = np.tan(0.5 * f_exit)
-        delta_t = np.sqrt(IC_dict["R_p"] ** 3 / mu) * (D_exit + 1.0/3 * D_exit ** 3 - D_init - 1.0/3 * D_init ** 3)
+        delta_t = np.sqrt(2 * IC_dict["R_p"] ** 3 / mu) * (D_exit + 1.0/3 * D_exit ** 3 - D_init - 1.0/3 * D_init ** 3)
     elif (IC_dict["e"] > 1):
         # use hyperbolic Keplers equation to evaluate flight time
         E_init = 2 * np.arctanh(np.sqrt((IC_dict["e"]-1)/(IC_dict["e"]+1)) * np.tan(0.5 * f_init))
@@ -216,6 +216,10 @@ def build_slurm(slurm_dict, output_file, template_file):
 
 def build_sbatch(slurm_list, sbatch_loc):
 
+    # delete old sbatch file if it exists
+    if os.path.isfile(sbatch_loc):
+        os.remove(sbatch_loc)
+
     with open(sbatch_loc, "a") as file:
         submit_block = ""
         for sbatch_script in slurm_list:
@@ -288,8 +292,8 @@ if __name__ == "__main__":
 
     # construct fiducial suite
     grade_span    = ["P","R"]
-    beta_span     = [1,2,3]
-    ecc_span      = [0.75, 1.0, 6.0]
+    beta_span     = [0.5,1,2]
+    ecc_span      = [1.0, 2.0, 4.0]
     q             = 0.1
     athinput_in   = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_template.athinput")
     slurm_in      = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_gpu_template.sh")
