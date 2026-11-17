@@ -117,10 +117,10 @@ variable   = hydro_w    # variables to be output
 dt         = 0.0006388884762880361     # time increment between outputs
 
 <refined_region1>
-x1min = 0.21755636199834655
-x1max = 0.22379168107598396
-x2min = 0.0882885130452876
-x2max = 0.09452383212292505
+x1min = 0.2113210429207091
+x1max = 0.2300270001536214
+x2min = 0.08205319396765016
+x2max = 0.10075915120056249
 x3min = -0.05
 x3max = 0.05
 level = 6
