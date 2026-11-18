@@ -126,8 +126,8 @@ def collect_files(master_dir, prod_params, mass_dir, hst_dir):
 if __name__ == "__main__":
 
     master_dir = "/nfs/scistore24/haimagrp/hwhitehe/athenak_wdir/tde_prod"
-    mass_dir = os.path.join(master_dir, "mass_store")
-    hst_dir = os.path.join(master_dir, "hst_store")
+    mass_dir = os.path.join(master_dir, "mass_dir")
+    hst_dir = os.path.join(master_dir, "hst_dir")
     
     prod_params = {}
     prod_params["grade_span"] = ["P", "R"]
@@ -138,6 +138,7 @@ if __name__ == "__main__":
     # convert binary files to atdf    
     #mass_convert_athdf(master_dir, prod_params)
     #print("finished binary conversion")
-    mass_track_mass(master_dir, prod_params, skip=10)
-    print("finished mass track")
+    #mass_track_mass(master_dir, prod_params, skip=10)
+    #print("finished mass track")
     collect_files(master_dir, prod_params, mass_dir, hst_dir)
+    print("finished file collection")
