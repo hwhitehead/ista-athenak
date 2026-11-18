@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import subprocess
+import subprocess, os
 
 vis_python = os.path.join(os.path.dirname(__file__), "../vis")
 if vis_python not in sys.path: sys.path.append(vis_python)
@@ -8,10 +8,10 @@ import athena_read
 
 from ista_classes import HydroDataAthenaK, NBody, InitBinary, InitParabola, InitOrbit
 
-def convert_athdf(master_dir):
+def mass_convert_athdf(master_dir):
 
-    grade_span    = ["P","R"]
-    beta_span     = [0.5,1,2]
+    grade_span    = ["P", "R"]
+    beta_span     = [0.5, 1, 2]
     ecc_span      = [1.0, 2.0, 4.0]
     q             = 0.1
 
@@ -24,11 +24,30 @@ def convert_athdf(master_dir):
                 run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
                 run_dir = os.path.join(master_dir, run_name)
                 bin_stem = os.path.join(run_dir, "bin/nbody.hydro_w")
-                # invoke subproc
+                # invoke subproc to call binary converter
                 subprocess.run(["python3", convert_path, bin_stem])
                 print("finished .athdf creation for {0}".format(run_name))
 
-def compute_mass_evo(load_dir, save_str, skip = 10):
+def mass_track_mass(master_dir):
+
+    grade_span    = ["P", "R"]
+    beta_span     = [0.5, 1, 2]
+    ecc_span      = [1.0, 2.0, 4.0]
+    q             = 0.1
+
+    convert_path = "/nfs/scistore24/haimagrp/hwhitehe/ista-athenak/vis/python/make_athdf.py"
+
+    for grade in grade_span:
+        for beta in beta_span:
+            for ecc in ecc_span:
+                # define save_str
+                run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
+                run_dir = os.path.join(master_dir, run_name)
+                save_str = os.path.join(run_dir, run_name + "_mass.npy")
+                single_track_mass(run_dir, save_str, skip=1)
+                print("finished .athdf creation for {0}".format(run_name))
+
+def single_track_mass(load_dir, save_str, skip = 10):
 
     dz = 0.1
     axis = 2
@@ -88,3 +107,5 @@ if __name__ == "__main__":
 
     master_dir = "/nfs/scistore24/haimagrp/hwhitehe/athenak_wdir/tde_prod"
     convert_athdf(master_dir)
+    print("finished binary conversion")
+    mass_track_mass(master_dir)
