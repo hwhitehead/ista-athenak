@@ -51,11 +51,6 @@ def single_track_mass(load_dir, save_str, skip = 1):
     dz = 0.1
     axis = 2
     slice_pos = 0
-    bounds_2d = np.zeros(shape=(2, 2))
-    bounds_2d[0, 0] = -1  # whole domain
-    bounds_2d[0, 1] = 3
-    bounds_2d[1, 0] = -1
-    bounds_2d[1, 1] = 1
 
     hist_str = os.path.join(load_dir, "nbody.user.hst")
     hist_data = athena_read.hst(hist_str)
@@ -66,40 +61,39 @@ def single_track_mass(load_dir, save_str, skip = 1):
     r_H_sqr = np.power(r_H_ar, 2.0)
 
     r_prim_sqr = 0.05 ** 2
-    m_H_ar = []
     m_prim_ar = []
-    t_H_ar = []
+    m_sec_ar = []
+    t_ar = []
 
-    for m in range(0, 200, skip):
+    for m in range(0, 201, skip):
         # load hydro data
         load_str = os.path.join(load_dir, "bin/nbody.hydro_w." + str(m).zfill(5) + ".athdf")
-        try:
-            HData = HydroDataAthenaK(load_str)
-        except:
-            break
+        # try:
+        HData = HydroDataAthenaK(load_str)
+        # except:
+        #     break
         t_index = np.where(t_hist >= HData.Time)[0][0]
-        data, levels = HData.inhomo_slice(axis=axis, slice_pos=slice_pos, slice_vars=["rho"], bounds_2d=bounds_2d)
-        dx0 = data["x"] - hist_data["x0"][t_index]
-        dy0 = data["y"] - hist_data["y0"][t_index]
-        dx1 = data["x"] - hist_data["x1"][t_index]
-        dy1 = data["y"] - hist_data["y1"][t_index]
-        dr0_sqr = dx0 ** 2 + dy0 ** 2
-        dr1_sqr = dx1 ** 2 + dy1 ** 2
-        num_in_slice = np.size(levels)
-        m_H = 0
+        m_sec = 0
         m_prim = 0
-        for n in range(0, num_in_slice):
-            in_prim = (dr0_sqr[n,:,:] < r_prim_sqr)
-            in_Hill = (dr1_sqr[n,:,:] < r_H_sqr[t_index])
-            in_prim = in_prim & ~in_Hill
-            cell_volume = (data["x"][n,0,1] - data["x"][n,0,0]) * (data["y"][n,1,0] - data["y"][n,0,0]) * dz
-            m_H += np.sum(data["rho"][n,:,:][in_Hill]) * cell_volume
+        for n in range(HData.NumMeshBlocks):
+            xx, yy = np.meshgrid(HData.x[n, :], HData.y[n, :])
+            dx0 = xx - hist_data["x0"][t_index]
+            dy0 = yy - hist_data["y0"][t_index]
+            dx1 = xx - hist_data["x1"][t_index]
+            dy1 = yy - hist_data["y1"][t_index]        
+            dr0_sqr = dx0 ** 2 + dy0 ** 2
+            dr1_sqr = dx1 ** 2 + dy1 ** 2
+            in_prim = (dr0_sqr < r_prim_sqr)
+            in_sec  = (dr1_sqr < r_H_sqr[t_index])
+            in_prim = in_prim & ~in_sec
+            cell_volume = (HData.x[n, 1] - HData.x[n, 0]) * (HData.y[n, 1] - HData.y[n, 0]) * dz
+            m_sec += np.sum(data["rho"][n,:,:][in_sec]) * cell_volume
             m_prim += np.sum(data["rho"][n,:,:][in_prim]) * cell_volume
         m_prim_ar.append(m_prim)
-        m_H_ar.append(m_H)
-        t_H_ar.append(HData.Time)
+        m_sec_ar.append(m_H)
+        t_ar.append(HData.Time)
 
-    data_to_save = np.vstack((np.array(t_H_ar), np.array(m_prim_ar), np.array(m_H_ar)))
+    data_to_save = np.vstack((np.array(t_ar), np.array(m_prim_ar), np.array(m_sec_ar)))
     np.save(save_str, data_to_save)
 
 def collect_files(master_dir, prod_params, mass_dir, hst_dir):
@@ -119,7 +113,7 @@ def collect_files(master_dir, prod_params, mass_dir, hst_dir):
                 hst_in = os.path.join(run_dir, "nbody.user.hst")
 
                 mass_out = os.path.join(mass_dir, run_name + "_mass.npy")
-                hst_out = os.path.join(hst_dir, num_name + ".hst")
+                hst_out = os.path.join(hst_dir, run_name + ".hst")
 
                 shutil.copyfile(mass_in, mass_out)
                 shutil.copyfile(hst_in, hist_out)
