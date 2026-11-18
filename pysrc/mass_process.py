@@ -68,10 +68,10 @@ def single_track_mass(load_dir, save_str, skip = 1):
     for m in range(0, 201, skip):
         # load hydro data
         load_str = os.path.join(load_dir, "bin/nbody.hydro_w." + str(m).zfill(5) + ".athdf")
-        # try:
-        HData = HydroDataAthenaK(load_str)
-        # except:
-        #     break
+        try:
+            HData = HydroDataAthenaK(load_str)
+        except:
+            break
         t_index = np.where(t_hist >= HData.Time)[0][0]
         m_sec = 0
         m_prim = 0

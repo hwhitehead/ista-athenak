@@ -2,6 +2,7 @@ import sys, os, re
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import cumulative_trapezoid
+import h5py
 
 vis_python = os.path.join(os.path.dirname(__file__), '../vis/python')
 if vis_python not in sys.path: sys.path.append(vis_python)
