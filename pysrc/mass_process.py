@@ -14,7 +14,7 @@ def mass_convert_athdf(master_dir, prod_params):
     grade_span    = prod_params["grade_span"]
     beta_span     = prod_params["beta_span"]
     ecc_span      = prod_params["ecc_span"]
-    q             = prod_params["q_span"]
+    q             = prod_params["q"]
 
     for grade in grade_span:
         for beta in beta_span:
@@ -32,7 +32,7 @@ def mass_track_mass(master_dir, prod_params, skip=1):
     grade_span    = prod_params["grade_span"]
     beta_span     = prod_params["beta_span"]
     ecc_span      = prod_params["ecc_span"]
-    q             = prod_params["q_span"]
+    q             = prod_params["q"]
 
     convert_path = "/nfs/scistore24/haimagrp/hwhitehe/ista-athenak/vis/python/make_athdf.py"
 
@@ -107,7 +107,7 @@ def collect_files(master_dir, prod_params, mass_dir, hst_dir):
     grade_span    = prod_params["grade_span"]
     beta_span     = prod_params["beta_span"]
     ecc_span      = prod_params["ecc_span"]
-    q             = prod_params["q_span"]
+    q             = prod_params["q"]
 
     for grade in grade_span:
         for beta in beta_span:
