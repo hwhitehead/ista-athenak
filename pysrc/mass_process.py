@@ -72,7 +72,10 @@ def single_track_mass(load_dir, save_str, skip = 1):
             HData = HydroDataAthenaK(load_str)
         except:
             break
-        t_index = np.where(t_hist >= HData.Time)[0][0]
+        try:
+            t_index = np.where(t_hist >= HData.Time)[0][0]
+        except:
+            break
         m_sec = 0
         m_prim = 0
         for n in range(HData.NumMeshBlocks):
