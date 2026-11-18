@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess, os, sys
+import shutil
 
 vis_python = os.path.join(os.path.dirname(__file__), "../vis/python")
 if vis_python not in sys.path: sys.path.append(vis_python)
@@ -8,14 +9,12 @@ import athena_read
 
 from ista_classes import HydroDataAthenaK, NBody, InitBinary, InitParabola, InitOrbit
 
-def mass_convert_athdf(master_dir):
+def mass_convert_athdf(master_dir, prod_params):
 
-    grade_span    = ["P", "R"]
-    beta_span     = [0.5, 1, 2]
-    ecc_span      = [1.0, 2.0, 4.0]
-    q             = 0.1
-
-    convert_path = "/nfs/scistore24/haimagrp/hwhitehe/ista-athenak/vis/python/make_athdf.py"
+    grade_span    = prod_params["grade_span"]
+    beta_span     = prod_params["beta_span"]
+    ecc_span      = prod_params["ecc_span"]
+    q             = prod_params["q_span"]
 
     for grade in grade_span:
         for beta in beta_span:
@@ -28,12 +27,12 @@ def mass_convert_athdf(master_dir):
                 subprocess.run(["python3", convert_path, bin_stem])
                 print("finished .athdf creation for {0}".format(run_name))
 
-def mass_track_mass(master_dir):
+def mass_track_mass(master_dir, prod_params, skip=1):
 
-    grade_span    = ["P", "R"]
-    beta_span     = [0.5, 1, 2]
-    ecc_span      = [1.0, 2.0, 4.0]
-    q             = 0.1
+    grade_span    = prod_params["grade_span"]
+    beta_span     = prod_params["beta_span"]
+    ecc_span      = prod_params["ecc_span"]
+    q             = prod_params["q_span"]
 
     convert_path = "/nfs/scistore24/haimagrp/hwhitehe/ista-athenak/vis/python/make_athdf.py"
 
@@ -44,10 +43,10 @@ def mass_track_mass(master_dir):
                 run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
                 run_dir = os.path.join(master_dir, run_name)
                 save_str = os.path.join(run_dir, run_name + "_mass.npy")
-                single_track_mass(run_dir, save_str, skip=1)
-                print("finished .athdf creation for {0}".format(run_name))
+                single_track_mass(run_dir, save_str, skip = skip)
+                print("finished mass_track for {0}".format(run_name))
 
-def single_track_mass(load_dir, save_str, skip = 10):
+def single_track_mass(load_dir, save_str, skip = 1):
 
     dz = 0.1
     axis = 2
@@ -71,9 +70,9 @@ def single_track_mass(load_dir, save_str, skip = 10):
     m_prim_ar = []
     t_H_ar = []
 
-    for m in range(0, 200,skip):
+    for m in range(0, 200, skip):
         # load hydro data
-        load_str = os.path.join(load_dir, "nbody.hydro_w." + str(m).zfill(5) + ".athdf")
+        load_str = os.path.join(load_dir, "bin/nbody.hydro_w." + str(m).zfill(5) + ".athdf")
         try:
             HData = HydroDataAthenaK(load_str)
         except:
@@ -103,9 +102,45 @@ def single_track_mass(load_dir, save_str, skip = 10):
     data_to_save = np.vstack((np.array(t_H_ar), np.array(m_prim_ar), np.array(m_H_ar)))
     np.save(save_str, data_to_save)
 
+def collect_files(master_dir, prod_params, mass_dir, hst_dir):
+
+    grade_span    = prod_params["grade_span"]
+    beta_span     = prod_params["beta_span"]
+    ecc_span      = prod_params["ecc_span"]
+    q             = prod_params["q_span"]
+
+    for grade in grade_span:
+        for beta in beta_span:
+            for ecc in ecc_span:
+                # define save_str
+                run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
+                run_dir = os.path.join(master_dir, run_name)
+                mass_in = os.path.join(run_dir, run_name + "_mass.npy")
+                hst_in = os.path.join(run_dir, "nbody.user.hst")
+
+                mass_out = os.path.join(mass_dir, run_name + "_mass.npy")
+                hst_out = os.path.join(hst_dir, num_name + ".hst")
+
+                shutil.copyfile(mass_in, mass_out)
+                shutil.copyfile(hst_in, hist_out)
+
+                print("finished collection for {0}".format(run_name))
+
 if __name__ == "__main__":
 
     master_dir = "/nfs/scistore24/haimagrp/hwhitehe/athenak_wdir/tde_prod"
-    mass_convert_athdf(master_dir)
-    print("finished binary conversion")
-    mass_track_mass(master_dir)
+    mass_dir = os.path.join(master_dir, "mass_store")
+    hst_dir = os.path.join(master_dir, "hst_store")
+    
+    prod_params = {}
+    prod_params["grade_span"] = ["P", "R"]
+    prod_params["beta_span"]  = [0.5, 1, 2]
+    prod_params["ecc_span"]   = [1.0, 2.0, 4.0]
+    prod_params["q"]          = 0.1
+
+    # convert binary files to atdf    
+    #mass_convert_athdf(master_dir, prod_params)
+    #print("finished binary conversion")
+    mass_track_mass(master_dir, prod_params, skip=10)
+    print("finished mass track")
+    collect_files(master_dir, prod_params, mass_dir, hst_dir)
