@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import subprocess, os, sys
 
-vis_python = os.path.join(os.path.dirname(__file__), "../vis")
+vis_python = os.path.join(os.path.dirname(__file__), "../vis/python")
 if vis_python not in sys.path: sys.path.append(vis_python)
 import athena_read
 
