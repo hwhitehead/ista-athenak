@@ -90,7 +90,7 @@ def single_track_mass(load_dir, save_str, skip = 1):
             m_sec += np.sum(HData.rho[n,0,:,:][in_sec]) * cell_volume
             m_prim += np.sum(HData.rho[n,0,:,:][in_prim]) * cell_volume
         m_prim_ar.append(m_prim)
-        m_sec_ar.append(m_H)
+        m_sec_ar.append(m_sec)
         t_ar.append(HData.Time)
 
     data_to_save = np.vstack((np.array(t_ar), np.array(m_prim_ar), np.array(m_sec_ar)))
