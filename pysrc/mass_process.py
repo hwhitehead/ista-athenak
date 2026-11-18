@@ -119,7 +119,7 @@ def collect_files(master_dir, prod_params, mass_dir, hst_dir):
                 hst_out = os.path.join(hst_dir, run_name + ".hst")
 
                 shutil.copyfile(mass_in, mass_out)
-                shutil.copyfile(hst_in, hist_out)
+                shutil.copyfile(hst_in, hst_out)
 
                 print("finished collection for {0}".format(run_name))
 
