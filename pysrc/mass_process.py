@@ -106,6 +106,6 @@ def single_track_mass(load_dir, save_str, skip = 10):
 if __name__ == "__main__":
 
     master_dir = "/nfs/scistore24/haimagrp/hwhitehe/athenak_wdir/tde_prod"
-    convert_athdf(master_dir)
+    mass_convert_athdf(master_dir)
     print("finished binary conversion")
     mass_track_mass(master_dir)
