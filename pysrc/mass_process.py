@@ -87,8 +87,8 @@ def single_track_mass(load_dir, save_str, skip = 1):
             in_sec  = (dr1_sqr < r_H_sqr[t_index])
             in_prim = in_prim & ~in_sec
             cell_volume = (HData.x[n, 1] - HData.x[n, 0]) * (HData.y[n, 1] - HData.y[n, 0]) * dz
-            m_sec += np.sum(data["rho"][n,:,:][in_sec]) * cell_volume
-            m_prim += np.sum(data["rho"][n,:,:][in_prim]) * cell_volume
+            m_sec += np.sum(HData.rho[n,0,:,:][in_sec]) * cell_volume
+            m_prim += np.sum(HData.rho[n,0,:,:][in_prim]) * cell_volume
         m_prim_ar.append(m_prim)
         m_sec_ar.append(m_H)
         t_ar.append(HData.Time)
