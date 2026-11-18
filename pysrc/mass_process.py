@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import subprocess, os
+import subprocess, os, sys
 
 vis_python = os.path.join(os.path.dirname(__file__), "../vis")
 if vis_python not in sys.path: sys.path.append(vis_python)
