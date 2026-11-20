@@ -5,9 +5,9 @@ basename  = nbody       # problem ID: basename of output filenames
  
 <mesh>
 nghost    = 4           # Number of ghost cells (must be even for SMR/AMR)
-nx1       = 64       # Number of zones in X1-direction (root level, dx=0.1)
-x1min     = -0.08     # minimum value of X1
-x1max     = 0.08     # maximum value of X1
+nx1       = 128       # Number of zones in X1-direction (root level, dx=0.1)
+x1min     = -0.16     # minimum value of X1
+x1max     = 0.16     # maximum value of X1
 ix1_bc    = outflow     # inner-X1 boundary flag
 ox1_bc    = outflow     # outer-X1 boundary flag
 
@@ -87,7 +87,7 @@ vx0     = 0.41757399728870437
 vy0     = 1.6192915454144747
 vz0     = -0.0
 r_soft0 = 0.000625
-r_amr0  = 0.00155882976940936
+r_amr0  = 0.01
 t_amr0  = 0.010464125615495475
 r_disk0 = 0.0
 r_cav0  = 0.0
@@ -101,7 +101,7 @@ vx1     = -4.175739972887043
 vy1     = -16.192915454144746
 vz1     = 0.0
 r_soft1 = 0.000625
-r_amr1  = 0.00155882976940936
+r_amr1  = 0.005
 t_amr1  = 0.0
 r_disk1 = 0.00155882976940936
 r_cav1  = 0.0
@@ -117,10 +117,10 @@ variable   = hydro_w    # variables to be output
 dt         = 0.000139521674873273     # time increment between outputs
 
 <refined_region1>
-x1min = 0.04601207891199563
-x1max = 0.050688568220223704
-x2min = 0.2315727605998362
-x2max = 0.23624924990806426
+x1min = 0.04085032356610967
+x1max = 0.055850323566109666
+x2min = 0.22641100525395022
+x2max = 0.24141100525395023
 x3min = -0.05
 x3max = 0.05
 level = 6

@@ -13,6 +13,10 @@ def build_athinput(IC_dict, output_file, template_file):
     if (IC_dict["i_in_pi"] != 0.0):
         raise ValueError("3D support not yet implemented")
 
+    # if elliptical, start at apoapsis
+    if IC_dict["e"] < 1:
+        IC_dict["theta_init_in_pi"] /= 2
+
     # read IC_dict value, inform athinput values
     athinput_dict = {}
 
@@ -88,6 +92,12 @@ def build_athinput(IC_dict, output_file, template_file):
     dx_root = dx_min * np.power(2, IC_dict["num_levels"] - 1)
     Lx = 2 * IC_dict["domain_scale"] * athinput_dict["X1"]
     Ly = 2 * IC_dict["domain_scale"] * athinput_dict["Y1"]
+    # if hyperbolic, extend x range to capture unbound material
+    if IC_dict["e"] > 1:
+        Lx *= 2
+    # if elliptical, extend y range to capture unbound material
+    if IC_dict["e"] < 1:
+        Ly *= 2
     xlims = [-0.5 * Lx, 0.5 * Lx]
     ylims = [-0.5 * Ly, 0.5 * Ly]
 
@@ -288,45 +298,45 @@ if __name__ == "__main__":
     IC_dict["cells_per_mb"]     = 16
 
     # define path to input template and output
-    template_file = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_template.athinput")
-    output_file   = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_output.athinput")
-    build_athinput(IC_dict, output_file, template_file)
+    # template_file = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_template.athinput")
+    # output_file   = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_output.athinput")
+    # build_athinput(IC_dict, output_file, template_file)
 
     # construct fiducial suite
-    # grade_span    = ["P","R"]
-    # beta_span     = [0.5,1,2]
-    # ecc_span      = [1.0, 2.0, 4.0]
-    # q             = 0.1
-    # athinput_in   = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_template.athinput")
-    # slurm_in      = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_gpu_template.sh")
-    # athinput_dir  = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_prod/athinput")
-    # slurm_dir     = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_prod/submit")
-    # prod_save_dir = "tde_prod"
-    # slurm_list    = []
-    # for grade in grade_span:
-    #     for beta in beta_span:
-    #         for ecc in ecc_span:
-    #             # define save_str
-    #             run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
-    #             athinput_file = os.path.join(athinput_dir, run_name + ".athinput")
-    #             # define binary props
-    #             IC_dict["e"]      = ecc
-    #             IC_dict["q"]      = q
-    #             IC_dict["theta_init_in_pi"] = 0.125
-    #             # define disc props
-    #             IC_dict["grade1"] = int(grade=="P") # 1 if prograde, 0 if retrograde
-    #             IC_dict["beta1"]  = beta
-    #             # invoke builder
-    #             build_athinput(IC_dict, athinput_file, athinput_in)
-    #             # construct proper slurm file
-    #             slurm_file = os.path.join(slurm_dir, run_name + ".sh")
-    #             slurm_dict = {}
-    #             slurm_dict["INPUT_PATH"]  = os.path.join("inputs/ista/tde_prod/athinput", run_name + ".athinput")
-    #             slurm_dict["OUTPUT_PATH"] = os.path.join(prod_save_dir, run_name)
-    #             build_slurm(slurm_dict, slurm_file, slurm_in)
-    #             # append name of submit script
-    #             slurm_list.append(run_name + ".sh")
+    grade_span    = ["P","R"]
+    beta_span     = [0.5, 1, 2]
+    ecc_span      = [0.9, 1.0, 2.0, 4.0]
+    q             = 0.1
+    athinput_in   = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_template.athinput")
+    slurm_in      = os.path.join(os.path.dirname(__file__), "../inputs/ista/templates/tde_gpu_template.sh")
+    athinput_dir  = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_prod/athinput")
+    slurm_dir     = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_prod/submit")
+    prod_save_dir = "tde_prod"
+    slurm_list    = []
+    for grade in grade_span:
+        for beta in beta_span:
+            for ecc in ecc_span:
+                # define save_str
+                run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
+                athinput_file = os.path.join(athinput_dir, run_name + ".athinput")
+                # define binary props
+                IC_dict["e"]      = ecc
+                IC_dict["q"]      = q
+                IC_dict["theta_init_in_pi"] = 0.125
+                # define disc props
+                IC_dict["grade1"] = int(grade=="P") # 1 if prograde, 0 if retrograde
+                IC_dict["beta1"]  = beta
+                # invoke builder
+                build_athinput(IC_dict, athinput_file, athinput_in)
+                # construct proper slurm file
+                slurm_file = os.path.join(slurm_dir, run_name + ".sh")
+                slurm_dict = {}
+                slurm_dict["INPUT_PATH"]  = os.path.join("inputs/ista/tde_prod/athinput", run_name + ".athinput")
+                slurm_dict["OUTPUT_PATH"] = os.path.join(prod_save_dir, run_name)
+                build_slurm(slurm_dict, slurm_file, slurm_in)
+                # append name of submit script
+                slurm_list.append(run_name + ".sh")
 
-    # # build batch slurm script
-    # sbatch_loc = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_prod/submit/mass_submit.sh")
-    # build_sbatch(slurm_list, sbatch_loc)
+    # build batch slurm script
+    sbatch_loc = os.path.join(os.path.dirname(__file__), "../inputs/ista/tde_prod/submit/mass_submit.sh")
+    build_sbatch(slurm_list, sbatch_loc)
