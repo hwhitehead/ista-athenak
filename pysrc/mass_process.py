@@ -9,21 +9,10 @@ import athena_read
 
 from ista_classes import HydroDataAthenaK, NBody, InitBinary, InitParabola, InitOrbit
 
-def count_bin(load_dir):
+def count_files(path, file_ending):
 
-    # find number of hdf5 files at location
-    dir_d = os.path.join(os.getcwd(), load_dir)
-    enc_dir = os.fsencode(dir_d)
-
-    n_max = 0
-    for file in os.listdir(enc_dir):
-        filename = os.fsdecode(file)
-        if filename.endswith(".bin"):
-            n_id = int(filename.split(".", 4)[2])
-            if n_id > n_max:
-                n_max = n_id
-
-    return n_max
+    return len([f for f in os.listdir(path) 
+     if f.endswith(file_ending) and os.path.isfile(os.path.join(path, f))])
 
 def mass_convert_athdf(master_dir, prod_params):
 
@@ -43,9 +32,9 @@ def mass_convert_athdf(master_dir, prod_params):
                 bin_dir  = os.path.join(run_dir, "bin")
                 bin_stem = os.path.join(bin_dir, "nbody.hydro_w")
                 # check if last entry already converted
-                num_bin = count_bin(bin_dir)
-                check_athdf = os.path.join(bin_dir, "nbody.hydro_w." + str(num_bin) + ".athdf")
-                if os.path.exists(check_athdf):
+                num_bin = count_files(bin_dir, ".bin")
+                num_athdf = count_files(bin_dir, ".athdf")
+                if (num_bin == num_athdf):
                     print(".athdf creation already complete for {0}, skipping".format(run_name))
                     continue
                 # invoke subproc to call binary converter
