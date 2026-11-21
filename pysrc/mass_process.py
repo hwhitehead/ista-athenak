@@ -45,7 +45,7 @@ def mass_convert_athdf(master_dir, prod_params):
                 # check if last entry already converted
                 num_bin = count_bin(bin_dir)
                 check_athdf = os.path.join(bin_dir, "nbody.hydro_w." + str(num_bin) + ".athdf")
-                if os.path.exists(last_athdf):
+                if os.path.exists(check_athdf):
                     print(".athdf creation already complete for {0}, skipping".format(run_name))
                     continue
                 # invoke subproc to call binary converter
