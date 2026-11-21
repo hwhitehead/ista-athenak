@@ -9,6 +9,22 @@ import athena_read
 
 from ista_classes import HydroDataAthenaK, NBody, InitBinary, InitParabola, InitOrbit
 
+def count_bin(load_dir):
+
+    # find number of hdf5 files at location
+    dir_d = os.path.join(os.getcwd(), load_dir)
+    enc_dir = os.fsencode(dir_d)
+
+    n_max = 0
+    for file in os.listdir(enc_dir):
+        filename = os.fsdecode(file)
+        if filename.endswith(".bin"):
+            n_id = int(filename.split(".", 4)[2])
+            if n_id > n_max:
+                n_max = n_id
+
+    return n_max
+
 def mass_convert_athdf(master_dir, prod_params):
 
     grade_span    = prod_params["grade_span"]
@@ -23,8 +39,15 @@ def mass_convert_athdf(master_dir, prod_params):
             for ecc in ecc_span:
                 # define save_str
                 run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
-                run_dir = os.path.join(master_dir, run_name)
-                bin_stem = os.path.join(run_dir, "bin/nbody.hydro_w")
+                run_dir  = os.path.join(master_dir, run_name)
+                bin_dir  = os.path.join(run_dir, "bin")
+                bin_stem = os.path.join(bin_dir, "nbody.hydro_w")
+                # check if last entry already converted
+                num_bin = count_bin(bin_dir)
+                check_athdf = os.path.join(bin_dir, "nbody.hydro_w." + str(num_bin) + ".athdf")
+                if os.path.exists(last_athdf):
+                    print(".athdf creation already complete for {0}, skipping".format(run_name))
+                    continue
                 # invoke subproc to call binary converter
                 subprocess.run(["python3", convert_path, bin_stem])
                 print("finished .athdf creation for {0}".format(run_name))
@@ -43,6 +66,9 @@ def mass_track_mass(master_dir, prod_params, skip=1):
                 run_name = "tde_{0}q{1}b{2}e{3}".format(grade, q, beta, ecc)
                 run_dir = os.path.join(master_dir, run_name)
                 save_str = os.path.join(run_dir, run_name + "_mass.npy")
+                if os.path.exists(save_str):
+                    print("mass_track already exists for {0}, skipping.".format(run_name))
+                    continue
                 single_track_mass(run_dir, save_str, skip = skip)
                 print("finished mass_track for {0}".format(run_name))
 
