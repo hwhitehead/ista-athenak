@@ -136,8 +136,8 @@ if __name__ == "__main__":
     prod_params["q"]          = 0.1
 
     # convert binary files to atdf    
-    #mass_convert_athdf(master_dir, prod_params)
-    #print("finished binary conversion")
+    mass_convert_athdf(master_dir, prod_params)
+    print("finished binary conversion")
     mass_track_mass(master_dir, prod_params, skip=1)
     print("finished mass track")
     collect_files(master_dir, prod_params, mass_dir, hst_dir)
