@@ -11,7 +11,10 @@ from ista_classes import HydroDataAthenaK, NBody, InitBinary, InitParabola, Init
 
 def count_files(path, file_ending):
 
-    return len([f for f in os.listdir(path) if f.endswith(file_ending) and os.path.isfile(os.path.join(path, f))])
+    if os.path.isdir(path):
+        return len([f for f in os.listdir(path) if f.endswith(file_ending) and os.path.isfile(os.path.join(path, f))])
+    
+    return None
 
 def mass_convert_athdf(master_dir, prod_params):
 
@@ -146,7 +149,7 @@ if __name__ == "__main__":
     prod_params = {}
     prod_params["grade_span"] = ["P", "R"]
     prod_params["beta_span"]  = [0.5, 1, 2]
-    prod_params["ecc_span"]   = [0.75, 1.0, 2.0, 4.0]
+    prod_params["ecc_span"]   = [0.9, 1.0, 2.0, 4.0]
     prod_params["q"]          = 0.1
 
     # convert binary files to atdf    
