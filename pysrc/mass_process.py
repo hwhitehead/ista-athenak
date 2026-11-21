@@ -16,6 +16,8 @@ def mass_convert_athdf(master_dir, prod_params):
     ecc_span      = prod_params["ecc_span"]
     q             = prod_params["q"]
 
+    convert_path = os.path.join(os.path.dirname(__file__), "../vis/python/make_athdf.py")
+
     for grade in grade_span:
         for beta in beta_span:
             for ecc in ecc_span:
@@ -33,8 +35,6 @@ def mass_track_mass(master_dir, prod_params, skip=1):
     beta_span     = prod_params["beta_span"]
     ecc_span      = prod_params["ecc_span"]
     q             = prod_params["q"]
-
-    convert_path = "/nfs/scistore24/haimagrp/hwhitehe/ista-athenak/vis/python/make_athdf.py"
 
     for grade in grade_span:
         for beta in beta_span:
